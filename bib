@@ -1,0 +1,93 @@
+#! /usr/bin/env python
+# -*- mode: python; coding: utf-8 -*-
+# Copyright 2014 Peter Williams <peter@newton.cx>
+# Licensed under the GNU General Public License, version 3 or higher.
+
+"""
+Docstring!
+"""
+
+import sys, os.path, errno, sqlite3
+
+
+# Generic app infrastructure
+
+def die (fmt, *args):
+    if not len (args):
+        raise SystemExit ('error: ' + str (fmt))
+    raise SystemExit ('error: ' + fmt % args)
+
+
+# The app!
+
+def _make_data_pather ():
+    # XXXX
+    def pathfunc (*args):
+        return os.path.join ('/a/share/bib', *args)
+    return pathfunc
+
+
+datapath = _make_data_pather ()
+
+
+def _make_user_data_pather ():
+    datadir = os.environ.get ('XDG_DATA_HOME',
+                              os.path.expanduser ('~/.local/share'))
+
+    def pathfunc (*args):
+        return os.path.join (datadir, 'bib', *args)
+
+    return pathfunc
+
+
+bibpath = _make_user_data_pather ()
+dbpath = bibpath ('db.sqlite3')
+
+
+def connect ():
+    return sqlite3.connect (dbpath)
+
+
+# Commands
+
+def cmd_init (argv):
+    try:
+        os.makedirs (bibpath ())
+    except OSError as e:
+        if e.errno != errno.EEXIST or not os.path.isdir (bibpath ()):
+            raise
+
+    if os.path.exists (dbpath):
+        die ('the file "%s" already exists', dbpath)
+
+    with connect () as db:
+        try:
+            init = open (datapath ('schema.sql')).read ()
+            db.executescript (init)
+        except sqlite3.OperationalError as e:
+            die ('cannot initialize "%s": %s', dbpath, e)
+
+
+# Toplevel driver infrastructure
+
+def usage ():
+    print 'usage goes here'
+
+
+def driver (argv):
+    if len (argv) == 1 or argv[1] == '--help':
+        usage ()
+        return
+
+    cmdname = argv[1]
+    cmdfunc = globals ().get ('cmd_' + cmdname.replace ('-', '_'))
+
+    if not callable (cmdfunc):
+        die ('"%s" is not a recognized subcommand; run me without '
+             'arguments for usage help', cmdname)
+
+    cmdfunc (argv[1:])
+
+
+if __name__ == '__main__':
+    driver (sys.argv)

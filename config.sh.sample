@@ -1,0 +1,7 @@
+# This file is just -*- shell-script -*- so you can use environment
+# variables and things in the usual way.
+#
+# Copyright 2014 Peter Williams
+# This work is dedicated to the public domain.
+
+prefix=/opt/local # (required) main installation prefix

@@ -80,12 +80,12 @@ def cmd_info (argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
-    doi = argv[1] # XXX: other possbilities!
+    doi = argv[1] # XXX: other possibilities!
 
     with connect () as db:
         gotany = False
 
-        for row in db.execute ('SELECT * from pubs WHERE DOI = ?', (doi, )):
+        for row in db.execute ('SELECT * FROM pubs WHERE DOI = ?', (doi, )):
             id, abstract, arxiv, bibcode, doi, firstsurname, title, year = row
             gotany = True
 
@@ -150,6 +150,33 @@ def cmd_ingest (argv):
 
         for rec in bp.get_entry_list ():
             _ingest_one (db, rec)
+
+
+def cmd_jpage (argv):
+    if len (argv) != 2:
+        raise UsageError ('expected exactly 1 argument')
+
+    import webbrowser
+    from urllib2 import quote
+
+    doi = argv[1] # XXX: other possibilities!
+
+    with connect () as db:
+        gotany = False
+
+        for (doi, ) in db.execute ('SELECT doi FROM pubs WHERE DOI = ?', (doi, )):
+            gotany = True
+
+            # XXX this is currently pretty dumb ...
+            if doi is None:
+                die ('cannot open journal website: no DOI for record')
+
+            url = 'http://dx.doi.org/' + quote (doi)
+            webbrowser.open (url)
+            break
+
+        if not gotany:
+            die ('no record found with DOI "%s"', doi)
 
 
 # Toplevel driver infrastructure

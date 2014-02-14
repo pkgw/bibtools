@@ -1,0 +1,10 @@
+Metadata-Version: 1.0
+Name: bibtexparser
+Version: 0.5.1
+Summary: Bibtex parser for python3
+Home-page: https://github.com/sciunto/python-bibtexparser
+Author: Francois Boulogne
+Author-email: fboulogne@sciunto.org
+License: LGPLv3
+Description: UNKNOWN
+Platform: UNKNOWN

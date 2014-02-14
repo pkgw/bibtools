@@ -3,7 +3,10 @@ CREATE TABLE pubs (
        abstract TEXT,
        arxiv TEXT,
        bibcode TEXT,
-       doi TEXT
+       doi TEXT,
+       firstsurname TEXT,
+       title TEXT,
+       year INTEGER
 );
 
 CREATE TABLE pdfs (

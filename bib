@@ -18,6 +18,14 @@ def die (fmt, *args):
     raise SystemExit ('error: ' + fmt % args)
 
 
+class UsageError (Exception):
+    def __init__ (self, fmt, *args):
+        if not len (args):
+            self.uimsg = str (fmt)
+        else:
+            self.uimsg = fmt % args
+
+
 # The app!
 
 def _make_data_pather ():
@@ -68,6 +76,82 @@ def cmd_init (argv):
             die ('cannot initialize "%s": %s', dbpath, e)
 
 
+def cmd_info (argv):
+    if len (argv) != 2:
+        raise UsageError ('expected exactly 1 argument')
+
+    doi = argv[1] # XXX: other possbilities!
+
+    with connect () as db:
+        gotany = False
+
+        for row in db.execute ('SELECT * from pubs WHERE DOI = ?', (doi, )):
+            id, abstract, arxiv, bibcode, doi, firstsurname, title, year = row
+            gotany = True
+
+            if firstsurname is None:
+                firstsurname = '(no author)'
+            if year is None:
+                year = 'no year'
+            if title is None:
+                title = '(no title)'
+
+            print '%s*(%s): %s' % (firstsurname, year, title)
+
+            if arxiv is not None:
+                print 'arxiv:', arxiv
+            if bibcode is not None:
+                print 'bibcode:', bibcode
+            if doi is not None:
+                print 'DOI:', doi
+
+            if abstract is not None:
+                print
+                # XXX linewrapping etc
+                print abstract
+
+        if not gotany:
+            die ('no record found with DOI "%s"', doi)
+
+
+def _ingest_one (db, rec):
+    abstract = rec.get ('abstract')
+    arxiv = rec.get ('eprint')
+    bibcode = None # XXX
+    doi = rec.get ('doi')
+    title = rec.get ('title')
+    year = rec.get ('year')
+
+    if year is not None:
+        year = int (year)
+
+    if 'author' in rec:
+        t = rec['author'][0].replace ('{', '').replace ('}', '').replace ('~', ' ')
+        firstsurname = t.split (',', 1)[0]
+    else:
+        firstsurname = None
+
+    db.execute ('INSERT INTO pubs VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)',
+                (abstract, arxiv, bibcode, doi, firstsurname, title, year))
+
+
+def cmd_ingest (argv):
+    if len (argv) != 2:
+        raise UsageError ('expected exactly 1 argument')
+
+    bibpath = argv[1]
+    from bibtexparser.bparser import BibTexParser
+    from bibtexparser.customization import author, type, convert_to_unicode
+
+    custom = lambda r: author (type (convert_to_unicode (r)))
+
+    with open (bibpath) as bibfile, connect () as db:
+        bp = BibTexParser (bibfile, customization=custom)
+
+        for rec in bp.get_entry_list ():
+            _ingest_one (db, rec)
+
+
 # Toplevel driver infrastructure
 
 def usage ():
@@ -86,8 +170,12 @@ def driver (argv):
         die ('"%s" is not a recognized subcommand; run me without '
              'arguments for usage help', cmdname)
 
-    cmdfunc (argv[1:])
-
+    try:
+        cmdfunc (argv[1:])
+    except UsageError as ue:
+        # TODO: synopsize command-specific usage help as an attribute on the
+        # function (so we can auto-gen a multi-command usage summary too)
+        raise SystemExit ('usage error: ' + ue.uimsg)
 
 if __name__ == '__main__':
     driver (sys.argv)

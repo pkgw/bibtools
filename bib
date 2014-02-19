@@ -10,6 +10,11 @@ Docstring!
 import errno, os.path, re, sqlite3, sys
 
 
+# Things that are hardcoded but shouldn't be!
+
+pdfreader = 'evince'
+
+
 # Generic app infrastructure
 
 def die (fmt, *args):
@@ -243,6 +248,47 @@ def cmd_jpage (argv):
 
         url = 'http://dx.doi.org/' + quote (doi)
         webbrowser.open (url)
+
+
+def cmd_read (argv):
+    if len (argv) != 2:
+        raise UsageError ('expected exactly 1 argument')
+
+    idtext = argv[1]
+
+    with connect () as db:
+        try:
+            id = locate_pub (db, idtext)
+        except PubLocateError as e:
+            die (e)
+
+        res = list (db.execute ('SELECT sha1 FROM pdfs WHERE pubid = ?', (id, )))
+        if not len (res):
+            die ('cannot show "%s": no PDF stored in library', idtext)
+
+        sha1 = res[0][0]
+
+    # XXX may want to centralize this; also, close FD's, etc.
+
+    try:
+        pid = os.fork ()
+    except OSError as e:
+        die ('cannot fork() first time: %s', e)
+
+    if pid == 0:
+        os.setsid () # become new session leader, apparently a good thing to do.
+
+        try:
+            pid2 = os.fork ()
+        except OSError as e:
+            die ('cannot fork() second time: %s', e)
+
+        if pid == 0:
+            os.execlp (pdfreader, pdfreader, libpath (sha1, 'pdf'))
+        else:
+            os._exit (0)
+    else:
+        pass # parent has nothing to do
 
 
 def cmd_setpdf (argv):

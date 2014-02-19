@@ -62,6 +62,25 @@ bibpath = _make_user_data_pather ()
 dbpath = bibpath ('db.sqlite3')
 
 
+def mkdir_p (path):
+    """That is, create `path` as a directory and all of its parents, ignoring
+    errors if they already exist."""
+
+    try:
+        os.makedirs (path)
+    except OSError as e:
+        if e.errno != errno.EEXIST or not os.path.isdir (path):
+            raise
+
+
+def libpath (sha1, ext):
+    return bibpath ('lib', sha1[:2], sha1[2:] + '.' + ext)
+
+
+def ensure_libpath_exists (sha1):
+    mkdir_p (bibpath ('lib', sha1[:2]))
+
+
 def connect ():
     return sqlite3.connect (dbpath)
 
@@ -112,11 +131,7 @@ def locate_pub (db, text, noneok=False):
 # Commands
 
 def cmd_init (argv):
-    try:
-        os.makedirs (bibpath ())
-    except OSError as e:
-        if e.errno != errno.EEXIST or not os.path.isdir (bibpath ()):
-            raise
+    mkdir_p (bibpath ())
 
     if os.path.exists (dbpath):
         die ('the file "%s" already exists', dbpath)
@@ -228,6 +243,44 @@ def cmd_jpage (argv):
 
         url = 'http://dx.doi.org/' + quote (doi)
         webbrowser.open (url)
+
+
+def cmd_setpdf (argv):
+    if len (argv) != 3:
+        raise UsageError ('expected exactly 2 arguments')
+
+    idtext = argv[1]
+    pdfpath = argv[2]
+
+    import hashlib, shutil
+
+    with connect () as db:
+        # Check that we know what pub we're talking about
+        try:
+            id = locate_pub (db, idtext)
+        except PubLocateError as e:
+            die (e)
+
+        # Get SHA1 of the PDF
+        with open (pdfpath) as f:
+            s = hashlib.sha1 ()
+
+            while True:
+                b = f.read (4096)
+                if not len (b):
+                    break
+
+                s.update (b)
+
+            sha1 = s.hexdigest ()
+
+        # Copy it into the library
+        ensure_libpath_exists (sha1)
+        dest = libpath (sha1, 'pdf')
+        shutil.copyfile (pdfpath, dest)
+
+        # Update the DB
+        db.execute ('INSERT OR REPLACE INTO pdfs VALUES (?, ?)', (sha1, id))
 
 
 # Toplevel driver infrastructure

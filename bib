@@ -7,7 +7,7 @@
 Docstring!
 """
 
-import sys, os.path, errno, sqlite3
+import errno, os.path, re, sqlite3, sys
 
 
 # Generic app infrastructure
@@ -18,12 +18,22 @@ def die (fmt, *args):
     raise SystemExit ('error: ' + fmt % args)
 
 
-class UsageError (Exception):
+class BibError (Exception):
     def __init__ (self, fmt, *args):
         if not len (args):
-            self.uimsg = str (fmt)
+            self.bibmsg = str (fmt)
         else:
-            self.uimsg = fmt % args
+            self.bibmsg = fmt % args
+
+    def __str__ (self):
+        return self.bibmsg
+
+
+class UsageError (BibError):
+    pass
+
+class PubLocateError (BibError):
+    pass
 
 
 # The app!
@@ -56,6 +66,49 @@ def connect ():
     return sqlite3.connect (dbpath)
 
 
+_arxiv_re_1 = re.compile (r'^\d\d[01]\d\.\d+')
+_arxiv_re_2 = re.compile (r'^[a-z-]+/\d+')
+_bibcode_re = re.compile (r'^\d\d\d\d[a-zA-Z0-9&]+')
+_doi_re = re.compile (r'^10\.\d+/.*')
+
+def locate_pubs (db, text, noneok=False, manyok=False):
+    """Given some text that we believe identifies a publication, try to
+    retrieve its ID number. A key routine."""
+
+    if text.startswith ('doi:'):
+        q = db.execute ('SELECT id FROM pubs WHERE doi = ?', (text[4:], ))
+        matchtext = 'DOI = ' + text[4:]
+    elif _doi_re.match (text) is not None:
+        q = db.execute ('SELECT id FROM pubs WHERE doi = ?', (text, ))
+        matchtext = 'DOI = ' + text
+    elif _bibcode_re.match (text) is not None:
+        q = db.execute ('SELECT id FROM pubs WHERE bibcode = ?', (text, ))
+        matchtext = 'bibcode = ' + text
+    elif _arxiv_re_1.match (text) is not None or arxiv_re_2.match (text) is not None:
+        q = db.execute ('SELECT id FROM pubs WHERE arxiv = ?', (text, ))
+        matchtext = 'arxiv = ' + text
+    else:
+        # note: we do this even if noneok=True.
+        raise PubLocateError ('couldn\'t understand publication identifier "%s"', text)
+
+    ids = list (t[0] for t in q)
+
+    if not noneok and not len (ids):
+        raise PubLocateError ('no publications matched ' + matchtext)
+    if not manyok and len (ids) > 1:
+        raise PubLocateError ('more than one publication matched ' + matchtext)
+
+    return ids
+
+
+def locate_pub (db, text, noneok=False):
+    ids = locate_pubs (db, text, noneok=noneok, manyok=False)
+
+    if not len (ids):
+        return None
+    return ids[0]
+
+
 # Commands
 
 def cmd_init (argv):
@@ -80,14 +133,19 @@ def cmd_info (argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
-    doi = argv[1] # XXX: other possibilities!
+    idtext = argv[1]
 
     with connect () as db:
-        gotany = False
+        # TODO: should be OK to match multiple publications and print them all
+        # out.
 
-        for row in db.execute ('SELECT * FROM pubs WHERE DOI = ?', (doi, )):
-            id, abstract, arxiv, bibcode, doi, firstsurname, title, year = row
-            gotany = True
+        try:
+            id = locate_pub (db, idtext)
+        except PubLocateError as e:
+            die (e)
+
+        for row in db.execute ('SELECT * FROM pubs WHERE id = ?', (id, )):
+            _, abstract, arxiv, bibcode, doi, firstsurname, title, year = row
 
             if firstsurname is None:
                 firstsurname = '(no author)'
@@ -109,9 +167,6 @@ def cmd_info (argv):
                 print
                 # XXX linewrapping etc
                 print abstract
-
-        if not gotany:
-            die ('no record found with DOI "%s"', doi)
 
 
 def _ingest_one (db, rec):
@@ -159,24 +214,20 @@ def cmd_jpage (argv):
     import webbrowser
     from urllib2 import quote
 
-    doi = argv[1] # XXX: other possibilities!
+    idtext = argv[1]
 
     with connect () as db:
-        gotany = False
+        try:
+            id = locate_pub (db, idtext)
+        except PubLocateError as e:
+            die (e)
 
-        for (doi, ) in db.execute ('SELECT doi FROM pubs WHERE DOI = ?', (doi, )):
-            gotany = True
+        doi = list (db.execute ('SELECT doi FROM pubs WHERE id = ?', (id, )))[0][0]
+        if doi is None:
+            die ('cannot open journal website: no DOI for record')
 
-            # XXX this is currently pretty dumb ...
-            if doi is None:
-                die ('cannot open journal website: no DOI for record')
-
-            url = 'http://dx.doi.org/' + quote (doi)
-            webbrowser.open (url)
-            break
-
-        if not gotany:
-            die ('no record found with DOI "%s"', doi)
+        url = 'http://dx.doi.org/' + quote (doi)
+        webbrowser.open (url)
 
 
 # Toplevel driver infrastructure

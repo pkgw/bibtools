@@ -241,7 +241,7 @@ class HarvardProxy (object):
         return self.opener.open (req)
 
 
-    def __call__ (self, url):
+    def open (self, url):
         from urlparse import urlparse, urlunparse
         scheme, loc, path, params, query, frag = urlparse (url)
         loc += self.suffix
@@ -253,6 +253,17 @@ class HarvardProxy (object):
             resp = self.login (resp)
 
         return resp
+
+
+    def unmangle (self, url):
+        from urlparse import urlparse, urlunparse
+
+        scheme, loc, path, params, query, frag = urlparse (url)
+        if not loc.endswith (self.suffix):
+            return url
+
+        loc = loc[:-len (self.suffix)]
+        return urlunparse ((scheme, loc, path, params, query, frag))
 
 
 def setup_proxy ():
@@ -320,7 +331,7 @@ def get_pdf (db, proxy, id):
 
     if doi is not None:
         jurl = doi_to_journal_url (doi)
-        pdfurl = scrape_pdf_url (proxy (jurl))
+        pdfurl = proxy.unmangle (scrape_pdf_url (proxy.open (jurl)))
 
     if pdfurl is None:
         return None
@@ -334,7 +345,7 @@ def get_pdf (db, proxy, id):
     s = hashlib.sha1 ()
 
     print 'Downloading', pdfurl, '...'
-    resp = proxy (pdfurl)
+    resp = proxy.open (pdfurl)
 
     with open (temppath, 'w') as f:
         while True:

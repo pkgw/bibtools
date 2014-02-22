@@ -218,6 +218,7 @@ def parse_http_html (resp, parser):
 class HarvardProxy (object):
     suffix = '.ezp-prod1.hul.harvard.edu'
     loginurl = 'https://www.pin1.harvard.edu/cas/login'
+    forwardurl = 'http://ezp-prod1.hul.harvard.edu/connect'
 
     inputs = [
         ('compositeAuthenticationSourceType', 'PIN'),
@@ -272,6 +273,11 @@ class HarvardProxy (object):
 
         if resp.url.startswith (self.loginurl):
             resp = self.login (resp)
+
+        if resp.url.startswith (self.forwardurl):
+            # Sometimes we get forwarded to a separate cookie-setting page
+            # that requires us to re-request the original URL.
+            resp = self.opener.open (proxyurl)
 
         return resp
 

@@ -298,6 +298,7 @@ class PDFUrlScraper (HTMLParser.HTMLParser):
     """Observed places to look for PDF URLs:
 
     <meta> tag with name=citation_pdf_url -- IOP
+    <a> tag with id=download-pdf -- Nature (non-mobile site)
     """
 
     def __init__ (self):
@@ -320,11 +321,19 @@ class PDFUrlScraper (HTMLParser.HTMLParser):
 
             if mname == 'citation_pdf_url':
                 self.pdfurl = content
+        elif tag == 'a':
+            attrs = dict (attrs)
+            if attrs.get ('id') == 'download-pdf':
+                self.pdfurl = attrs['href']
 
 
 def scrape_pdf_url (resp):
     parser = parse_http_html (resp, PDFUrlScraper ())
-    return parser.pdfurl # may be None
+    if parser.pdfurl is None:
+        return None
+
+    from urlparse import urljoin
+    return urljoin (resp.url, parser.pdfurl)
 
 
 def doi_to_journal_url (doi):

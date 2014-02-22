@@ -31,6 +31,13 @@ def die (fmt, *args):
     raise SystemExit ('error: ' + fmt % args)
 
 
+def warn (fmt, *args):
+    if not len (args):
+        print >>sys.stderr, 'warning:', fmt
+    else:
+        print >>sys.stderr, 'warning:', fmt % args
+
+
 class BibError (Exception):
     def __init__ (self, fmt, *args):
         if not len (args):
@@ -149,6 +156,21 @@ class NonRedirectingProcessor (urllib2.HTTPErrorProcessor):
         return response
 
     https_response = http_response
+
+
+def get_url_from_redirection (url):
+    """Note that we don't go through the proxy class here for convenience, under
+    the assumption that all of these redirections involve public information
+    that won't require privileged access."""
+
+    opener = urllib2.build_opener (NonRedirectingProcessor ())
+    resp = opener.open (url)
+
+    if resp.code not in (301, 302, 303, 307) or 'Location' not in resp.headers:
+        die ('expected a redirection response for URL %s but didn\'t get one', url)
+
+    resp.close ()
+    return resp.headers['Location']
 
 
 class HarvardProxyLoginParser (HTMLParser.HTMLParser):
@@ -343,22 +365,20 @@ def scrape_pdf_url (resp):
 
 
 def doi_to_journal_url (doi):
-    url = 'http://dx.doi.org/' + urllib2.quote (doi)
+    return get_url_from_redirection ('http://dx.doi.org/' + urllib2.quote (doi))
 
-    # A bit overkill, but I expect that I'm going to need to use a
-    # lot more of this kind of stuff farther down the road.
-    cj = cookielib.CookieJar ()
-    opener = urllib2.build_opener (NonRedirectingProcessor,
-                                   urllib2.HTTPCookieProcessor (cj))
-    response = opener.open (url)
 
-    if (response.code not in (301, 302, 303, 307) or
-        'Location' not in response.headers):
-        die ('expected a redirection response for URL %s but didn\'t '
-             'get one', url)
+def bibcode_to_maybe_pdf_url (bibcode):
+    """If ADS doesn't have a fulltext link for a given bibcode, it will return a link
+    to articles.ads.harvard.edu that in turn yields an HTML error page.
 
-    response.close ()
-    return response.headers['Location']
+    Also, the Location header returned by the ADS server appears to be slightly broken,
+    with the &'s in the URL being HTML entity-encoded to &amp;s."""
+
+    url = ('http://adsabs.harvard.edu/cgi-bin/nph-data_query?link_type=ARTICLE&bibcode='
+           + urllib2.quote (bibcode))
+    pdfurl = get_url_from_redirection (url)
+    return pdfurl.replace ('&amp;', '&')
 
 
 def get_pdf (db, proxy, id):
@@ -372,6 +392,12 @@ def get_pdf (db, proxy, id):
         jurl = doi_to_journal_url (doi)
         pdfurl = proxy.unmangle (scrape_pdf_url (proxy.open (jurl)))
 
+    if pdfurl is None and bibcode is not None:
+        # This never returns None: ADS will always give a URL, but it may just
+        # be that the URL resolves to a 404 page saying that ADS has no PDF
+        # available. Thus, this technique is always our last resort.
+        pdfurl = bibcode_to_maybe_pdf_url (bibcode)
+
     if pdfurl is None:
         return None
 
@@ -383,12 +409,32 @@ def get_pdf (db, proxy, id):
     temppath = bibpath ('lib', 'incoming.pdf')
     s = hashlib.sha1 ()
 
-    print 'Downloading', pdfurl, '...'
-    resp = proxy.open (pdfurl)
+    print 'Trying', pdfurl, '...'
+
+    try:
+        resp = proxy.open (pdfurl)
+    except urllib2.HTTPError as e:
+        from urlparse import urlparse
+        if e.code == 404 and urlparse (pdfurl)[1] == 'articles.adsabs.harvard.edu':
+            warn ('ADS doesn\'t actually have the PDF on file')
+            return None # ADS gave us a URL that turned out to be a lie.
+        raise
+
+    first = True
 
     with open (temppath, 'w') as f:
         while True:
             b = resp.read (4096)
+
+            if first:
+                if len (b) < 4 or b[:4] != '%PDF':
+                    warn ('response does not seem to be a PDF')
+                    resp.close ()
+                    f.close ()
+                    os.unlink (temppath)
+                    return None
+                first = False
+
             if not len (b):
                 break
 

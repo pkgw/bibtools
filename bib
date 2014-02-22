@@ -176,12 +176,16 @@ class HarvardProxyLoginParser (HTMLParser.HTMLParser):
 
 def parse_http_html (resp, parser):
     import codecs
+    debug = False
 
     charset = resp.headers.getparam ('charset')
     if charset is None:
         charset = 'ISO-8859-1'
 
     dec = codecs.getincrementaldecoder (charset) ()
+
+    if debug:
+        f = open ('debug.html', 'w')
 
     while True:
         d = resp.read (4096)
@@ -190,8 +194,14 @@ def parse_http_html (resp, parser):
             parser.feed (text)
             break
 
+        if debug:
+            f.write (d)
+
         text = dec.decode (d)
         parser.feed (text)
+
+    if debug:
+        f.close ()
 
     resp.close ()
     parser.close ()

@@ -256,6 +256,9 @@ class HarvardProxy (object):
 
 
     def unmangle (self, url):
+        if url is None:
+            return None # convenience
+
         from urlparse import urlparse, urlunparse
 
         scheme, loc, path, params, query, frag = urlparse (url)

@@ -289,7 +289,7 @@ def prepare_unicode_to_latex():
         ("\u007B", "\\lbrace "),
         ("\u007C", "\\vert "),
         ("\u007D", "\\rbrace "),
-        ("\u007E", "\\textasciitilde "),
+        ("\u007E", "\\~{}"),
         ("\u00A1", "\\textexclamdown "),
         ("\u00A2", "\\textcent "),
         ("\u00A3", "\\textsterling "),

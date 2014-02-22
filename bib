@@ -191,6 +191,36 @@ def cmd_info (argv):
                 print abstract
 
 
+_bibtex_replacements = (
+    '\\&ap;', u'~',
+    '\\&#177;', u'±',
+    '\&gt;~', u'⪞',
+    '\&lt;~', u'⪝',
+    '{', u'',
+    '}', u'',
+    '<SUP>', u'^',
+    '</SUP>', u'',
+    '<SUB>', u'_',
+    '</SUB>', u'',
+    'Delta', u'Δ',
+    'Omega', u'Ω',
+    '\t', u'',
+    '  ', u'',
+)
+
+def _fix_bibtex (text):
+    """Ugggghhh. So many problems."""
+
+    if text is None:
+        return None
+
+    text = unicode (text)
+
+    for i in xrange (0, len (_bibtex_replacements), 2):
+        text = text.replace (_bibtex_replacements[i], _bibtex_replacements[i+1])
+    return text
+
+
 def _ingest_one (db, rec):
     abstract = rec.get ('abstract')
     arxiv = rec.get ('eprint')
@@ -204,16 +234,13 @@ def _ingest_one (db, rec):
         year = int (year)
 
     if 'author' in rec:
-        t = rec['author'][0].replace ('{', '').replace ('}', '').replace ('~', ' ')
+        t = _fix_bibtex (rec['author'][0])
         firstsurname = t.split (',', 1)[0]
     else:
         firstsurname = None
 
-    if abstract is not None:
-        abstract = abstract.replace ('{', '').replace ('}', '')
-
-    if title is not None:
-        title = title.replace ('{', '').replace ('}', '')
+    abstract = _fix_bibtex (abstract)
+    title = _fix_bibtex (title)
 
     c = db.cursor ()
     c.execute ('INSERT INTO pubs VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)',

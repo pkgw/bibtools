@@ -7,7 +7,7 @@
 Docstring!
 """
 
-import errno, os.path, re, sqlite3, sys
+import cookielib, errno, os.path, re, sqlite3, sys, urllib2
 
 
 # Things that are hardcoded but shouldn't be!
@@ -133,6 +133,44 @@ def locate_pub (db, text, noneok=False):
     if not len (ids):
         return None
     return ids[0]
+
+
+class NonRedirectingProcessor (urllib2.HTTPErrorProcessor):
+    # Copied from StackOverflow q 554446.
+    def http_response (self, request, response):
+        return response
+
+    https_response = http_response
+
+
+def doi_to_journal_url (doi):
+    url = 'http://dx.doi.org/' + urllib2.quote (doi)
+
+    # A bit overkill, but I expect that I'm going to need to use a
+    # lot more of this kind of stuff farther down the road.
+    cj = cookielib.CookieJar ()
+    opener = urllib2.build_opener (NonRedirectingProcessor,
+                                   urllib2.HTTPCookieProcessor (cj))
+    response = opener.open (url)
+
+    if (response.code not in (301, 302, 303, 307) or
+        'Location' not in response.headers):
+        die ('expected a redirection response for URL %s but didn\'t '
+             'get one', url)
+
+    return response.headers['Location']
+
+
+def get_pdf (db, id):
+    r = list (db.execute ('SELECT arxiv, bibcode, doi FROM pubs '
+                          'WHERE id = ?', (id, )))
+    assert len (r) == 1, 'unexpected ID thingie %d' % id
+    arxiv, bibcode, doi = r[0]
+
+    if doi is not None:
+        print doi_to_journal_url (doi)
+    else:
+        print 'what'
 
 
 # Commands
@@ -307,10 +345,11 @@ def cmd_read (argv):
             die (e)
 
         res = list (db.execute ('SELECT sha1 FROM pdfs WHERE pubid = ?', (id, )))
-        if not len (res):
-            die ('cannot show "%s": no PDF stored in library', idtext)
-
-        sha1 = res[0][0]
+        if len (res):
+            sha1 = res[0][0]
+        else:
+            get_pdf (db, id)
+            die ('unfinished')
 
     # XXX may want to centralize this; also, close FD's, etc.
 

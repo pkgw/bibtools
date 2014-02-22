@@ -556,6 +556,29 @@ def get_pdf (db, proxy, id):
 
 # Commands
 
+def cmd_apage (argv):
+    if len (argv) != 2:
+        raise UsageError ('expected exactly 1 argument')
+
+    import webbrowser
+    from urllib2 import quote
+
+    idtext = argv[1]
+
+    with connect () as db:
+        try:
+            id = locate_pub (db, idtext)
+        except PubLocateError as e:
+            die (e)
+
+        arxiv = list (db.execute ('SELECT arxiv FROM pubs WHERE id = ?', (id, )))[0][0]
+        if arxiv is None:
+            die ('cannot open arxiv website: no identifier for record')
+
+        url = 'http://arxiv.org/abs/' + quote (arxiv)
+        webbrowser.open (url)
+
+
 def cmd_init (argv):
     mkdir_p (bibpath ())
 

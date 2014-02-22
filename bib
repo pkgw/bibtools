@@ -8,6 +8,7 @@ Docstring!
 """
 
 import cookielib, errno, os.path, re, sqlite3, sys, urllib2
+import HTMLParser # renamed to html.parser in Python 3.
 
 
 # Things that are hardcoded but shouldn't be!
@@ -143,6 +144,150 @@ class NonRedirectingProcessor (urllib2.HTTPErrorProcessor):
     https_response = http_response
 
 
+class HarvardProxyLoginParser (HTMLParser.HTMLParser):
+    def __init__ (self):
+        HTMLParser.HTMLParser.__init__ (self)
+        self.formurl = None
+        self.inputs = []
+
+
+    def handle_starttag (self, tag, attrs):
+        if tag == 'form':
+            for name, value in attrs:
+                if name == 'action':
+                    self.formurl = value
+                elif name == 'method':
+                    if value != 'post':
+                        die ('unexpected form method')
+        elif tag == 'input':
+            iname = ivalue = None
+
+            for name, value in attrs:
+                if name == 'name':
+                    iname = value
+                elif name == 'value':
+                    ivalue = value
+
+            if iname is None or ivalue is None:
+                die ('missing form input information')
+
+            self.inputs.append ((iname, ivalue))
+
+
+class HarvardProxy (object):
+    suffix = '.ezp-prod1.hul.harvard.edu'
+    loginurl = 'https://www.pin1.harvard.edu/cas/login'
+
+    inputs = [
+        ('compositeAuthenticationSourceType', 'PIN'),
+        ('username', '70576465'),
+        ('password', None),
+    ]
+
+    def __init__ (self):
+        self.cj = cookielib.CookieJar ()
+        self.opener = urllib2.build_opener (urllib2.HTTPRedirectHandler (),
+                                            urllib2.HTTPCookieProcessor (self.cj))
+        self.password = open ('scarytemp').readline ().strip () # XXXXXXX
+
+
+    def login (self, resp):
+        # XXX we should verify the SSL cert of the counterparty, lest we send
+        # our password to malicious people.
+        parser = HarvardProxyLoginParser ()
+
+        while True:
+            d = resp.read (4096)
+            if not len (d):
+                break
+            parser.feed (d)
+
+        resp.close ()
+
+        if parser.formurl is None:
+            die ('malformed proxy page response?')
+
+        from urlparse import urljoin
+        posturl = urljoin (resp.url, parser.formurl)
+        values = {}
+
+        for name, value in parser.inputs:
+            values[name] = value
+
+        for name, value in self.inputs:
+            if value is None:
+                value = self.password
+            values[name] = value
+
+        from urllib import urlencode # yay terrible Python APIs
+        req = urllib2.Request (posturl, urlencode (values))
+        # The response will redirect to the original target page.
+        return self.opener.open (req)
+
+
+    def __call__ (self, url):
+        from urlparse import urlparse, urlunparse
+        scheme, loc, path, params, query, frag = urlparse (url)
+        loc += self.suffix
+        proxyurl = urlunparse ((scheme, loc, path, params, query, frag))
+
+        resp = self.opener.open (proxyurl)
+
+        if resp.url.startswith (self.loginurl):
+            resp = self.login (resp)
+
+        return resp
+
+
+def setup_proxy ():
+    return HarvardProxy ()
+
+
+class PDFUrlScraper (HTMLParser.HTMLParser):
+    """Observed places to look for PDF URLs:
+
+    <meta> tag with name=citation_pdf_url -- IOP
+    """
+
+    def __init__ (self):
+        HTMLParser.HTMLParser.__init__ (self)
+        self.pdfurl = None
+
+
+    def handle_starttag (self, tag, attrs):
+        if self.pdfurl is not None:
+            return
+
+        if tag == 'meta':
+            mname = content = None
+
+            for aname, avalue in attrs:
+                if aname == 'name':
+                    mname = avalue
+                elif aname == 'content':
+                    content = avalue
+
+            if mname == 'citation_pdf_url':
+                self.pdfurl = content
+
+
+def scrape_pdf_url (resp):
+    parser = PDFUrlScraper ()
+
+    while True:
+        d = resp.read (4096)
+        if not len (d):
+            break
+
+        parser.feed (d)
+
+        if parser.pdfurl is not None:
+            break # no need to bother keeping going ..
+
+    resp.close ()
+    return parser.pdfurl # may be None
+
+
 def doi_to_journal_url (doi):
     url = 'http://dx.doi.org/' + urllib2.quote (doi)
 
@@ -158,19 +303,52 @@ def doi_to_journal_url (doi):
         die ('expected a redirection response for URL %s but didn\'t '
              'get one', url)
 
+    response.close ()
     return response.headers['Location']
 
 
-def get_pdf (db, id):
+def get_pdf (db, proxy, id):
     r = list (db.execute ('SELECT arxiv, bibcode, doi FROM pubs '
                           'WHERE id = ?', (id, )))
     assert len (r) == 1, 'unexpected ID thingie %d' % id
     arxiv, bibcode, doi = r[0]
+    pdfurl = None
 
     if doi is not None:
-        print doi_to_journal_url (doi)
-    else:
-        print 'what'
+        jurl = doi_to_journal_url (doi)
+        pdfurl = scrape_pdf_url (proxy (jurl))
+
+    if pdfurl is None:
+        return None
+
+    # OK, we can now download and register the PDF. TODO: progress reporting,
+    # etc.
+
+    import hashlib
+    mkdir_p (bibpath ('lib'))
+    temppath = bibpath ('lib', 'incoming.pdf')
+    s = hashlib.sha1 ()
+
+    print 'Downloading', pdfurl, '...'
+    resp = proxy (pdfurl)
+
+    with open (temppath, 'w') as f:
+        while True:
+            b = resp.read (4096)
+            if not len (b):
+                break
+
+            s.update (b)
+            f.write (b)
+
+    sha1 = s.hexdigest ()
+    ensure_libpath_exists (sha1)
+    destpath = libpath (sha1, 'pdf')
+    os.rename (temppath, destpath)
+
+    db.execute ('INSERT OR REPLACE INTO pdfs VALUES (?, ?)', (sha1, id))
+
+    return sha1
 
 
 # Commands
@@ -348,8 +526,11 @@ def cmd_read (argv):
         if len (res):
             sha1 = res[0][0]
         else:
-            get_pdf (db, id)
-            die ('unfinished')
+            proxy = setup_proxy ()
+            sha1 = get_pdf (db, proxy, id)
+
+    if sha1 is None:
+        die ('no saved PDF for %s, and cannot figure out how to download it', idtext)
 
     # XXX may want to centralize this; also, close FD's, etc.
 

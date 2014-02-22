@@ -1,5 +1,5 @@
 CREATE TABLE pubs (
-       id INTEGER PRIMARY KEY,
+       id INTEGER UNIQUE PRIMARY KEY,
        abstract TEXT,
        arxiv TEXT,
        bibcode TEXT,
@@ -9,7 +9,12 @@ CREATE TABLE pubs (
        year INTEGER
 );
 
+CREATE TABLE nicknames (
+       nickname TEXT UNIQUE PRIMARY KEY,
+       pubid INTEGER
+);
+
 CREATE TABLE pdfs (
-       sha1 TEXT PRIMARY KEY,
+       sha1 TEXT UNIQUE PRIMARY KEY,
        pubid INTEGER
 );

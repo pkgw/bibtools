@@ -99,6 +99,8 @@ def locate_pubs (db, text, noneok=False, manyok=False):
     """Given some text that we believe identifies a publication, try to
     retrieve its ID number. A key routine."""
 
+    q = matchtext = None
+
     if text.startswith ('doi:'):
         q = db.execute ('SELECT id FROM pubs WHERE doi = ?', (text[4:], ))
         matchtext = 'DOI = ' + text[4:]
@@ -108,12 +110,12 @@ def locate_pubs (db, text, noneok=False, manyok=False):
     elif _bibcode_re.match (text) is not None:
         q = db.execute ('SELECT id FROM pubs WHERE bibcode = ?', (text, ))
         matchtext = 'bibcode = ' + text
-    elif _arxiv_re_1.match (text) is not None or arxiv_re_2.match (text) is not None:
+    elif _arxiv_re_1.match (text) is not None or _arxiv_re_2.match (text) is not None:
         q = db.execute ('SELECT id FROM pubs WHERE arxiv = ?', (text, ))
         matchtext = 'arxiv = ' + text
     else:
-        # note: we do this even if noneok=True.
-        raise PubLocateError ('couldn\'t understand publication identifier "%s"', text)
+        q = db.execute ('SELECT pubid FROM nicknames WHERE nickname = ?', (text, ))
+        matchtext = 'nickname = ' + text
 
     ids = list (t[0] for t in q)
 
@@ -194,6 +196,7 @@ def _ingest_one (db, rec):
     arxiv = rec.get ('eprint')
     bibcode = None # XXX
     doi = rec.get ('doi')
+    nickname = rec.get ('id')
     title = rec.get ('title')
     year = rec.get ('year')
 
@@ -206,8 +209,22 @@ def _ingest_one (db, rec):
     else:
         firstsurname = None
 
-    db.execute ('INSERT INTO pubs VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)',
-                (abstract, arxiv, bibcode, doi, firstsurname, title, year))
+    if abstract is not None:
+        abstract = abstract.replace ('{', '').replace ('}', '')
+
+    if title is not None:
+        title = title.replace ('{', '').replace ('}', '')
+
+    c = db.cursor ()
+    c.execute ('INSERT INTO pubs VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)',
+               (abstract, arxiv, bibcode, doi, firstsurname, title, year))
+
+    if nickname is not None:
+        try:
+            c.execute ('INSERT INTO nicknames VALUES (?, ?)',
+                       (nickname, c.lastrowid))
+        except sqlite3.IntegrityError:
+            die ('duplicated pub nickname "%s"', nickname)
 
 
 def cmd_ingest (argv):

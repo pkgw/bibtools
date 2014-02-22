@@ -544,10 +544,34 @@ def _fix_bibtex (text):
     return text
 
 
+def sniff_url (url):
+    p = 'http://dx.doi.org/'
+    if url.startswith (p):
+        return 'doi', urllib2.unquote (url[len (p):])
+
+    p = 'http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode='
+    if url.startswith (p):
+        return 'bibcode', urllib2.unquote (url[len (p):])
+
+    p = 'http://labs.adsabs.harvard.edu/ui/abs/'
+    if url.startswith (p):
+        return 'bibcode', urllib2.unquote (url[len (p):])
+
+    p = 'http://arxiv.org/abs/'
+    if url.startswith (p):
+        return 'arxiv', urllib2.unquote (url[len (p):])
+
+    p = 'http://arxiv.org/pdf/'
+    if url.startswith (p):
+        return 'arxiv', urllib2.unquote (url[len (p):])
+
+    return None, None
+
+
 def _ingest_one (db, rec):
     abstract = rec.get ('abstract')
     arxiv = rec.get ('eprint')
-    bibcode = None # XXX
+    bibcode = None
     doi = rec.get ('doi')
     nickname = rec.get ('id')
     title = rec.get ('title')
@@ -564,6 +588,32 @@ def _ingest_one (db, rec):
 
     abstract = _fix_bibtex (abstract)
     title = _fix_bibtex (title)
+
+    # Augment information with what we can get from URLs
+
+    urlinfo = []
+
+    if 'url' in rec:
+        urlinfo.append (sniff_url (rec['url']))
+
+    for k, v in rec.iteritems ():
+        if k.startswith ('citeulike-linkout-'):
+            urlinfo.append (sniff_url (v))
+
+    for kind, info in urlinfo:
+        if kind is None:
+            continue
+
+        if kind == 'bibcode' and bibcode is None:
+            bibcode = info
+
+        if kind == 'doi' and doi is None:
+            doi = info
+
+        if kind == 'arxiv' and arxiv is None:
+            arxiv = info
+
+    # Ready to insert.
 
     c = db.cursor ()
     c.execute ('INSERT INTO pubs VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)',

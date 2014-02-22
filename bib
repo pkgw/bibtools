@@ -12,8 +12,15 @@ import HTMLParser # renamed to html.parser in Python 3.
 
 
 # Things that are hardcoded but shouldn't be!
+#
+# The user_agent is because otherwise nature.com gives us the mobile site, which
+# happens to not include the easily-recognized <a> tag linking to the paper PDF.
+# I don't know exactly what's needed, but if we just send 'Mozilla/5.0' as the UA,
+# nature.com gives us a 500 error (!). So I've just copied my current browser's
+# UA.
 
 pdfreader = 'evince'
+user_agent = 'Mozilla/5.0 (X11; Linux x86_64; rv:27.0) Gecko/20100101 Firefox/27.0'
 
 
 # Generic app infrastructure
@@ -222,6 +229,10 @@ class HarvardProxy (object):
         self.cj = cookielib.CookieJar ()
         self.opener = urllib2.build_opener (urllib2.HTTPRedirectHandler (),
                                             urllib2.HTTPCookieProcessor (self.cj))
+
+        # XXX This doesn't quite belong here.
+        self.opener.addheaders = [('User-Agent', user_agent)]
+
         self.password = open ('scarytemp').readline ().strip () # XXXXXXX
 
 

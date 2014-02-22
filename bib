@@ -21,6 +21,7 @@ import HTMLParser # renamed to html.parser in Python 3.
 
 pdfreader = 'evince'
 user_agent = 'Mozilla/5.0 (X11; Linux x86_64; rv:27.0) Gecko/20100101 Firefox/27.0'
+openssl_cmd = '/usr/bin/openssl'
 
 
 # Generic app infrastructure
@@ -150,6 +151,117 @@ def locate_pub (db, text, noneok=False):
     return ids[0]
 
 
+# Handling of the user's login secret. I've made the decision to store this on
+# disk without requiring user input to access the secret -- i.e., this is what
+# Firefox does for user website passwords when a Master Password hasn't been
+# enabled. I feel sketchy about this, but if Mozilla is OK with it, then so
+# am I.
+#
+# I follow what I believe to be Firefox's storage strategy, which is to use
+# symmetric encryption to store the secret on disk, with the relevant
+# encryption keys also stored on disk. Obviously this only provides security
+# against a completely unmotivated attacker, but it prevents accidental
+# disclosure, and again, this approach seems to be good enough for Mozilla.
+#
+# There are crypto modules for Python, but the examples I saw were lengthy and
+# the modules aren't preinstalled on my computer (therefore most people
+# probably don't have them), so I've farmed out the work to the openssl CLI.
+#
+# Because we're in Python, I'm sure that we're doing all sorts of unfortunate
+# things like keeping the decrypted secret in memory for too long, etc.
+
+
+def load_secret_keys ():
+    key = iv = None
+
+    with open (bibpath ('secret.key')) as kfile:
+        for line in kfile:
+            line = line.strip ()
+
+            if line.startswith ('key='):
+                key = line[4:]
+            elif line.startswith ('iv ='):
+                iv = line[4:]
+
+    if key is None or iv is None:
+        die ('damaged secret key file %s?', bibpath ('secret.key'))
+
+    return key, iv
+
+
+def set_terminal_echo (enabled):
+    import termios
+
+    fd = sys.stdin.fileno ()
+    ifl, ofl, cfl, lfl, isp, osp, cc = termios.tcgetattr (fd)
+
+    if enabled:
+        lfl |= termios.ECHO
+    else:
+        lfl &= ~termios.ECHO
+
+    termios.tcsetattr (fd, termios.TCSANOW,
+                       [ifl, ofl, cfl, lfl, isp, osp, cc])
+
+
+def store_user_secret ():
+    import random, string, subprocess
+
+    # Generate a random password for the key generation. Python SystemRandom
+    # uses /dev/urandom, so it's possible that the password may be derived
+    # in a low-entropy state, but ... meh.
+
+    sys = random.SystemRandom ()
+    pool = string.digits + string.letters + string.punctuation
+    keypass = ''.join (sys.choice (pool) for _ in xrange (64))
+
+    # Generate the static keys
+
+    os.umask (0o177)
+
+    kfd = os.open (bibpath ('secret.key'),
+                   os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+                   0o600) # just in case ...
+
+    with os.fdopen (kfd, 'w') as kfile:
+        subprocess.check_call ([openssl_cmd, 'enc', '-aes-256-cbc', '-k', keypass,
+                                '-P', '-md', 'sha1'], stdout=kfile, shell=False,
+                               close_fds=True)
+
+    # Encrypt and store password
+
+    sfd = os.open (bibpath ('secret.bin'),
+                   os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+                   0o600) # just in case ...
+
+    key, iv = load_secret_keys ()
+
+    try:
+        set_terminal_echo (False)
+        print 'Enter password, then Enter, then control-D twice:'
+
+        with os.fdopen (sfd, 'w') as sfile:
+            subprocess.check_call ([openssl_cmd, 'enc', '-aes-256-cbc', '-e', '-K',
+                                    key, '-iv', iv], stdout=sfile, shell=False,
+                                   close_fds=True)
+
+        print 'Success.'
+    finally:
+        set_terminal_echo (True)
+
+
+def load_user_secret ():
+    import subprocess
+
+    key, iv = load_secret_keys ()
+    secret = subprocess.check_output ([openssl_cmd, 'enc', '-aes-256-cbc', '-d',
+                                       '-K', key, '-iv', iv, '-in',
+                                       bibpath ('secret.bin')], shell=False,
+                                      close_fds=True)
+    secret = secret[:-1] # strip trailing newline imposed by our input method
+    return secret
+
+
 class NonRedirectingProcessor (urllib2.HTTPErrorProcessor):
     # Copied from StackOverflow q 554446.
     def http_response (self, request, response):
@@ -246,7 +358,11 @@ class HarvardProxy (object):
         # XXX This doesn't quite belong here.
         self.opener.addheaders = [('User-Agent', user_agent)]
 
-        self.password = open ('scarytemp').readline ().strip () # XXXXXXX
+        # It's not good to have this hanging around in memory, but Python
+        # strings are immutable and we have no idea what (if anything) `del
+        # self.password` would accomplish, so I don't think we can really do
+        # better.
+        self.password = load_user_secret ()
 
 
     def login (self, resp):
@@ -735,6 +851,16 @@ def cmd_setpdf (argv):
 
         # Update the DB
         db.execute ('INSERT OR REPLACE INTO pdfs VALUES (?, ?)', (sha1, id))
+
+
+def cmd_setsecret (argv):
+    if len (argv) != 1:
+        raise UsageError ('expected no arguments')
+
+    if not sys.stdin.isatty ():
+        die ('this command can only be run with standard input set to a TTY')
+
+    store_user_secret ()
 
 
 # Toplevel driver infrastructure

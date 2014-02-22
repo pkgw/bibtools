@@ -520,8 +520,15 @@ _bibtex_replacements = (
     '</SUB>', u'',
     'Delta', u'Δ',
     'Omega', u'Ω',
-    '\t', u'',
-    '  ', u'',
+    '( ', u'(',
+    ' )', u')',
+    '[ ', u'[',
+    ' ]', u']',
+    ' ,', u',',
+    ' .', u'.',
+    ' ;', u';',
+    '\t', u' ',
+    '  ', u' ',
 )
 
 def _fix_bibtex (text):

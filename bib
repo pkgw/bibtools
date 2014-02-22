@@ -773,7 +773,7 @@ def driver (argv):
     except UsageError as ue:
         # TODO: synopsize command-specific usage help as an attribute on the
         # function (so we can auto-gen a multi-command usage summary too)
-        raise SystemExit ('usage error: ' + ue.uimsg)
+        raise SystemExit ('usage error: ' + ue.bibmsg)
 
 if __name__ == '__main__':
     driver (sys.argv)

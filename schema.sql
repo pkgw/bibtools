@@ -9,6 +9,16 @@ CREATE TABLE pubs (
        year INTEGER
 );
 
+CREATE TABLE author_names (
+       name TEXT UNIQUE PRIMARY KEY
+);
+
+CREATE TABLE authors (
+       pubid INTEGER,
+       idx INTEGER,
+       authid INTEGER
+);
+
 CREATE TABLE nicknames (
        nickname TEXT UNIQUE PRIMARY KEY,
        pubid INTEGER

@@ -400,6 +400,98 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
     return s.hexdigest ()
 
 
+# Terminal tomfoolery
+
+def set_terminal_echo (enabled):
+    import termios
+
+    fd = sys.stdin.fileno ()
+    ifl, ofl, cfl, lfl, isp, osp, cc = termios.tcgetattr (fd)
+
+    if enabled:
+        lfl |= termios.ECHO
+    else:
+        lfl &= ~termios.ECHO
+
+    termios.tcsetattr (fd, termios.TCSANOW,
+                       [ifl, ofl, cfl, lfl, isp, osp, cc])
+
+
+def get_stdout_width ():
+    """If stdout is a terminal, use an ioctl to determine the width. If that
+    fails but $COLUMNS is set, use that. Otherwise, if we're on a TTY, use
+    a width of 80; if we're not, use -1, i.e. no linewrapping. I think this
+    is DTRT-logic."""
+
+    import sys, os, termios
+    from fcntl import ioctl
+    from struct import unpack
+
+    w = None
+
+    if sys.stdout.isatty ():
+        try:
+            return unpack ('hh', ioctl (sys.stdout.fileno (), termios.TIOCGWINSZ, '....'))[1]
+        except:
+            pass
+
+    try:
+        return int (os.environ['COLUMNS'])
+    except:
+        pass
+
+    if sys.stdout.isatty ():
+        return 80
+
+    return -1
+
+
+def print_linewrapped (text, maxwidth=None):
+    """We assume that spaces within `text` are fungible."""
+
+    w = get_stdout_width ()
+    write = sys.stdout.write
+
+    if w > maxwidth:
+        # This intentionally doesn't apply if w < 0.
+        w = maxwidth
+
+    first = True
+
+    if w < 0:
+        ofs = 1
+
+        for match in re.finditer (r'\S+', text):
+            if first:
+                first = False
+            else:
+                write (' ')
+            write (match.group (0))
+    else:
+        ofs = 0
+
+        for match in re.finditer (r'\S+', text):
+            word = match.group (0)
+            n = len (word)
+
+            if ofs + 1 + n > w:
+                if ofs > 0:
+                    write ('\n')
+                write (word)
+                ofs = n
+            elif first:
+                first = False
+                write (word)
+                ofs = n
+            else:
+                write (' ')
+                write (word)
+                ofs = ofs + 1 + n
+
+    if ofs > 0:
+        write ('\n')
+
+
 # Handling of the user's login secret. I've made the decision to store this on
 # disk without requiring user input to access the secret -- i.e., this is what
 # Firefox does for user website passwords when a Master Password hasn't been
@@ -436,21 +528,6 @@ def load_secret_keys ():
         die ('damaged secret key file %s?', bibpath ('secret.key'))
 
     return key, iv
-
-
-def set_terminal_echo (enabled):
-    import termios
-
-    fd = sys.stdin.fileno ()
-    ifl, ofl, cfl, lfl, isp, osp, cc = termios.tcgetattr (fd)
-
-    if enabled:
-        lfl |= termios.ECHO
-    else:
-        lfl &= ~termios.ECHO
-
-    termios.tcsetattr (fd, termios.TCSANOW,
-                       [ifl, ofl, cfl, lfl, isp, osp, cc])
 
 
 def store_user_secret ():
@@ -1048,8 +1125,7 @@ def cmd_info (argv):
 
             if pub.abstract is not None:
                 print
-                # XXX linewrapping etc
-                print pub.abstract
+                print_linewrapped (pub.abstract, 72)
 
             db.log_action (id, HA_VISIT)
 

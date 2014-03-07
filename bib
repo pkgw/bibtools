@@ -170,6 +170,27 @@ class BibDB (sqlite3.Connection):
         return c.execute ('SELECT * FROM pubs WHERE ' + fmt, args)
 
 
+    def try_get_pdf_for_id (self, proxy, id):
+        r = list (self.execute ('SELECT arxiv, bibcode, doi FROM pubs '
+                                'WHERE id = ?', (id, )))
+        assert len (r) == 1, 'unexpected ID thingie %d' % id
+        arxiv, bibcode, doi = r[0]
+
+        mkdir_p (bibpath ('lib'))
+        temppath = bibpath ('lib', 'incoming.pdf')
+
+        sha1 = try_fetch_pdf (proxy, temppath,
+                              arxiv=arxiv, bibcode=bibcode, doi=doi)
+        if sha1 is None:
+            return None
+
+        ensure_libpath_exists (sha1)
+        destpath = libpath (sha1, 'pdf')
+        os.rename (temppath, destpath)
+        self.execute ('INSERT OR REPLACE INTO pdfs VALUES (?, ?)', (sha1, id))
+        return sha1
+
+
 # Bibliography logic
 
 _arxiv_re_1 = re.compile (r'^\d\d[01]\d\.\d+')
@@ -203,7 +224,66 @@ def classify_pub_ref (text):
     return 'nickname', text
 
 
+def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
+    """Given reference information, download a PDF to a specified path. Returns
+    the SHA1 sum of the PDF as a hexadecimal string, or None if we couldn't
+    figure out how to download it."""
 
+    pdfurl = None
+
+    if doi is not None:
+        jurl = doi_to_journal_url (doi)
+        print 'Attempting to scrape', jurl, '...'
+        pdfurl = proxy.unmangle (scrape_pdf_url (proxy.open (jurl)))
+
+    if pdfurl is None and bibcode is not None:
+        # This never returns None: ADS will always give a URL, but it may just
+        # be that the URL resolves to a 404 page saying that ADS has no PDF
+        # available. Thus, this technique is always our last resort.
+        pdfurl = bibcode_to_maybe_pdf_url (bibcode)
+
+    if pdfurl is None:
+        return None
+
+    # OK, we can now download and register the PDF. TODO: progress reporting,
+    # etc.
+
+    import hashlib
+    s = hashlib.sha1 ()
+
+    print 'Trying', pdfurl, '...'
+
+    try:
+        resp = proxy.open (pdfurl)
+    except urllib2.HTTPError as e:
+        from urlparse import urlparse
+        if e.code == 404 and urlparse (pdfurl)[1] == 'articles.adsabs.harvard.edu':
+            warn ('ADS doesn\'t actually have the PDF on file')
+            return None # ADS gave us a URL that turned out to be a lie.
+        raise
+
+    first = True
+
+    with open (destpath, 'w') as f:
+        while True:
+            b = resp.read (4096)
+
+            if first:
+                if len (b) < 4 or b[:4] != '%PDF':
+                    warn ('response does not seem to be a PDF')
+                    resp.close ()
+                    f.close ()
+                    os.unlink (temppath)
+                    return None
+                first = False
+
+            if not len (b):
+                break
+
+            s.update (b)
+            f.write (b)
+
+    return s.hexdigest ()
 
 
 # Handling of the user's login secret. I've made the decision to store this on
@@ -316,6 +396,8 @@ def load_user_secret ():
     secret = secret[:-1] # strip trailing newline imposed by our input method
     return secret
 
+
+# Web scraping, proxy, etc. helpers.
 
 class NonRedirectingProcessor (urllib2.HTTPErrorProcessor):
     # Copied from StackOverflow q 554446.
@@ -559,82 +641,6 @@ def doi_to_maybe_bibcode (doi):
     return lastnonempty
 
 
-def get_pdf (db, proxy, id):
-    r = list (db.execute ('SELECT arxiv, bibcode, doi FROM pubs '
-                          'WHERE id = ?', (id, )))
-    assert len (r) == 1, 'unexpected ID thingie %d' % id
-    arxiv, bibcode, doi = r[0]
-    pdfurl = None
-
-    if doi is not None:
-        jurl = doi_to_journal_url (doi)
-        print 'Attempting to scrape', jurl, '...'
-        pdfurl = proxy.unmangle (scrape_pdf_url (proxy.open (jurl)))
-
-    if pdfurl is None and bibcode is not None:
-        # This never returns None: ADS will always give a URL, but it may just
-        # be that the URL resolves to a 404 page saying that ADS has no PDF
-        # available. Thus, this technique is always our last resort.
-        pdfurl = bibcode_to_maybe_pdf_url (bibcode)
-
-    if pdfurl is None:
-        return None
-
-    # OK, we can now download and register the PDF. TODO: progress reporting,
-    # etc.
-
-    import hashlib
-    mkdir_p (bibpath ('lib'))
-    temppath = bibpath ('lib', 'incoming.pdf')
-    s = hashlib.sha1 ()
-
-    print 'Trying', pdfurl, '...'
-
-    try:
-        resp = proxy.open (pdfurl)
-    except urllib2.HTTPError as e:
-        from urlparse import urlparse
-        if e.code == 404 and urlparse (pdfurl)[1] == 'articles.adsabs.harvard.edu':
-            warn ('ADS doesn\'t actually have the PDF on file')
-            return None # ADS gave us a URL that turned out to be a lie.
-        raise
-
-    first = True
-
-    with open (temppath, 'w') as f:
-        while True:
-            b = resp.read (4096)
-
-            if first:
-                if len (b) < 4 or b[:4] != '%PDF':
-                    warn ('response does not seem to be a PDF')
-                    resp.close ()
-                    f.close ()
-                    os.unlink (temppath)
-                    return None
-                first = False
-
-            if not len (b):
-                break
-
-            s.update (b)
-            f.write (b)
-
-    sha1 = s.hexdigest ()
-    ensure_libpath_exists (sha1)
-    destpath = libpath (sha1, 'pdf')
-    os.rename (temppath, destpath)
-
-    db.execute ('INSERT OR REPLACE INTO pdfs VALUES (?, ?)', (sha1, id))
-
-    return sha1
-
-
-def parse_author (text):
-    first, last = text.rsplit (' ', 1)
-    return first, last.replace ('_', ' ')
-
-
 # Commands
 
 def cmd_apage (argv):
@@ -648,7 +654,7 @@ def cmd_apage (argv):
 
     with connect () as db:
         try:
-            id = locate_pub (db, idtext)
+            id = db.locate_pub (idtext)
         except PubLocateError as e:
             die (e)
 
@@ -672,6 +678,11 @@ def cmd_init (argv):
             db.executescript (init)
         except sqlite3.OperationalError as e:
             die ('cannot initialize "%s": %s', dbpath, e)
+
+
+def parse_author (text):
+    first, last = text.rsplit (' ', 1)
+    return first, last.replace ('_', ' ')
 
 
 def cmd_info (argv):
@@ -912,7 +923,7 @@ def cmd_jpage (argv):
 
     with connect () as db:
         try:
-            id = locate_pub (db, idtext)
+            id = db.locate_pub (idtext)
         except PubLocateError as e:
             die (e)
 
@@ -932,7 +943,7 @@ def cmd_read (argv):
 
     with connect () as db:
         try:
-            id = locate_pub (db, idtext)
+            id = db.locate_pub (idtext)
         except PubLocateError as e:
             die (e)
 
@@ -941,7 +952,7 @@ def cmd_read (argv):
             sha1 = res[0][0]
         else:
             proxy = setup_proxy ()
-            sha1 = get_pdf (db, proxy, id)
+            sha1 = db.try_get_pdf_for_id (proxy, id)
 
     if sha1 is None:
         die ('no saved PDF for %s, and cannot figure out how to download it', idtext)
@@ -981,7 +992,7 @@ def cmd_setpdf (argv):
     with connect () as db:
         # Check that we know what pub we're talking about
         try:
-            id = locate_pub (db, idtext)
+            id = db.locate_pub (idtext)
         except PubLocateError as e:
             die (e)
 

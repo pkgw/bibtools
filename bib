@@ -125,7 +125,19 @@ PdfRow = collections.namedtuple ('PdfRow',
                                  'sha1 pubid'.split ())
 
 
+def nt_augment (ntclass, **vals):
+    for k in vals.iterkeys ():
+        if k not in ntclass._fields:
+            raise ValueError ('illegal field "%s" for creating %s instance'
+                              % (k, ntclass.__name__))
+    return ntclass (*tuple (vals.get (k) for k in ntclass._fields))
+
+
 class BibDB (sqlite3.Connection):
+    def getfirst (self, fmt, *args):
+        return self.execute (fmt, args).fetchone ()
+
+
     def locate_pubs (self, text, noneok=False, manyok=False):
         kind, text = classify_pub_ref (text)
 
@@ -156,11 +168,17 @@ class BibDB (sqlite3.Connection):
         return ids
 
 
-    def locate_pub (self, text, noneok=False):
+    def locate_pub (self, text, noneok=False, autolearn=False):
+        if autolearn:
+            noneok = True
+
         ids = self.locate_pubs (text, noneok=noneok, manyok=False)
 
         if not len (ids):
+            if autolearn:
+                return self.autolearn_pub (text)
             return None
+
         return ids[0]
 
 
@@ -171,10 +189,8 @@ class BibDB (sqlite3.Connection):
 
 
     def try_get_pdf_for_id (self, proxy, id):
-        r = list (self.execute ('SELECT arxiv, bibcode, doi FROM pubs '
-                                'WHERE id = ?', (id, )))
-        assert len (r) == 1, 'unexpected ID thingie %d' % id
-        arxiv, bibcode, doi = r[0]
+        r = self.getfirst ('SELECT arxiv, bibcode, doi FROM pubs WHERE id = ?', id)
+        arxiv, bibcode, doi = r
 
         mkdir_p (bibpath ('lib'))
         temppath = bibpath ('lib', 'incoming.pdf')
@@ -189,6 +205,33 @@ class BibDB (sqlite3.Connection):
         os.rename (temppath, destpath)
         self.execute ('INSERT OR REPLACE INTO pdfs VALUES (?, ?)', (sha1, id))
         return sha1
+
+
+    def learn_pub_authors (self, pubid, authors):
+        c = self.cursor ()
+
+        for idx, auth in enumerate (authors):
+            # Based on reading StackExchange, there's no cleaner way to do this,
+            # but the SELECT should be snappy.
+            c.execute ('INSERT OR IGNORE INTO author_names VALUES (?)',
+                       (auth, ))
+            row = self.getfirst ('SELECT oid FROM author_names WHERE name = ?', auth)[0]
+            c.execute ('INSERT OR REPLACE INTO authors VALUES (?, ?, ?)',
+                       (pubid, idx, row))
+
+
+    def autolearn_pub (self, text):
+        info = autolearn_pub (text)
+        authors = info.pop ('authors', ())
+
+        row = nt_augment (PubRow, **info)
+        c = self.cursor ()
+        c.execute ('INSERT INTO pubs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', row)
+        pubid = c.lastrowid
+
+        self.learn_pub_authors (pubid, authors)
+
+        return pubid
 
 
 # Bibliography logic
@@ -641,6 +684,91 @@ def doi_to_maybe_bibcode (doi):
     return lastnonempty
 
 
+# Autolearning publications
+
+def autolearn_pub (text):
+    kind, text = classify_pub_ref (text)
+
+    if kind == 'bibcode':
+        print 'Learning', text, '...'
+        return autolearn_bibcode (text)
+
+    die ('cannot auto-learn publication "%s"', text)
+
+
+def _translate_ads_name (name):
+    pieces = [x.strip () for x in name.split (',', 1)]
+    surname = pieces[0].replace (' ', '_')
+
+    if len (pieces) > 1:
+        return pieces[1] + ' ' + surname
+    return surname
+
+
+def _autolearn_bibcode_tag (info, tag, text):
+    # TODO: all authors, etc.
+
+    if tag == 'T':
+        info['title'] = text
+    elif tag == 'D':
+        info['year'] = int (text.split ('/')[-1])
+    elif tag == 'B':
+        info['abstract'] = text
+    elif tag == 'A':
+        info['firstsurname'] = text.split (',', 1)[0]
+        info['authors'] = [_translate_ads_name (n) for n in text.split (';')]
+    elif tag == 'Y':
+        subdata = dict (s.strip ().split (': ', 1)
+                        for s in text.split (';'))
+
+        if 'DOI' in subdata:
+            info['doi'] = subdata['DOI']
+        if 'eprintid' in subdata:
+            value = subdata['eprintid']
+            if value.startswith ('arXiv:'):
+                info['arxiv'] = value[6:]
+
+
+def autolearn_bibcode (bibcode):
+    url = ('http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?'
+           'data_type=PORTABLE&nocookieset=1&bibcode=' + urllib2.quote (bibcode))
+
+    info = {'bibcode': bibcode, 'keep': 0} # because we're autolearning
+    curtag = curtext = None
+
+    for line in urllib2.urlopen (url):
+        line = line.decode ('iso-8859-1').strip ()
+
+        if not len (line):
+            if curtag is not None:
+                _autolearn_bibcode_tag (info, curtag, curtext)
+                curtag = curtext = None
+            continue
+
+        if curtag is None:
+            if line[0] == '%':
+                # starting a new tag
+                curtag = line[1]
+                curtext = line[3:]
+            elif line.startswith ('Retrieved '):
+                if not line.endswith ('selected: 1.'):
+                    die ('matched more than one publication')
+        else:
+            if line[0] == '%':
+                # starting a new tag, while we had one going before.
+                # finish up the previous
+                _autolearn_bibcode_tag (info, curtag, curtext)
+                curtag = line[1]
+                curtext = line[3:]
+            else:
+                curtext += ' ' + line
+
+    if curtag is not None:
+        _autolearn_bibcode_tag (info, curtag, curtext)
+
+    return info
+
+
 # Commands
 
 def cmd_apage (argv):
@@ -696,7 +824,7 @@ def cmd_info (argv):
         # out.
 
         try:
-            id = db.locate_pub (idtext)
+            id = db.locate_pub (idtext, autolearn=True)
         except PubLocateError as e:
             die (e)
 
@@ -813,7 +941,7 @@ def parse_bibtex_author (name):
 def _ingest_one (db, rec, knownauthors):
     abstract = rec.get ('abstract')
     arxiv = rec.get ('eprint')
-    bibcode = None
+    bibcode = rec.get ('bibcode')
     doi = rec.get ('doi')
     nickname = rec.get ('id')
     title = rec.get ('title')
@@ -943,7 +1071,7 @@ def cmd_read (argv):
 
     with connect () as db:
         try:
-            id = db.locate_pub (idtext)
+            id = db.locate_pub (idtext, autolearn=True)
         except PubLocateError as e:
             die (e)
 

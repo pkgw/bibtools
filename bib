@@ -492,6 +492,48 @@ def print_linewrapped (text, maxwidth=None):
         write ('\n')
 
 
+def print_truncated (text, curofs):
+    """We assume that spaces within `text` are fungible."""
+
+    w = get_stdout_width ()
+    write = sys.stdout.write
+
+    if w < 0 or curofs + len (text) < w:
+        write (text)
+        write ('\n')
+        return
+
+    # Note that if we have sufficiently little room, we'll just print the
+    # ellipsis and no actual words.
+
+    w -= 4 # account for " ..."
+    first = True
+
+    for match in re.finditer (r'\S+', text):
+        word = match.group (0)
+        n = len (word)
+
+        if first:
+            first = False
+
+            if curofs + n > w:
+                break
+
+            write (word)
+            curofs += n
+        else:
+            if curofs + n + 1 > w:
+                break
+
+            write (' ')
+            write (word)
+            curofs += n + 1
+
+    if not first:
+        write (' ')
+    write ('...\n')
+
+
 # Handling of the user's login secret. I've made the decision to store this on
 # disk without requiring user input to access the secret -- i.e., this is what
 # Firefox does for user website passwords when a Master Password hasn't been
@@ -1373,7 +1415,7 @@ def cmd_recent (argv):
                                   'FROM pubs AS p, history AS h '
                                   'WHERE p.id == h.pubid '
                                   'ORDER BY date DESC LIMIT 10'):
-            fs = pub.firstsurname or '(no author)'
+            fs = (pub.firstsurname or '(no author)').lower ()
             year = pub.year or '????'
             title = pub.title or '(no title)'
             nick = db.choose_pub_nickname (pub.id) or ''
@@ -1382,8 +1424,11 @@ def cmd_recent (argv):
             maxfslen = max (maxfslen, len (fs))
             maxnicklen = max (maxnicklen, len (nick))
 
+    ofs = maxfslen + maxnicklen + 9
+
     for fs, year, title, nick in info:
-        print '%*s.%04d  %*s  %s' % (maxfslen, fs, year, maxnicklen, nick, title)
+        print '%*s.%04d  %*s  ' % (maxfslen, fs, year, maxnicklen, nick),
+        print_truncated (title, ofs)
 
 
 def cmd_setpdf (argv):

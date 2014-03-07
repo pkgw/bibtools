@@ -181,7 +181,7 @@ class BibDB (sqlite3.Connection):
 
         if not len (ids):
             if autolearn:
-                return self.autolearn_pub (text)
+                return self.learn_pub (autolearn_pub (text))
             return None
 
         return ids[0]
@@ -232,16 +232,26 @@ class BibDB (sqlite3.Connection):
                               'ORDER BY idx', (pubid, )))
 
 
-    def autolearn_pub (self, text):
-        info = autolearn_pub (text)
+    def learn_pub (self, info):
+        """Note that `info` will be mutated."""
+
         authors = info.pop ('authors', ())
+        nickname = info.pop ('nickname', None)
 
         row = nt_augment (PubRow, **info)
         c = self.cursor ()
         c.execute ('INSERT INTO pubs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', row)
         pubid = c.lastrowid
 
-        self.learn_pub_authors (pubid, authors)
+        if authors is not None:
+            self.learn_pub_authors (pubid, authors)
+
+        if nickname is not None:
+            try:
+                c.execute ('INSERT INTO nicknames VALUES (?, ?)',
+                           (nickname, pubid))
+            except sqlite3.IntegrityError:
+                die ('duplicated pub nickname "%s"', nickname)
 
         return pubid
 
@@ -952,9 +962,10 @@ def _ingest_one (db, rec, knownauthors):
         year = int (year)
 
     if 'author' in rec:
-        t = _fix_bibtex (rec['author'][0])
-        firstsurname = t.split (',', 1)[0]
+        authors = [parse_bibtex_author (_fix_bibtex (a)) for a in rec['author']]
+        firstsurname = authors[0].rsplit (' ', 1)[1].replace ('_', ' ')
     else:
+        authors = None
         firstsurname = None
 
     abstract = _fix_bibtex (abstract)
@@ -992,35 +1003,10 @@ def _ingest_one (db, rec, knownauthors):
 
     # Ready to insert.
 
-    c = db.cursor ()
-    c.execute ('INSERT INTO pubs VALUES (NULL, ?, ?, ?, ?, ?, 1, ?, ?)',
-               (abstract, arxiv, bibcode, doi, firstsurname, title, year))
-    pubid = c.lastrowid
-
-    if 'author' in rec:
-        authids = []
-
-        for bibauth in rec['author']:
-            myauth = parse_bibtex_author (_fix_bibtex (bibauth))
-            authid = knownauthors.get (myauth)
-
-            if authid is None:
-                c.execute ('INSERT INTO author_names VALUES (?)',
-                           (myauth, ))
-                authid = c.lastrowid
-                knownauthors[myauth] = authid
-
-            authids.append (authid)
-
-        for idx, authid in enumerate (authids):
-            c.execute ('INSERT INTO authors VALUES (?, ?, ?)', (pubid, idx, authid))
-
-    if nickname is not None:
-        try:
-            c.execute ('INSERT INTO nicknames VALUES (?, ?)',
-                       (nickname, pubid))
-        except sqlite3.IntegrityError:
-            die ('duplicated pub nickname "%s"', nickname)
+    info = dict (abstract=abstract, arxiv=arxiv, authors=authors,
+                 bibcode=bibcode, doi=doi, nickname=nickname, title=title,
+                 year=year)
+    db.learn_pub (info)
 
 
 def cmd_ingest (argv):

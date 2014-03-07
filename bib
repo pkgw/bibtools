@@ -319,6 +319,11 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
         # available. Thus, this technique is always our last resort.
         pdfurl = bibcode_to_maybe_pdf_url (bibcode)
 
+    if pdfurl is None and arxiv is not None:
+        # Always prefer non-preprints. I need to straighten out how I'm going
+        # to deal with them ...
+        pdfurl = 'http://arxiv.org/pdf/' + urllib2.quote (arxiv) + '.pdf'
+
     if pdfurl is None:
         return None
 
@@ -608,8 +613,14 @@ class HarvardProxy (object):
     def open (self, url):
         from urlparse import urlparse, urlunparse
         scheme, loc, path, params, query, frag = urlparse (url)
-        loc += self.suffix
-        proxyurl = urlunparse ((scheme, loc, path, params, query, frag))
+
+        if loc.endswith ('arxiv.org'):
+            # For whatever reason, the proxy server doesn't work
+            # if we try to access Arxiv with it.
+            proxyurl = url
+        else:
+            loc += self.suffix
+            proxyurl = urlunparse ((scheme, loc, path, params, query, frag))
 
         resp = self.opener.open (proxyurl)
 

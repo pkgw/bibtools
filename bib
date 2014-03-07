@@ -210,7 +210,7 @@ class BibDB (sqlite3.Connection):
 
 
     def pub_query (self, partial, *args):
-        return self.pub_fquery ('SELECT * FROM pubs WHERE ' + partial, args)
+        return self.pub_fquery ('SELECT * FROM pubs WHERE ' + partial, *args)
 
 
     def try_get_pdf_for_id (self, proxy, id):

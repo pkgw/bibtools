@@ -203,10 +203,14 @@ class BibDB (sqlite3.Connection):
         return ids[0]
 
 
-    def pub_query (self, fmt, *args):
+    def pub_fquery (self, q, *args):
         c = self.cursor ()
         c.row_factory = lambda curs, tup: PubRow (*tup)
-        return c.execute ('SELECT * FROM pubs WHERE ' + fmt, args)
+        return c.execute (q, args)
+
+
+    def pub_query (self, partial, *args):
+        return self.pub_fquery ('SELECT * FROM pubs WHERE ' + partial, args)
 
 
     def try_get_pdf_for_id (self, proxy, id):
@@ -1289,9 +1293,10 @@ def cmd_recent (argv):
     maxnicklen = 0
 
     with connect () as db:
-        for pub in db.pub_query ('id IN (SELECT pubid FROM '
-                                 '(SELECT * FROM history ORDER BY date DESC) '
-                                 'GROUP BY pubid LIMIT 10)'):
+        for pub in db.pub_fquery ('SELECT DISTINCT p.* '
+                                  'FROM pubs AS p, history AS h '
+                                  'WHERE p.id == h.pubid '
+                                  'ORDER BY date DESC LIMIT 10'):
             fs = pub.firstsurname or '(no author)'
             year = pub.year or '????'
             title = pub.title or '(no title)'

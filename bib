@@ -1307,8 +1307,7 @@ def cmd_recent (argv):
             maxnicklen = max (maxnicklen, len (nick))
 
     for fs, year, title, nick in info:
-        print '%*s.%04d  %*sf  %s' % (maxfslen, fs, year,
-                                      maxnicklen, nick, title)
+        print '%*s.%04d  %*s  %s' % (maxfslen, fs, year, maxnicklen, nick, title)
 
 
 def cmd_setpdf (argv):

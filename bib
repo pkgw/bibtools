@@ -58,6 +58,12 @@ class PubLocateError (BibError):
     pass
 
 
+_whitespace_re = re.compile (r'\s+')
+
+def squish_spaces (text):
+    return _whitespace_re.sub (' ', text).strip ()
+
+
 # The app!
 
 def _make_data_pather ():
@@ -238,6 +244,11 @@ class BibDB (sqlite3.Connection):
 
         authors = info.pop ('authors', ())
         nickname = info.pop ('nickname', None)
+
+        if 'abstract' in info:
+            info['abstract'] = squish_spaces (info['abstract'])
+        if 'title' in info:
+            info['title'] = squish_spaces (info['title'])
 
         row = nt_augment (PubRow, **info)
         c = self.cursor ()
@@ -720,12 +731,13 @@ def autolearn_pub (text):
             kind, text = 'bibcode', bc
 
     if kind == 'doi':
-        print 'Learning', text, '...'
         return autolearn_doi (text)
 
     if kind == 'bibcode':
-        print 'Learning', text, '...'
         return autolearn_bibcode (text)
+
+    if kind == 'arxiv':
+        return autolearn_arxiv (text)
 
     die ('cannot auto-learn publication "%s"', text)
 
@@ -853,6 +865,64 @@ def autolearn_doi (doi):
         info['year'] = int (jelem.find ('journal_issue/publication_date/year').text)
     except:
         pass
+
+    return info
+
+
+_atom_ns = '{http://www.w3.org/2005/Atom}'
+_arxiv_ns = '{http://arxiv.org/schemas/atom}'
+
+def _extract_arxiv_name (auth):
+    # XXX I assume that we don't get standardized names out of Arxiv, so
+    # nontrivial last names will be gotten wrong. I don't see any point
+    # in trying to solve this here.
+    return auth.find (_atom_ns + 'name').text
+
+
+def autolearn_arxiv (arxiv):
+    import xml.etree.ElementTree as ET
+
+    url = 'http://export.arxiv.org/api/query?id_list=' + urllib2.quote (arxiv)
+    info = {'arxiv': arxiv, 'keep': 0} # because we're autolearning
+
+    # XXX sad to be not doing this incrementally, but Py 2.x doesn't
+    # seem to have an incremental parser built in.
+
+    print 'Parsing', url, '...'
+    xmldoc = ''.join (urllib2.urlopen (url))
+    root = ET.fromstring (xmldoc)
+    ent = root.find (_atom_ns + 'entry')
+
+    try:
+        info['abstract'] = ent.find (_atom_ns + 'summary').text
+    except:
+        pass
+
+    try:
+        info['authors'] = [_extract_arxiv_name (a) for a in
+                           ent.findall (_atom_ns + 'author')]
+    except:
+        pass
+
+    info['firstsurname'] = info['authors'][0].rsplit (' ', 1)[1]
+
+    try:
+        info['doi'] = ent.find (_arxiv_ns + 'doi').text
+    except:
+        pass
+
+    try:
+        info['title'] = ent.find (_atom_ns + 'title').text
+    except:
+        pass
+
+    try:
+        info['year'] = int (ent.find (_atom_ns + 'published').text[:4])
+    except:
+        pass
+
+    if 'doi' in info:
+        info['bibcode'] = doi_to_maybe_bibcode (info['doi'])
 
     return info
 

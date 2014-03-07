@@ -7,7 +7,7 @@
 Docstring!
 """
 
-import cookielib, errno, os.path, re, sqlite3, sys, urllib2
+import collections, cookielib, errno, os.path, re, sqlite3, sys, urllib2
 import HTMLParser # renamed to html.parser in Python 3.
 
 
@@ -102,53 +102,108 @@ def ensure_libpath_exists (sha1):
     mkdir_p (bibpath ('lib', sha1[:2]))
 
 
-def connect ():
-    return sqlite3.connect (dbpath)
+# The database!
 
+def connect ():
+    return sqlite3.connect (dbpath, factory=BibDB)
+
+
+PubRow = collections.namedtuple ('PubRow',
+                                 'id abstract arxiv bibcode doi firstsurname '
+                                 'keep title year'.split ())
+
+AuthorNameRow = collections.namedtuple ('AuthorNameRow',
+                                        ['name'])
+
+AuthorRow = collections.namedtuple ('AuthorRow',
+                                    'pubid idx authid'.split ())
+
+NicknameRow = collections.namedtuple ('NicknameRow',
+                                      'nickname pubid'.split ())
+
+PdfRow = collections.namedtuple ('PdfRow',
+                                 'sha1 pubid'.split ())
+
+
+class BibDB (sqlite3.Connection):
+    def locate_pubs (self, text, noneok=False, manyok=False):
+        kind, text = classify_pub_ref (text)
+
+        q = matchtext = None
+
+        if kind == 'doi':
+            q = self.execute ('SELECT id FROM pubs WHERE doi = ?', (text, ))
+            matchtext = 'DOI = ' + text
+        elif kind == 'bibcode':
+            q = self.execute ('SELECT id FROM pubs WHERE bibcode = ?', (text, ))
+            matchtext = 'bibcode = ' + text
+        elif kind == 'arxiv':
+            q = self.execute ('SELECT id FROM pubs WHERE arxiv = ?', (text, ))
+            matchtext = 'arxiv = ' + text
+        elif kind == 'nickname':
+            q = self.execute ('SELECT pubid FROM nicknames WHERE nickname = ?', (text, ))
+            matchtext = 'nickname = ' + text
+        else:
+            assert False
+
+        ids = list (t[0] for t in q)
+
+        if not noneok and not len (ids):
+            raise PubLocateError ('no publications matched ' + matchtext)
+        if not manyok and len (ids) > 1:
+            raise PubLocateError ('more than one publication matched ' + matchtext)
+
+        return ids
+
+
+    def locate_pub (self, text, noneok=False):
+        ids = self.locate_pubs (text, noneok=noneok, manyok=False)
+
+        if not len (ids):
+            return None
+        return ids[0]
+
+
+    def pub_query (self, fmt, *args):
+        c = self.cursor ()
+        c.row_factory = lambda curs, tup: PubRow (*tup)
+        return c.execute ('SELECT * FROM pubs WHERE ' + fmt, args)
+
+
+# Bibliography logic
 
 _arxiv_re_1 = re.compile (r'^\d\d[01]\d\.\d+')
 _arxiv_re_2 = re.compile (r'^[a-z-]+/\d+')
 _bibcode_re = re.compile (r'^\d\d\d\d[a-zA-Z0-9&]+')
 _doi_re = re.compile (r'^10\.\d+/.*')
 
-def locate_pubs (db, text, noneok=False, manyok=False):
-    """Given some text that we believe identifies a publication, try to
-    retrieve its ID number. A key routine."""
 
-    q = matchtext = None
+def classify_pub_ref (text):
+    """Given some text that we believe identifies a publication, try to
+    figure out how it does so."""
 
     if text.startswith ('doi:'):
-        q = db.execute ('SELECT id FROM pubs WHERE doi = ?', (text[4:], ))
-        matchtext = 'DOI = ' + text[4:]
-    elif _doi_re.match (text) is not None:
-        q = db.execute ('SELECT id FROM pubs WHERE doi = ?', (text, ))
-        matchtext = 'DOI = ' + text
-    elif _bibcode_re.match (text) is not None:
-        q = db.execute ('SELECT id FROM pubs WHERE bibcode = ?', (text, ))
-        matchtext = 'bibcode = ' + text
-    elif _arxiv_re_1.match (text) is not None or _arxiv_re_2.match (text) is not None:
-        q = db.execute ('SELECT id FROM pubs WHERE arxiv = ?', (text, ))
-        matchtext = 'arxiv = ' + text
-    else:
-        q = db.execute ('SELECT pubid FROM nicknames WHERE nickname = ?', (text, ))
-        matchtext = 'nickname = ' + text
+        return 'doi', text[4:]
 
-    ids = list (t[0] for t in q)
+    if _doi_re.match (text) is not None:
+        return 'doi', text
 
-    if not noneok and not len (ids):
-        raise PubLocateError ('no publications matched ' + matchtext)
-    if not manyok and len (ids) > 1:
-        raise PubLocateError ('more than one publication matched ' + matchtext)
+    if _bibcode_re.match (text) is not None:
+        return 'bibcode', text
 
-    return ids
+    if _arxiv_re_1.match (text) is not None:
+        return 'arxiv', text
+
+    if _arxiv_re_2.match (text) is not None:
+        return 'arxiv', text
+
+    if text.startswith ('arxiv:'):
+        return 'arxiv', text[6:]
+
+    return 'nickname', text
 
 
-def locate_pub (db, text, noneok=False):
-    ids = locate_pubs (db, text, noneok=noneok, manyok=False)
 
-    if not len (ids):
-        return None
-    return ids[0]
 
 
 # Handling of the user's login secret. I've made the decision to store this on
@@ -630,21 +685,17 @@ def cmd_info (argv):
         # out.
 
         try:
-            id = locate_pub (db, idtext)
+            id = db.locate_pub (idtext)
         except PubLocateError as e:
             die (e)
 
-        for row in db.execute ('SELECT * FROM pubs WHERE id = ?', (id, )):
-            _, abstract, arxiv, bibcode, doi, firstsurname, keep, title, year = row
-
-            if year is None:
-                year = 'no year'
-            if title is None:
-                title = '(no title)'
+        for pub in db.pub_query ('id = ?', id):
+            year = pub.year or 'no year'
+            title = pub.title or '(no title)'
 
             # XXX must be better way, but couldn't get ordering to work.
             authids = [x[0] for x in db.execute ('SELECT authid FROM authors '
-                                                 'WHERE pubid == ? ORDER BY idx', (id, ))]
+                                                 'WHERE pubid == ? ORDER BY idx', (pub.id, ))]
             authors = [list (db.execute ('SELECT name FROM author_names '
                                          'WHERE oid == ?', (ai, )))[0][0]
                        for ai in authids]
@@ -657,17 +708,17 @@ def cmd_info (argv):
             print title
             print authstr, '(%s)' % year
 
-            if arxiv is not None:
-                print 'arxiv:', arxiv
-            if bibcode is not None:
-                print 'bibcode:', bibcode
-            if doi is not None:
-                print 'DOI:', doi
+            if pub.arxiv is not None:
+                print 'arxiv:', pub.arxiv
+            if pub.bibcode is not None:
+                print 'bibcode:', pub.bibcode
+            if pub.doi is not None:
+                print 'DOI:', pub.doi
 
-            if abstract is not None:
+            if pub.abstract is not None:
                 print
                 # XXX linewrapping etc
-                print abstract
+                print pub.abstract
 
 
 _bibtex_replacements = (

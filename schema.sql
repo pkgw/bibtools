@@ -20,6 +20,12 @@ CREATE TABLE authors (
        authid INTEGER
 );
 
+CREATE TABLE history (
+       date INTEGER PRIMARY KEY,
+       pubid INTEGER,
+       action INTEGER
+);
+
 CREATE TABLE nicknames (
        nickname TEXT UNIQUE PRIMARY KEY,
        pubid INTEGER

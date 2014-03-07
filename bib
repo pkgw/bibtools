@@ -61,6 +61,8 @@ class PubLocateError (BibError):
 _whitespace_re = re.compile (r'\s+')
 
 def squish_spaces (text):
+    if text is None:
+        return None
     return _whitespace_re.sub (' ', text).strip ()
 
 
@@ -125,11 +127,18 @@ AuthorNameRow = collections.namedtuple ('AuthorNameRow',
 AuthorRow = collections.namedtuple ('AuthorRow',
                                     'pubid idx authid'.split ())
 
+HistoryRow = collections.namedtuple ('HistoryRow',
+                                     'date pubid action'.split ())
+
 NicknameRow = collections.namedtuple ('NicknameRow',
                                       'nickname pubid'.split ())
 
 PdfRow = collections.namedtuple ('PdfRow',
                                  'sha1 pubid'.split ())
+
+
+HA_READ = 1 # history actions
+HA_VISIT = 2
 
 
 def nt_augment (ntclass, **vals):
@@ -239,6 +248,19 @@ class BibDB (sqlite3.Connection):
                               'ORDER BY idx', (pubid, )))
 
 
+    def choose_pub_nickname (self, pubid):
+        # barring any particularly meaningful information, go with the
+        # shortest nickname. Returns None if none present.
+
+        n = list (self.execute ('SELECT nickname FROM nicknames '
+                                'WHERE pubid == ? '
+                                'ORDER BY length(nickname) ASC LIMIT 1', (pubid, )))
+
+        if not len (n):
+            return None
+        return n[0][0]
+
+
     def learn_pub (self, info):
         """Note that `info` will be mutated."""
 
@@ -266,6 +288,12 @@ class BibDB (sqlite3.Connection):
                 die ('duplicated pub nickname "%s"', nickname)
 
         return pubid
+
+
+    def log_action (self, pubid, actionid):
+        import time
+        self.execute ('INSERT INTO history VALUES (?, ?, ?)',
+                      (int (time.time ()), pubid, actionid))
 
 
 # Bibliography logic
@@ -959,6 +987,8 @@ def cmd_apage (argv):
         if arxiv is None:
             die ('cannot open arxiv website: no identifier for record')
 
+        db.log_action (id, HA_VISIT)
+
         url = 'http://arxiv.org/abs/' + quote (arxiv)
         webbrowser.open (url)
 
@@ -1016,6 +1046,8 @@ def cmd_info (argv):
                 print
                 # XXX linewrapping etc
                 print pub.abstract
+
+            db.log_action (id, HA_VISIT)
 
 
 _bibtex_replacements = (
@@ -1151,8 +1183,8 @@ def _ingest_one (db, rec, knownauthors):
     # Ready to insert.
 
     info = dict (abstract=abstract, arxiv=arxiv, authors=authors,
-                 bibcode=bibcode, doi=doi, nickname=nickname, title=title,
-                 year=year)
+                 bibcode=bibcode, doi=doi, firstsurname=firstsurname,
+                 nickname=nickname, title=title, year=year)
     db.learn_pub (info)
 
 
@@ -1193,6 +1225,8 @@ def cmd_jpage (argv):
         if doi is None:
             die ('cannot open journal website: no DOI for record')
 
+        db.log_action (id, HA_VISIT)
+
         url = 'http://dx.doi.org/' + quote (doi)
         webbrowser.open (url)
 
@@ -1215,6 +1249,10 @@ def cmd_read (argv):
         else:
             proxy = setup_proxy ()
             sha1 = db.try_get_pdf_for_id (proxy, id)
+
+        if sha1 is not None:
+            # no big deal if we fail later
+            db.log_action (id, HA_READ)
 
     if sha1 is None:
         die ('no saved PDF for %s, and cannot figure out how to download it', idtext)
@@ -1240,6 +1278,32 @@ def cmd_read (argv):
             os._exit (0)
     else:
         pass # parent has nothing to do
+
+
+def cmd_recent (argv):
+    if len (argv) != 1:
+        raise UsageError ('expected no arguments')
+
+    info = []
+    maxfslen = 0
+    maxnicklen = 0
+
+    with connect () as db:
+        for pub in db.pub_query ('id IN (SELECT pubid FROM '
+                                 '(SELECT * FROM history ORDER BY date DESC) '
+                                 'GROUP BY pubid LIMIT 10)'):
+            fs = pub.firstsurname or '(no author)'
+            year = pub.year or '????'
+            title = pub.title or '(no title)'
+            nick = db.choose_pub_nickname (pub.id) or ''
+
+            info.append ((fs, year, title, nick))
+            maxfslen = max (maxfslen, len (fs))
+            maxnicklen = max (maxnicklen, len (nick))
+
+    for fs, year, title, nick in info:
+        print '%*s.%04d  %*sf  %s' % (maxfslen, fs, year,
+                                      maxnicklen, nick, title)
 
 
 def cmd_setpdf (argv):

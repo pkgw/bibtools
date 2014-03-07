@@ -483,6 +483,27 @@ def bibcode_to_maybe_pdf_url (bibcode):
     return pdfurl.replace ('&amp;', '&')
 
 
+def doi_to_maybe_bibcode (doi):
+    bibcode = None
+
+    url = ('http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?'
+           'data_type=Custom&format=%25R&nocookieset=1&doi=' +
+           urllib2.quote (doi))
+    lastnonempty = None
+
+    for line in urllib2.urlopen (url):
+        line = line.strip ()
+        if len (line):
+            lastnonempty = line
+
+    if lastnonempty is None:
+        return None
+    if lastnonempty.startswith ('Retrieved 0 abstracts'):
+        return None
+
+    return lastnonempty
+
+
 def get_pdf (db, proxy, id):
     r = list (db.execute ('SELECT arxiv, bibcode, doi FROM pubs '
                           'WHERE id = ?', (id, )))
@@ -771,6 +792,12 @@ def _ingest_one (db, rec, knownauthors):
 
         if kind == 'arxiv' and arxiv is None:
             arxiv = info
+
+    # Shape up missing bibcodes
+
+    if bibcode is None and doi is not None:
+        bibcode = doi_to_maybe_bibcode (doi)
+        print 'mapped', doi, 'to', bibcode or '(lookup failed)'
 
     # Ready to insert.
 

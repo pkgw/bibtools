@@ -614,7 +614,7 @@ def cmd_info (argv):
             die (e)
 
         for row in db.execute ('SELECT * FROM pubs WHERE id = ?', (id, )):
-            _, abstract, arxiv, bibcode, doi, firstsurname, title, year = row
+            _, abstract, arxiv, bibcode, doi, firstsurname, keep, title, year = row
 
             if year is None:
                 year = 'no year'
@@ -775,7 +775,7 @@ def _ingest_one (db, rec, knownauthors):
     # Ready to insert.
 
     c = db.cursor ()
-    c.execute ('INSERT INTO pubs VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)',
+    c.execute ('INSERT INTO pubs VALUES (NULL, ?, ?, ?, ?, ?, 1, ?, ?)',
                (abstract, arxiv, bibcode, doi, firstsurname, title, year))
     pubid = c.lastrowid
 

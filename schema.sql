@@ -5,6 +5,7 @@ CREATE TABLE pubs (
        bibcode TEXT,
        doi TEXT,
        firstsurname TEXT,
+       keep INTEGER,
        title TEXT,
        year INTEGER
 );

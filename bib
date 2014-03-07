@@ -22,6 +22,7 @@ import HTMLParser # renamed to html.parser in Python 3.
 pdfreader = 'evince'
 user_agent = 'Mozilla/5.0 (X11; Linux x86_64; rv:27.0) Gecko/20100101 Firefox/27.0'
 openssl_cmd = '/usr/bin/openssl'
+crossref_api_key = 'peter-bulk@newton.cx'
 
 
 # Generic app infrastructure
@@ -711,6 +712,17 @@ def doi_to_maybe_bibcode (doi):
 def autolearn_pub (text):
     kind, text = classify_pub_ref (text)
 
+    if kind == 'doi':
+        # ADS seems to have better data quality.
+        bc = doi_to_maybe_bibcode (text)
+        if bc is not None:
+            print 'Associated', doi, 'to', bc
+            kind, text = 'bibcode', bc
+
+    if kind == 'doi':
+        print 'Learning', text, '...'
+        return autolearn_doi (text)
+
     if kind == 'bibcode':
         print 'Learning', text, '...'
         return autolearn_bibcode (text)
@@ -758,6 +770,8 @@ def autolearn_bibcode (bibcode):
     info = {'bibcode': bibcode, 'keep': 0} # because we're autolearning
     curtag = curtext = None
 
+    print 'Parsing', url, '...'
+
     for line in urllib2.urlopen (url):
         line = line.decode ('iso-8859-1').strip ()
 
@@ -787,6 +801,58 @@ def autolearn_bibcode (bibcode):
 
     if curtag is not None:
         _autolearn_bibcode_tag (info, curtag, curtext)
+
+    return info
+
+
+def _extract_unixref_name (personelem):
+    # XXX: deal with "The Fermi-LAT Collaboration", "Gopal-Krishna", etc.
+
+    given = personelem.find ('given_name').text
+    sur = personelem.find ('surname').text
+    return given + ' ' + sur.replace (' ', '_')
+
+
+def autolearn_doi (doi):
+    import xml.etree.ElementTree as ET
+
+    url = ('http://crossref.org/openurl/?id=%s&noredirect=true&pid=%s&'
+           'format=unixref' % (urllib2.quote (doi), urllib2.quote (crossref_api_key)))
+    info = {'doi': doi, 'keep': 0} # because we're autolearning
+
+    # XXX sad to be not doing this incrementally, but Py 2.x doesn't
+    # seem to have an incremental parser built in.
+
+    print 'Parsing', url, '...'
+    xmldoc = ''.join (urllib2.urlopen (url))
+    root = ET.fromstring (xmldoc)
+
+    jelem = root.find ('doi_record/crossref/journal')
+    if jelem is None:
+        die ('no <journal> element as expected in UnixRef XML for %s', doi)
+
+    try:
+        info['authors'] = [_extract_unixref_name (p) for p in
+                           jelem.findall ('journal_article/contributors/person_name')]
+    except:
+        pass
+
+    try:
+        info['firstsurname'] = jelem.find ('journal_article/contributors/'
+                                           'person_name[0]/surname').text
+    except:
+        pass
+
+    try:
+        info['title'] = ' '.join (t.strip () for t in
+                                  jelem.find ('journal_article/titles/title').itertext ())
+    except:
+        pass
+
+    try:
+        info['year'] = int (jelem.find ('journal_issue/publication_date/year').text)
+    except:
+        pass
 
     return info
 

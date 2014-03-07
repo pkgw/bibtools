@@ -133,6 +133,11 @@ def nt_augment (ntclass, **vals):
     return ntclass (*tuple (vals.get (k) for k in ntclass._fields))
 
 
+def parse_author (text):
+    first, last = text.rsplit (' ', 1)
+    return first, last.replace ('_', ' ')
+
+
 class BibDB (sqlite3.Connection):
     def getfirst (self, fmt, *args):
         return self.execute (fmt, args).fetchone ()
@@ -218,6 +223,13 @@ class BibDB (sqlite3.Connection):
             row = self.getfirst ('SELECT oid FROM author_names WHERE name = ?', auth)[0]
             c.execute ('INSERT OR REPLACE INTO authors VALUES (?, ?, ?)',
                        (pubid, idx, row))
+
+
+    def get_pub_authors (self, pubid):
+        return (parse_author (a[0]) for a in
+                self.execute ('SELECT name FROM authors AS au, author_names AS an '
+                              'WHERE au.authid == an.oid AND au.pubid == ? '
+                              'ORDER BY idx', (pubid, )))
 
 
     def autolearn_pub (self, text):
@@ -808,11 +820,6 @@ def cmd_init (argv):
             die ('cannot initialize "%s": %s', dbpath, e)
 
 
-def parse_author (text):
-    first, last = text.rsplit (' ', 1)
-    return first, last.replace ('_', ' ')
-
-
 def cmd_info (argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
@@ -832,15 +839,9 @@ def cmd_info (argv):
             year = pub.year or 'no year'
             title = pub.title or '(no title)'
 
-            # XXX must be better way, but couldn't get ordering to work.
-            authids = [x[0] for x in db.execute ('SELECT authid FROM authors '
-                                                 'WHERE pubid == ? ORDER BY idx', (pub.id, ))]
-            authors = [list (db.execute ('SELECT name FROM author_names '
-                                         'WHERE oid == ?', (ai, )))[0][0]
-                       for ai in authids]
-
+            authors = list (db.get_pub_authors (pub.id))
             if len (authors):
-                authstr = ', '.join (parse_author (a)[1] for a in authors)
+                authstr = ', '.join (a[1] for a in authors)
             else:
                 authstr = '(no authors)'
 

@@ -4,8 +4,8 @@ CREATE TABLE pubs (
        arxiv TEXT,
        bibcode TEXT,
        doi TEXT,
-       firstsurname TEXT,
        keep INTEGER,
+       nfas TEXT, /* normalized first-author surname */
        title TEXT,
        year INTEGER
 );

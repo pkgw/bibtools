@@ -1392,6 +1392,44 @@ def cmd_jpage (argv):
         webbrowser.open (url)
 
 
+def cmd_list (argv):
+    if len (argv) < 2:
+        raise UsageError ('expected arguments')
+
+    # XXX highly redundant with cmd_recent
+
+    info = []
+    maxnfaslen = 0
+    maxnicklen = 0
+
+    def genids (db):
+        try:
+            for idtext in argv[1:]:
+                for id in db.locate_pubs (idtext, noneok=True, manyok=True):
+                    yield id
+        except PubLocateError as e:
+            die (e)
+
+    with connect () as db:
+        # Not the most elegant ...
+        for id in genids (db):
+            for pub in db.pub_query ('id == ?', id):
+                nfas = pub.nfas or '(no author)'
+                year = pub.year or '????'
+                title = pub.title or '(no title)'
+                nick = db.choose_pub_nickname (pub.id) or ''
+
+                info.append ((nfas, year, title, nick))
+                maxnfaslen = max (maxnfaslen, len (nfas))
+                maxnicklen = max (maxnicklen, len (nick))
+
+    ofs = maxnfaslen + maxnicklen + 9
+
+    for nfas, year, title, nick in info:
+        print '%*s.%04d  %*s  ' % (maxnfaslen, nfas, year, maxnicklen, nick),
+        print_truncated (title, ofs)
+
+
 def cmd_read (argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')

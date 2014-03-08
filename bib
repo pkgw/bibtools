@@ -241,6 +241,10 @@ class BibDB (sqlite3.Connection):
         elif kind == 'nickname':
             q = self.execute ('SELECT pubid FROM nicknames WHERE nickname = ?', (text, ))
             matchtext = 'nickname = ' + text
+        elif kind == 'nfasy':
+            nfas, year = text.rsplit ('.', 1)
+            q = self.execute ('SELECT id FROM pubs WHERE nfas = ? AND year = ?', (nfas, year))
+            matchtext = 'surname/year ~ ' + text
         else:
             assert False
 
@@ -387,7 +391,7 @@ _arxiv_re_1 = re.compile (r'^\d\d[01]\d\.\d+')
 _arxiv_re_2 = re.compile (r'^[a-z-]+/\d+')
 _bibcode_re = re.compile (r'^\d\d\d\d[a-zA-Z0-9&]+')
 _doi_re = re.compile (r'^10\.\d+/.*')
-
+_fasy_re = re.compile (r'.*\.\d+$')
 
 def classify_pub_ref (text):
     """Given some text that we believe identifies a publication, try to
@@ -410,6 +414,11 @@ def classify_pub_ref (text):
 
     if text.startswith ('arxiv:'):
         return 'arxiv', text[6:]
+
+    if _fasy_re.match (text) is not None:
+        # This test should go very low since it's quite open-ended.
+        surname, year = text.rsplit ('.', 1)
+        return 'nfasy', normalize_surname (surname) + '.' + year
 
     return 'nickname', text
 

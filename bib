@@ -221,7 +221,17 @@ def nt_augment (ntclass, **vals):
 
 class BibDB (sqlite3.Connection):
     def getfirst (self, fmt, *args):
+        """Returns the tuple from sqlite3, or None."""
         return self.execute (fmt, args).fetchone ()
+
+
+    def getfirstval (self, fmt, *args):
+        """Assumes that the query returns a single column. Returns the first value, or
+        None."""
+        v = self.getfirst (fmt, *args)
+        if v is None:
+            return None
+        return v[0]
 
 
     def locate_pubs (self, text, noneok=False, manyok=False):
@@ -1148,6 +1158,31 @@ def autolearn_arxiv (arxiv):
 
 
 # Commands
+
+def cmd_ads (argv):
+    if len (argv) != 2:
+        raise UsageError ('expected exactly 1 argument')
+
+    import webbrowser
+    from urllib2 import quote
+
+    idtext = argv[1]
+
+    with connect () as db:
+        try:
+            id = db.locate_pub (idtext)
+        except PubLocateError as e:
+            die (e)
+
+        bc = db.getfirstval ('SELECT bibcode FROM pubs WHERE id = ?', id)
+        if bc is None:
+            die ('cannot open ADS for this publication: no bibcode on record')
+
+        db.log_action (id, HA_VISIT)
+
+        url = 'http://labs.adsabs.harvard.edu/adsabs/abs/' + quote (bc)
+        webbrowser.open (url)
+
 
 def cmd_apage (argv):
     if len (argv) != 2:

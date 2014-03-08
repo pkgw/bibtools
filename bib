@@ -253,7 +253,11 @@ class BibDB (sqlite3.Connection):
             matchtext = 'nickname = ' + text
         elif kind == 'nfasy':
             nfas, year = text.rsplit ('.', 1)
-            q = self.execute ('SELECT id FROM pubs WHERE nfas = ? AND year = ?', (nfas, year))
+            if year == '*':
+                q = self.execute ('SELECT id FROM pubs WHERE nfas = ?', (nfas, ))
+            else:
+                q = self.execute ('SELECT id FROM pubs WHERE nfas = ? '
+                                  'AND year = ?', (nfas, year))
             matchtext = 'surname/year ~ ' + text
         else:
             assert False
@@ -401,7 +405,7 @@ _arxiv_re_1 = re.compile (r'^\d\d[01]\d\.\d+')
 _arxiv_re_2 = re.compile (r'^[a-z-]+/\d+')
 _bibcode_re = re.compile (r'^\d\d\d\d[a-zA-Z0-9&]+')
 _doi_re = re.compile (r'^10\.\d+/.*')
-_fasy_re = re.compile (r'.*\.\d+$')
+_fasy_re = re.compile (r'.*\.(\d+|\*)$')
 
 def classify_pub_ref (text):
     """Given some text that we believe identifies a publication, try to

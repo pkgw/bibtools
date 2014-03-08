@@ -1326,7 +1326,7 @@ def sniff_url (url):
     return None, None
 
 
-def _ingest_one (db, rec, knownauthors):
+def _ingest_one (db, rec):
     abstract = rec.get ('abstract')
     arxiv = rec.get ('eprint')
     bibcode = rec.get ('bibcode')
@@ -1395,11 +1395,10 @@ def cmd_ingest (argv):
     custom = lambda r: author (type (convert_to_unicode (r)))
 
     with open (bibpath) as bibfile, connect () as db:
-        knownauthors = dict (db.execute ('SELECT name, oid FROM author_names'))
         bp = BibTexParser (bibfile, customization=custom)
 
         for rec in bp.get_entry_list ():
-            _ingest_one (db, rec, knownauthors)
+            _ingest_one (db, rec)
 
 
 def cmd_jpage (argv):

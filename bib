@@ -1199,7 +1199,7 @@ def cmd_apage (argv):
         except PubLocateError as e:
             die (e)
 
-        arxiv = list (db.execute ('SELECT arxiv FROM pubs WHERE id = ?', (id, )))[0][0]
+        arxiv = db.getfirstval ('SELECT arxiv FROM pubs WHERE id = ?', id)
         if arxiv is None:
             die ('cannot open arxiv website: no identifier for record')
 
@@ -1416,7 +1416,7 @@ def cmd_jpage (argv):
         except PubLocateError as e:
             die (e)
 
-        doi = list (db.execute ('SELECT doi FROM pubs WHERE id = ?', (id, )))[0][0]
+        doi = db.getfirstval ('SELECT doi FROM pubs WHERE id = ?', id)
         if doi is None:
             die ('cannot open journal website: no DOI for record')
 
@@ -1476,10 +1476,8 @@ def cmd_read (argv):
         except PubLocateError as e:
             die (e)
 
-        res = list (db.execute ('SELECT sha1 FROM pdfs WHERE pubid = ?', (id, )))
-        if len (res):
-            sha1 = res[0][0]
-        else:
+        sha1 = db.getfirstval ('SELECT sha1 FROM pdfs WHERE pubid = ?', id)
+        if sha1 is None:
             proxy = setup_proxy ()
             sha1 = db.try_get_pdf_for_id (proxy, id)
 

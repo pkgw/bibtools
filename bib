@@ -446,7 +446,7 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
 
     if doi is not None:
         jurl = doi_to_journal_url (doi)
-        print 'Attempting to scrape', jurl, '...'
+        print '[Attempting to scrape', jurl, '...]'
         pdfurl = proxy.unmangle (scrape_pdf_url (proxy.open (jurl)))
 
     if pdfurl is None and bibcode is not None:
@@ -469,7 +469,7 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
     import hashlib
     s = hashlib.sha1 ()
 
-    print 'Trying', pdfurl, '...'
+    print '[Trying', pdfurl, '...]'
 
     try:
         resp = proxy.open (pdfurl)
@@ -993,7 +993,7 @@ def autolearn_pub (text):
         # ADS seems to have better data quality.
         bc = doi_to_maybe_bibcode (text)
         if bc is not None:
-            print 'Associated', doi, 'to', bc
+            print '[Associated', doi, 'to', bc + ']'
             kind, text = 'bibcode', bc
 
     if kind == 'doi':
@@ -1038,7 +1038,7 @@ def autolearn_bibcode (bibcode):
     info = {'bibcode': bibcode, 'keep': 0} # because we're autolearning
     curtag = curtext = None
 
-    print 'Parsing', url, '...'
+    print '[Parsing', url, '...]'
 
     for line in urllib2.urlopen (url):
         line = line.decode ('iso-8859-1').strip ()
@@ -1083,7 +1083,7 @@ def autolearn_doi (doi):
     # XXX sad to be not doing this incrementally, but Py 2.x doesn't
     # seem to have an incremental parser built in.
 
-    print 'Parsing', url, '...'
+    print '[Parsing', url, '...]'
     xmldoc = ''.join (urllib2.urlopen (url))
     root = ET.fromstring (xmldoc)
 
@@ -1124,7 +1124,7 @@ def autolearn_arxiv (arxiv):
     # XXX sad to be not doing this incrementally, but Py 2.x doesn't
     # seem to have an incremental parser built in.
 
-    print 'Parsing', url, '...'
+    print '[Parsing', url, '...]'
     xmldoc = ''.join (urllib2.urlopen (url))
     root = ET.fromstring (xmldoc)
     ent = root.find (_atom_ns + 'entry')

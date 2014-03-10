@@ -914,6 +914,7 @@ class PDFUrlScraper (HTMLParser.HTMLParser):
     <meta> tag with name=citation_pdf_url -- IOP
     <a> tag with id=download-pdf -- Nature (non-mobile site, newer)
     <a> tag with class=download-pdf -- Nature (older)
+    <a> tag with class=pdf -- AIP
     """
 
     def __init__ (self):
@@ -934,6 +935,8 @@ class PDFUrlScraper (HTMLParser.HTMLParser):
             if attrs.get ('id') == 'download-pdf':
                 self.pdfurl = attrs['href']
             elif attrs.get ('class') == 'download-pdf':
+                self.pdfurl = attrs['href']
+            elif attrs.get ('class') == 'pdf':
                 self.pdfurl = attrs['href']
 
 

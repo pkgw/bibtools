@@ -1495,7 +1495,9 @@ def cmd_read (argv):
     if sha1 is None:
         die ('no saved PDF for %s, and cannot figure out how to download it', idtext)
 
-    # XXX may want to centralize this; also, close FD's, etc.
+    # XXX may want to centralize this
+
+    import resource
 
     try:
         pid = os.fork ()
@@ -1511,6 +1513,12 @@ def cmd_read (argv):
             die ('cannot fork() second time: %s', e)
 
         if pid == 0:
+            nullin = open (os.devnull)
+            os.dup2 (nullin.fileno (), 0)
+            nullout = open (os.devnull, 'w')
+            os.dup2 (nullout.fileno (), 1)
+            os.dup2 (nullout.fileno (), 2)
+            os.closerange (3, resource.getrlimit (resource.RLIMIT_NOFILE)[0])
             os.execlp (pdfreader, pdfreader, libpath (sha1, 'pdf'))
         else:
             os._exit (0)

@@ -112,6 +112,49 @@ def ensure_libpath_exists (sha1):
     mkdir_p (bibpath ('lib', sha1[:2]))
 
 
+def launch_background_silent (cmd, argv):
+    """Launch a process in the background, with its input and output redirected to
+    /dev/null. execlp() is used, so that `cmd` is searched for in $PATH. `argv` is
+    named with intent; `argv[0]` is the self-name of `cmd`, not the first extra
+    argument.
+
+    This function returns!
+
+    This is intended for launching GUI programs from a terminal, where we don't
+    want to wait for them or see their inane warnings.
+    """
+
+    import resource
+
+    try:
+        pid = os.fork ()
+    except OSError as e:
+        die ('cannot fork() first time (to launch %s): %s', cmd, e)
+
+    if pid != 0:
+        return # parent is done
+
+    # We're the first forked child.
+    os.setsid () # become new session leader, apparently a good thing to do.
+
+    try:
+        pid2 = os.fork ()
+    except OSError as e:
+        die ('cannot fork() second time (to launch %s): %s', cmd, e)
+
+    if pid2 != 0:
+        os._exit (0) # this child is done
+
+    # The second forked child actually exec()s the program.
+    nullin = open (os.devnull)
+    os.dup2 (nullin.fileno (), 0)
+    nullout = open (os.devnull, 'w')
+    os.dup2 (nullout.fileno (), 1)
+    os.dup2 (nullout.fileno (), 2)
+    os.closerange (3, resource.getrlimit (resource.RLIMIT_NOFILE)[0])
+    os.execlp (cmd, *argv)
+
+
 # Monkeying with names!
 #
 # We store names like so:
@@ -1495,35 +1538,7 @@ def cmd_read (argv):
     if sha1 is None:
         die ('no saved PDF for %s, and cannot figure out how to download it', idtext)
 
-    # XXX may want to centralize this
-
-    import resource
-
-    try:
-        pid = os.fork ()
-    except OSError as e:
-        die ('cannot fork() first time: %s', e)
-
-    if pid == 0:
-        os.setsid () # become new session leader, apparently a good thing to do.
-
-        try:
-            pid2 = os.fork ()
-        except OSError as e:
-            die ('cannot fork() second time: %s', e)
-
-        if pid == 0:
-            nullin = open (os.devnull)
-            os.dup2 (nullin.fileno (), 0)
-            nullout = open (os.devnull, 'w')
-            os.dup2 (nullout.fileno (), 1)
-            os.dup2 (nullout.fileno (), 2)
-            os.closerange (3, resource.getrlimit (resource.RLIMIT_NOFILE)[0])
-            os.execlp (pdfreader, pdfreader, libpath (sha1, 'pdf'))
-        else:
-            os._exit (0)
-    else:
-        pass # parent has nothing to do
+    launch_background_silent (pdfreader, [pdfreader, libpath (sha1, 'pdf')])
 
 
 def cmd_recent (argv):

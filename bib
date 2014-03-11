@@ -996,7 +996,7 @@ def autolearn_pub (text):
         # ADS seems to have better data quality.
         bc = doi_to_maybe_bibcode (text)
         if bc is not None:
-            print '[Associated', doi, 'to', bc + ']'
+            print '[Associated', text, 'to', bc + ']'
             kind, text = 'bibcode', bc
 
     if kind == 'doi':

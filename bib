@@ -9,6 +9,7 @@ Docstring!
 
 import collections, cookielib, errno, os.path, re, sqlite3, sys, urllib2
 import HTMLParser # renamed to html.parser in Python 3.
+from urllib2 import quote as urlquote
 
 
 # Things that are hardcoded but shouldn't be!
@@ -512,7 +513,7 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
     if pdfurl is None and arxiv is not None:
         # Always prefer non-preprints. I need to straighten out how I'm going
         # to deal with them ...
-        pdfurl = 'http://arxiv.org/pdf/' + urllib2.quote (arxiv) + '.pdf'
+        pdfurl = 'http://arxiv.org/pdf/' + urlquote (arxiv) + '.pdf'
 
     if pdfurl is None:
         return None
@@ -1004,7 +1005,7 @@ def scrape_pdf_url (resp):
 
 
 def doi_to_journal_url (doi):
-    return get_url_from_redirection ('http://dx.doi.org/' + urllib2.quote (doi))
+    return get_url_from_redirection ('http://dx.doi.org/' + urlquote (doi))
 
 
 def bibcode_to_maybe_pdf_url (bibcode):
@@ -1015,7 +1016,7 @@ def bibcode_to_maybe_pdf_url (bibcode):
     with the &'s in the URL being HTML entity-encoded to &amp;s."""
 
     url = ('http://adsabs.harvard.edu/cgi-bin/nph-data_query?link_type=ARTICLE&bibcode='
-           + urllib2.quote (bibcode))
+           + urlquote (bibcode))
     pdfurl = get_url_from_redirection (url)
     return pdfurl.replace ('&amp;', '&')
 
@@ -1025,7 +1026,7 @@ def doi_to_maybe_bibcode (doi):
 
     url = ('http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?'
            'data_type=Custom&format=%25R&nocookieset=1&doi=' +
-           urllib2.quote (doi))
+           urlquote (doi))
     lastnonempty = None
 
     for line in urllib2.urlopen (url):
@@ -1090,7 +1091,7 @@ def _autolearn_bibcode_tag (info, tag, text):
 
 def autolearn_bibcode (bibcode):
     url = ('http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?'
-           'data_type=PORTABLE&nocookieset=1&bibcode=' + urllib2.quote (bibcode))
+           'data_type=PORTABLE&nocookieset=1&bibcode=' + urlquote (bibcode))
 
     info = {'bibcode': bibcode, 'keep': 0} # because we're autolearning
     curtag = curtext = None
@@ -1134,7 +1135,7 @@ def autolearn_doi (doi):
     import xml.etree.ElementTree as ET
 
     url = ('http://crossref.org/openurl/?id=%s&noredirect=true&pid=%s&'
-           'format=unixref' % (urllib2.quote (doi), urllib2.quote (crossref_api_key)))
+           'format=unixref' % (urlquote (doi), urlquote (crossref_api_key)))
     info = {'doi': doi, 'keep': 0} # because we're autolearning
 
     # XXX sad to be not doing this incrementally, but Py 2.x doesn't
@@ -1175,7 +1176,7 @@ _arxiv_ns = '{http://arxiv.org/schemas/atom}'
 def autolearn_arxiv (arxiv):
     import xml.etree.ElementTree as ET
 
-    url = 'http://export.arxiv.org/api/query?id_list=' + urllib2.quote (arxiv)
+    url = 'http://export.arxiv.org/api/query?id_list=' + urlquote (arxiv)
     info = {'arxiv': arxiv, 'keep': 0} # because we're autolearning
 
     # XXX sad to be not doing this incrementally, but Py 2.x doesn't
@@ -1224,8 +1225,6 @@ def cmd_ads (argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
-    from urllib2 import quote
-
     idtext = argv[1]
 
     with connect () as db:
@@ -1239,14 +1238,12 @@ def cmd_ads (argv):
             die ('cannot open ADS for this publication: no bibcode on record')
 
         db.log_action (id, HA_VISIT)
-        open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/' + quote (bc))
+        open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/' + urlquote (bc))
 
 
 def cmd_apage (argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
-
-    from urllib2 import quote
 
     idtext = argv[1]
 
@@ -1261,7 +1258,7 @@ def cmd_apage (argv):
             die ('cannot open arxiv website: no identifier for record')
 
         db.log_action (id, HA_VISIT)
-        open_url ('http://arxiv.org/abs/' + quote (arxiv))
+        open_url ('http://arxiv.org/abs/' + urlquote (arxiv))
 
 
 def cmd_init (argv):
@@ -1358,25 +1355,27 @@ def _fix_bibtex (text):
 
 
 def sniff_url (url):
+    from urllib2 import unquote
+
     p = 'http://dx.doi.org/'
     if url.startswith (p):
-        return 'doi', urllib2.unquote (url[len (p):])
+        return 'doi', unquote (url[len (p):])
 
     p = 'http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode='
     if url.startswith (p):
-        return 'bibcode', urllib2.unquote (url[len (p):])
+        return 'bibcode', unquote (url[len (p):])
 
     p = 'http://labs.adsabs.harvard.edu/ui/abs/'
     if url.startswith (p):
-        return 'bibcode', urllib2.unquote (url[len (p):])
+        return 'bibcode', unquote (url[len (p):])
 
     p = 'http://arxiv.org/abs/'
     if url.startswith (p):
-        return 'arxiv', urllib2.unquote (url[len (p):])
+        return 'arxiv', unquote (url[len (p):])
 
     p = 'http://arxiv.org/pdf/'
     if url.startswith (p):
-        return 'arxiv', urllib2.unquote (url[len (p):])
+        return 'arxiv', unquote (url[len (p):])
 
     return None, None
 
@@ -1460,8 +1459,6 @@ def cmd_jpage (argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
-    from urllib2 import quote
-
     idtext = argv[1]
 
     with connect () as db:
@@ -1475,7 +1472,7 @@ def cmd_jpage (argv):
             die ('cannot open journal website: no DOI for record')
 
         db.log_action (id, HA_VISIT)
-        open_url ('http://dx.doi.org/' + quote (doi))
+        open_url ('http://dx.doi.org/' + urlquote (doi))
 
 
 def cmd_list (argv):

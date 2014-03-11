@@ -20,6 +20,7 @@ import HTMLParser # renamed to html.parser in Python 3.
 # UA.
 
 pdfreader = 'evince'
+url_opener = 'xdg-open'
 user_agent = 'Mozilla/5.0 (X11; Linux x86_64; rv:27.0) Gecko/20100101 Firefox/27.0'
 openssl_cmd = '/usr/bin/openssl'
 crossref_api_key = 'peter-bulk@newton.cx'
@@ -153,6 +154,16 @@ def launch_background_silent (cmd, argv):
     os.dup2 (nullout.fileno (), 2)
     os.closerange (3, resource.getrlimit (resource.RLIMIT_NOFILE)[0])
     os.execlp (cmd, *argv)
+
+
+def open_url (url):
+    """Opens up the URL in some GUI program and returns.
+
+    Python has a `webbrowser` module that does this, but my Firefox
+    prints out a few warnings when you launch it and I really want
+    to make those disappear."""
+
+    launch_background_silent (url_opener, [url_opener, url])
 
 
 # Monkeying with names!
@@ -1213,7 +1224,6 @@ def cmd_ads (argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
-    import webbrowser
     from urllib2 import quote
 
     idtext = argv[1]
@@ -1229,16 +1239,13 @@ def cmd_ads (argv):
             die ('cannot open ADS for this publication: no bibcode on record')
 
         db.log_action (id, HA_VISIT)
-
-        url = 'http://labs.adsabs.harvard.edu/adsabs/abs/' + quote (bc)
-        webbrowser.open (url)
+        open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/' + quote (bc))
 
 
 def cmd_apage (argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
-    import webbrowser
     from urllib2 import quote
 
     idtext = argv[1]
@@ -1254,9 +1261,7 @@ def cmd_apage (argv):
             die ('cannot open arxiv website: no identifier for record')
 
         db.log_action (id, HA_VISIT)
-
-        url = 'http://arxiv.org/abs/' + quote (arxiv)
-        webbrowser.open (url)
+        open_url ('http://arxiv.org/abs/' + quote (arxiv))
 
 
 def cmd_init (argv):
@@ -1455,7 +1460,6 @@ def cmd_jpage (argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
-    import webbrowser
     from urllib2 import quote
 
     idtext = argv[1]
@@ -1471,9 +1475,7 @@ def cmd_jpage (argv):
             die ('cannot open journal website: no DOI for record')
 
         db.log_action (id, HA_VISIT)
-
-        url = 'http://dx.doi.org/' + quote (doi)
-        webbrowser.open (url)
+        open_url ('http://dx.doi.org/' + quote (doi))
 
 
 def cmd_list (argv):

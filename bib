@@ -1225,6 +1225,33 @@ def autolearn_arxiv (arxiv):
     return info
 
 
+# UI subroutines
+
+def print_generic_listing (db, pub_seq):
+    info = []
+    maxnfaslen = 0
+    maxnicklen = 0
+
+    # TODO: number these, and save the results in a table so one can write
+    # "bib read %1" to read the top item of the most recent listing.
+
+    for pub in pub_seq:
+        nfas = pub.nfas or '(no author)'
+        year = pub.year or '????'
+        title = pub.title or '(no title)'
+        nick = db.choose_pub_nickname (pub.id) or ''
+
+        info.append ((nfas, year, title, nick))
+        maxnfaslen = max (maxnfaslen, len (nfas))
+        maxnicklen = max (maxnicklen, len (nick))
+
+    ofs = maxnfaslen + maxnicklen + 9
+
+    for nfas, year, title, nick in info:
+        print '%*s.%04d  %*s  ' % (maxnfaslen, nfas, year, maxnicklen, nick),
+        print_truncated (title, ofs)
+
+
 # Commands
 
 def cmd_ads (argv):
@@ -1485,38 +1512,18 @@ def cmd_list (argv):
     if len (argv) < 2:
         raise UsageError ('expected arguments')
 
-    # XXX highly redundant with cmd_recent
+    with connect () as db:
+        ids = []
 
-    info = []
-    maxnfaslen = 0
-    maxnicklen = 0
-
-    def genids (db):
         try:
             for idtext in argv[1:]:
                 for id in db.locate_pubs (idtext, noneok=True, manyok=True):
-                    yield id
+                    ids.append (id)
         except PubLocateError as e:
             die (e)
 
-    with connect () as db:
-        # Not the most elegant ...
-        for id in genids (db):
-            for pub in db.pub_query ('id == ?', id):
-                nfas = pub.nfas or '(no author)'
-                year = pub.year or '????'
-                title = pub.title or '(no title)'
-                nick = db.choose_pub_nickname (pub.id) or ''
-
-                info.append ((nfas, year, title, nick))
-                maxnfaslen = max (maxnfaslen, len (nfas))
-                maxnicklen = max (maxnicklen, len (nick))
-
-    ofs = maxnfaslen + maxnicklen + 9
-
-    for nfas, year, title, nick in info:
-        print '%*s.%04d  %*s  ' % (maxnfaslen, nfas, year, maxnicklen, nick),
-        print_truncated (title, ofs)
+        print_generic_listing (db, (db.pub_query ('id == ?', id).fetchone ()
+                                    for id in ids))
 
 
 def cmd_read (argv):
@@ -1550,29 +1557,11 @@ def cmd_recent (argv):
     if len (argv) != 1:
         raise UsageError ('expected no arguments')
 
-    info = []
-    maxnfaslen = 0
-    maxnicklen = 0
-
     with connect () as db:
-        for pub in db.pub_fquery ('SELECT DISTINCT p.* '
-                                  'FROM pubs AS p, history AS h '
-                                  'WHERE p.id == h.pubid '
-                                  'ORDER BY date DESC LIMIT 10'):
-            nfas = pub.nfas or '(no author)'
-            year = pub.year or '????'
-            title = pub.title or '(no title)'
-            nick = db.choose_pub_nickname (pub.id) or ''
-
-            info.append ((nfas, year, title, nick))
-            maxnfaslen = max (maxnfaslen, len (nfas))
-            maxnicklen = max (maxnicklen, len (nick))
-
-    ofs = maxnfaslen + maxnicklen + 9
-
-    for nfas, year, title, nick in info:
-        print '%*s.%04d  %*s  ' % (maxnfaslen, nfas, year, maxnicklen, nick),
-        print_truncated (title, ofs)
+        print_generic_listing (db, db.pub_fquery ('SELECT DISTINCT p.* '
+                                                  'FROM pubs AS p, history AS h '
+                                                  'WHERE p.id == h.pubid '
+                                                  'ORDER BY date DESC LIMIT 10'))
 
 
 def cmd_setpdf (argv):

@@ -25,7 +25,6 @@ url_opener = 'xdg-open'
 user_agent = 'Mozilla/5.0 (X11; Linux x86_64; rv:27.0) Gecko/20100101 Firefox/27.0'
 openssl_cmd = '/usr/bin/openssl'
 crossref_api_key = 'peter-bulk@newton.cx'
-proxy_username = '70576465'
 
 
 # Generic app infrastructure
@@ -165,6 +164,57 @@ def open_url (url):
     to make those disappear."""
 
     launch_background_silent (url_opener, [url_opener, url])
+
+
+# Configuration subsystem
+# note: module renamed to configparser in Python 3.
+
+import ConfigParser as configparser
+
+class BibConfig (configparser.RawConfigParser):
+    def __init__ (self):
+        # stupid old-style classes can't use super()
+        configparser.RawConfigParser.__init__ (self)
+        self.read (bibpath ('bib.cfg'))
+
+
+    def tryget (self, section, option):
+        try:
+            return self.get (section, option)
+        except (configparser.NoSectionError, configparser.NoOptionError):
+            return None
+
+
+    def get_proxy (self):
+        # TODO: return some kind of null proxy if nothing configured. Then
+        # we can kill get_proxy_or_die.
+
+        if not self.has_section ('proxy'):
+            return None
+
+        username = self.tryget ('proxy', 'username')
+        if username is None:
+            return None # can't do anything without this
+
+        kind = self.tryget ('proxy', 'kind') or 'harvard'
+
+        # It's not good to have this hanging around in memory, but Python
+        # strings are immutable and we have no idea what (if anything) `del
+        # password` would accomplish, so I don't think we can really do
+        # better.
+        password = load_user_secret ()
+
+        if kind == 'harvard':
+            return HarvardProxy (username, password)
+
+        die ('don\'t recognize proxy kind "%s"', kind)
+
+
+    def get_proxy_or_die (self):
+        proxy = self.get_proxy ()
+        if proxy is None:
+            die ('no fulltext-access proxy is configured')
+        return proxy
 
 
 # Monkeying with names!
@@ -899,13 +949,11 @@ class HarvardProxy (object):
     loginurl = 'https://www.pin1.harvard.edu/cas/login'
     forwardurl = 'http://ezp-prod1.hul.harvard.edu/connect'
 
-    inputs = [
+    default_inputs = [
         ('compositeAuthenticationSourceType', 'PIN'),
-        ('username', proxy_username),
-        ('password', None),
     ]
 
-    def __init__ (self):
+    def __init__ (self, username, password):
         self.cj = cookielib.CookieJar ()
         self.opener = urllib2.build_opener (urllib2.HTTPRedirectHandler (),
                                             urllib2.HTTPCookieProcessor (self.cj))
@@ -913,11 +961,9 @@ class HarvardProxy (object):
         # XXX This doesn't quite belong here.
         self.opener.addheaders = [('User-Agent', user_agent)]
 
-        # It's not good to have this hanging around in memory, but Python
-        # strings are immutable and we have no idea what (if anything) `del
-        # self.password` would accomplish, so I don't think we can really do
-        # better.
-        self.password = load_user_secret ()
+        self.inputs = list (self.default_inputs)
+        self.inputs.append (('username', username))
+        self.inputs.append (('password', password))
 
 
     def login (self, resp):
@@ -936,8 +982,6 @@ class HarvardProxy (object):
             values[name] = value
 
         for name, value in self.inputs:
-            if value is None:
-                value = self.password
             values[name] = value
 
         from urllib import urlencode # yay terrible Python APIs
@@ -983,10 +1027,6 @@ class HarvardProxy (object):
 
         loc = loc[:-len (self.suffix)]
         return urlunparse ((scheme, loc, path, params, query, frag))
-
-
-def setup_proxy ():
-    return HarvardProxy ()
 
 
 class PDFUrlScraper (HTMLParser.HTMLParser):
@@ -1534,7 +1574,7 @@ def cmd_read (argv):
 
         sha1 = db.getfirstval ('SELECT sha1 FROM pdfs WHERE pubid = ?', pub.id)
         if sha1 is None:
-            proxy = setup_proxy ()
+            proxy = BibConfig ().get_proxy_or_die ()
             sha1 = db.try_get_pdf_for_id (proxy, pub.id)
 
         if sha1 is not None:

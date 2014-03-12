@@ -358,6 +358,13 @@ class BibDB (sqlite3.Connection):
         return None
 
 
+    def locate_or_die (self, text, autolearn=False):
+        try:
+            return self.locate_pub (text, autolearn=autolearn)
+        except PubLocateError as e:
+            die (e)
+
+
     def pub_fquery (self, q, *args):
         c = self.cursor ()
         c.row_factory = lambda curs, tup: PubRow (*tup)
@@ -1280,11 +1287,7 @@ def cmd_ads (argv):
     idtext = argv[1]
 
     with connect () as db:
-        try:
-            pub = db.locate_pub (idtext)
-        except PubLocateError as e:
-            die (e)
-
+        pub = db.locate_or_die (idtext)
         if pub.bibcode is None:
             die ('cannot open ADS for this publication: no bibcode on record')
 
@@ -1299,11 +1302,7 @@ def cmd_apage (argv):
     idtext = argv[1]
 
     with connect () as db:
-        try:
-            pub = db.locate_pub (idtext)
-        except PubLocateError as e:
-            die (e)
-
+        pub = db.locate_or_die (idtext)
         if pub.arxiv is None:
             die ('cannot open arxiv website: no identifier for record')
 
@@ -1335,10 +1334,7 @@ def cmd_info (argv):
         # TODO: should be OK to match multiple publications and print them all
         # out.
 
-        try:
-            pub = db.locate_pub (idtext, autolearn=True)
-        except PubLocateError as e:
-            die (e)
+        pub = db.locate_or_die (idtext, autolearn=True)
 
         year = pub.year or 'no year'
         title = pub.title or '(no title)'
@@ -1511,11 +1507,7 @@ def cmd_jpage (argv):
     idtext = argv[1]
 
     with connect () as db:
-        try:
-            pub = db.locate_pub (idtext)
-        except PubLocateError as e:
-            die (e)
-
+        pub = db.locate_or_die (idtext)
         if pub.doi is None:
             die ('cannot open journal website: no DOI for record')
 
@@ -1538,10 +1530,7 @@ def cmd_read (argv):
     idtext = argv[1]
 
     with connect () as db:
-        try:
-            pub = db.locate_pub (idtext, autolearn=True)
-        except PubLocateError as e:
-            die (e)
+        pub = db.locate_or_die (idtext, autolearn=True)
 
         sha1 = db.getfirstval ('SELECT sha1 FROM pdfs WHERE pubid = ?', pub.id)
         if sha1 is None:
@@ -1580,10 +1569,7 @@ def cmd_setpdf (argv):
 
     with connect () as db:
         # Check that we know what pub we're talking about
-        try:
-            pub = db.locate_pub (idtext)
-        except PubLocateError as e:
-            die (e)
+        pub = db.locate_or_die (idtext)
 
         # Get SHA1 of the PDF
         with open (pdfpath) as f:

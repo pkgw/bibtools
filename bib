@@ -289,60 +289,73 @@ class BibDB (sqlite3.Connection):
         return v[0]
 
 
-    def locate_pubs (self, text, noneok=False, manyok=False):
-        kind, text = classify_pub_ref (text)
+    def locate_pubs (self, noneok, *textids):
+        for textid in textids:
+            kind, text = classify_pub_ref (textid)
 
-        c = self.cursor ()
-        c.row_factory = lambda curs, tup: PubRow (*tup)
+            c = self.cursor ()
+            c.row_factory = lambda curs, tup: PubRow (*tup)
 
-        q = matchtext = None
+            q = matchtext = None
 
-        if kind == 'doi':
-            q = c.execute ('SELECT * FROM pubs WHERE doi = ?', (text, ))
-            matchtext = 'DOI = ' + text
-        elif kind == 'bibcode':
-            q = c.execute ('SELECT * FROM pubs WHERE bibcode = ?', (text, ))
-            matchtext = 'bibcode = ' + text
-        elif kind == 'arxiv':
-            q = c.execute ('SELECT * FROM pubs WHERE arxiv = ?', (text, ))
-            matchtext = 'arxiv = ' + text
-        elif kind == 'nickname':
-            q = c.execute ('SELECT p.* FROM pubs AS p, nicknames AS n '
-                           'WHERE p.id == n.pubid AND n.nickname = ?', (text, ))
-            matchtext = 'nickname = ' + text
-        elif kind == 'nfasy':
-            nfas, year = text.rsplit ('.', 1)
-            if year == '*':
-                q = c.execute ('SELECT * FROM pubs WHERE nfas = ?', (nfas, ))
+            if kind == 'doi':
+                q = c.execute ('SELECT * FROM pubs WHERE doi = ?', (text, ))
+                matchtext = 'DOI = ' + text
+            elif kind == 'bibcode':
+                q = c.execute ('SELECT * FROM pubs WHERE bibcode = ?', (text, ))
+                matchtext = 'bibcode = ' + text
+            elif kind == 'arxiv':
+                q = c.execute ('SELECT * FROM pubs WHERE arxiv = ?', (text, ))
+                matchtext = 'arxiv = ' + text
+            elif kind == 'nickname':
+                q = c.execute ('SELECT p.* FROM pubs AS p, nicknames AS n '
+                               'WHERE p.id == n.pubid AND n.nickname = ?', (text, ))
+                matchtext = 'nickname = ' + text
+            elif kind == 'nfasy':
+                nfas, year = text.rsplit ('.', 1)
+                if year == '*':
+                    q = c.execute ('SELECT * FROM pubs WHERE nfas = ?', (nfas, ))
+                else:
+                    q = c.execute ('SELECT * FROM pubs WHERE nfas = ? '
+                                   'AND year = ?', (nfas, year))
+                matchtext = 'surname/year ~ ' + text
             else:
-                q = c.execute ('SELECT * FROM pubs WHERE nfas = ? '
-                               'AND year = ?', (nfas, year))
-            matchtext = 'surname/year ~ ' + text
-        else:
-            assert False
+                # This is a bug since we should handle every possible 'kind'
+                # returned by classify_pub_ref.
+                assert False
 
-        pubs = list (q)
+            gotany = False
 
-        if not noneok and not len (pubs):
-            raise PubLocateError ('no publications matched ' + matchtext)
-        if not manyok and len (pubs) > 1:
-            raise PubLocateError ('more than one publication matched ' + matchtext)
+            for pub in q:
+                gotany = True
+                yield pub
 
-        return pubs
+            if not gotany and not noneok:
+                raise PubLocateError ('no publications matched' + textid)
 
 
     def locate_pub (self, text, noneok=False, autolearn=False):
         if autolearn:
             noneok = True
 
-        pubs = self.locate_pubs (text, noneok=noneok, manyok=False)
+        thepub = None
 
-        if not len (pubs):
-            if autolearn:
-                return self.learn_pub (autolearn_pub (text))
-            return None
+        for pub in self.locate_pubs (noneok, text):
+            if thepub is None:
+                # First match.
+                thepub = pub
+            else:
+                # Second match. There will be no third match.
+                raise PubLocateError ('more than one publication matched ' + text)
 
-        return pubs[0]
+        if thepub is not None:
+            return thepub
+
+        if autolearn:
+            return self.learn_pub (autolearn_pub (text))
+
+        # If we made it here, noneok must be true.
+        return None
 
 
     def pub_fquery (self, q, *args):
@@ -1515,17 +1528,7 @@ def cmd_list (argv):
         raise UsageError ('expected arguments')
 
     with connect () as db:
-        ids = []
-
-        def gen ():
-            try:
-                for idtext in argv[1:]:
-                    for pub in db.locate_pubs (idtext, noneok=True, manyok=True):
-                        yield pub
-            except PubLocateError as e:
-                die (e)
-
-        print_generic_listing (db, gen ())
+        print_generic_listing (db, db.locate_pubs (False, *argv[1:]))
 
 
 def cmd_read (argv):

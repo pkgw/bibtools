@@ -1024,6 +1024,9 @@ def bibcode_to_maybe_pdf_url (bibcode):
 def doi_to_maybe_bibcode (doi):
     bibcode = None
 
+    # XXX could convert this to an ADS 2.0 record search, something like
+    # http://adslabs.org/adsabs/api.record/{doi}/?dev_key=...
+
     url = ('http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?'
            'data_type=Custom&format=%25R&nocookieset=1&doi=' +
            urlquote (doi))
@@ -1090,6 +1093,9 @@ def _autolearn_bibcode_tag (info, tag, text):
 
 
 def autolearn_bibcode (bibcode):
+    # XXX could/should convert this to an ADS 2.0 record search, something
+    # like http://adslabs.org/adsabs/api.record/{doi}/?dev_key=...
+
     url = ('http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?'
            'data_type=PORTABLE&nocookieset=1&bibcode=' + urlquote (bibcode))
 

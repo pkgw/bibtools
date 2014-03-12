@@ -292,53 +292,57 @@ class BibDB (sqlite3.Connection):
     def locate_pubs (self, text, noneok=False, manyok=False):
         kind, text = classify_pub_ref (text)
 
+        c = self.cursor ()
+        c.row_factory = lambda curs, tup: PubRow (*tup)
+
         q = matchtext = None
 
         if kind == 'doi':
-            q = self.execute ('SELECT id FROM pubs WHERE doi = ?', (text, ))
+            q = c.execute ('SELECT * FROM pubs WHERE doi = ?', (text, ))
             matchtext = 'DOI = ' + text
         elif kind == 'bibcode':
-            q = self.execute ('SELECT id FROM pubs WHERE bibcode = ?', (text, ))
+            q = c.execute ('SELECT * FROM pubs WHERE bibcode = ?', (text, ))
             matchtext = 'bibcode = ' + text
         elif kind == 'arxiv':
-            q = self.execute ('SELECT id FROM pubs WHERE arxiv = ?', (text, ))
+            q = c.execute ('SELECT * FROM pubs WHERE arxiv = ?', (text, ))
             matchtext = 'arxiv = ' + text
         elif kind == 'nickname':
-            q = self.execute ('SELECT pubid FROM nicknames WHERE nickname = ?', (text, ))
+            q = c.execute ('SELECT p.* FROM pubs AS p, nicknames AS n '
+                           'WHERE p.id == n.pubid AND n.nickname = ?', (text, ))
             matchtext = 'nickname = ' + text
         elif kind == 'nfasy':
             nfas, year = text.rsplit ('.', 1)
             if year == '*':
-                q = self.execute ('SELECT id FROM pubs WHERE nfas = ?', (nfas, ))
+                q = c.execute ('SELECT * FROM pubs WHERE nfas = ?', (nfas, ))
             else:
-                q = self.execute ('SELECT id FROM pubs WHERE nfas = ? '
-                                  'AND year = ?', (nfas, year))
+                q = c.execute ('SELECT * FROM pubs WHERE nfas = ? '
+                               'AND year = ?', (nfas, year))
             matchtext = 'surname/year ~ ' + text
         else:
             assert False
 
-        ids = list (t[0] for t in q)
+        pubs = list (q)
 
-        if not noneok and not len (ids):
+        if not noneok and not len (pubs):
             raise PubLocateError ('no publications matched ' + matchtext)
-        if not manyok and len (ids) > 1:
+        if not manyok and len (pubs) > 1:
             raise PubLocateError ('more than one publication matched ' + matchtext)
 
-        return ids
+        return pubs
 
 
     def locate_pub (self, text, noneok=False, autolearn=False):
         if autolearn:
             noneok = True
 
-        ids = self.locate_pubs (text, noneok=noneok, manyok=False)
+        pubs = self.locate_pubs (text, noneok=noneok, manyok=False)
 
-        if not len (ids):
+        if not len (pubs):
             if autolearn:
                 return self.learn_pub (autolearn_pub (text))
             return None
 
-        return ids[0]
+        return pubs[0]
 
 
     def pub_fquery (self, q, *args):
@@ -445,7 +449,9 @@ class BibDB (sqlite3.Connection):
             except sqlite3.IntegrityError:
                 die ('duplicated pub nickname "%s"', nickname)
 
-        return pubid
+        tmp = list (row)
+        tmp[0] = pubid
+        return PubRow (*tmp)
 
 
     def log_action (self, pubid, actionid):
@@ -1262,16 +1268,15 @@ def cmd_ads (argv):
 
     with connect () as db:
         try:
-            id = db.locate_pub (idtext)
+            pub = db.locate_pub (idtext)
         except PubLocateError as e:
             die (e)
 
-        bc = db.getfirstval ('SELECT bibcode FROM pubs WHERE id = ?', id)
-        if bc is None:
+        if pub.bc is None:
             die ('cannot open ADS for this publication: no bibcode on record')
 
-        db.log_action (id, HA_VISIT)
-        open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/' + urlquote (bc))
+        db.log_action (pub.id, HA_VISIT)
+        open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/' + urlquote (pub.bc))
 
 
 def cmd_apage (argv):
@@ -1282,16 +1287,15 @@ def cmd_apage (argv):
 
     with connect () as db:
         try:
-            id = db.locate_pub (idtext)
+            pub = db.locate_pub (idtext)
         except PubLocateError as e:
             die (e)
 
-        arxiv = db.getfirstval ('SELECT arxiv FROM pubs WHERE id = ?', id)
-        if arxiv is None:
+        if pub.arxiv is None:
             die ('cannot open arxiv website: no identifier for record')
 
-        db.log_action (id, HA_VISIT)
-        open_url ('http://arxiv.org/abs/' + urlquote (arxiv))
+        db.log_action (pub.id, HA_VISIT)
+        open_url ('http://arxiv.org/abs/' + urlquote (pub.arxiv))
 
 
 def cmd_init (argv):
@@ -1319,35 +1323,34 @@ def cmd_info (argv):
         # out.
 
         try:
-            id = db.locate_pub (idtext, autolearn=True)
+            pub = db.locate_pub (idtext, autolearn=True)
         except PubLocateError as e:
             die (e)
 
-        for pub in db.pub_query ('id = ?', id):
-            year = pub.year or 'no year'
-            title = pub.title or '(no title)'
+        year = pub.year or 'no year'
+        title = pub.title or '(no title)'
 
-            authors = list (db.get_pub_authors (pub.id))
-            if len (authors):
-                authstr = ', '.join (a[1] for a in authors)
-            else:
-                authstr = '(no authors)'
+        authors = list (db.get_pub_authors (pub.id))
+        if len (authors):
+            authstr = ', '.join (a[1] for a in authors)
+        else:
+            authstr = '(no authors)'
 
-            print title
-            print authstr, '(%s)' % year
+        print title
+        print authstr, '(%s)' % year
 
-            if pub.arxiv is not None:
-                print 'arxiv:', pub.arxiv
-            if pub.bibcode is not None:
-                print 'bibcode:', pub.bibcode
-            if pub.doi is not None:
-                print 'DOI:', pub.doi
+        if pub.arxiv is not None:
+            print 'arxiv:', pub.arxiv
+        if pub.bibcode is not None:
+            print 'bibcode:', pub.bibcode
+        if pub.doi is not None:
+            print 'DOI:', pub.doi
 
-            if pub.abstract is not None:
-                print
-                print_linewrapped (pub.abstract, 72)
+        if pub.abstract is not None:
+            print
+            print_linewrapped (pub.abstract, 72)
 
-            db.log_action (id, HA_VISIT)
+        db.log_action (pub.id, HA_VISIT)
 
 
 _bibtex_replacements = (
@@ -1496,16 +1499,15 @@ def cmd_jpage (argv):
 
     with connect () as db:
         try:
-            id = db.locate_pub (idtext)
+            pub = db.locate_pub (idtext)
         except PubLocateError as e:
             die (e)
 
-        doi = db.getfirstval ('SELECT doi FROM pubs WHERE id = ?', id)
-        if doi is None:
+        if pub.doi is None:
             die ('cannot open journal website: no DOI for record')
 
-        db.log_action (id, HA_VISIT)
-        open_url ('http://dx.doi.org/' + urlquote (doi))
+        db.log_action (pub.id, HA_VISIT)
+        open_url ('http://dx.doi.org/' + urlquote (pub.doi))
 
 
 def cmd_list (argv):
@@ -1515,15 +1517,15 @@ def cmd_list (argv):
     with connect () as db:
         ids = []
 
-        try:
-            for idtext in argv[1:]:
-                for id in db.locate_pubs (idtext, noneok=True, manyok=True):
-                    ids.append (id)
-        except PubLocateError as e:
-            die (e)
+        def gen ():
+            try:
+                for idtext in argv[1:]:
+                    for pub in db.locate_pubs (idtext, noneok=True, manyok=True):
+                        yield pub
+            except PubLocateError as e:
+                die (e)
 
-        print_generic_listing (db, (db.pub_query ('id == ?', id).fetchone ()
-                                    for id in ids))
+        print_generic_listing (db, gen ())
 
 
 def cmd_read (argv):
@@ -1534,18 +1536,18 @@ def cmd_read (argv):
 
     with connect () as db:
         try:
-            id = db.locate_pub (idtext, autolearn=True)
+            pub = db.locate_pub (idtext, autolearn=True)
         except PubLocateError as e:
             die (e)
 
-        sha1 = db.getfirstval ('SELECT sha1 FROM pdfs WHERE pubid = ?', id)
+        sha1 = db.getfirstval ('SELECT sha1 FROM pdfs WHERE pubid = ?', pub.id)
         if sha1 is None:
             proxy = setup_proxy ()
-            sha1 = db.try_get_pdf_for_id (proxy, id)
+            sha1 = db.try_get_pdf_for_id (proxy, pub.id)
 
         if sha1 is not None:
             # no big deal if we fail later
-            db.log_action (id, HA_READ)
+            db.log_action (pub.id, HA_READ)
 
     if sha1 is None:
         die ('no saved PDF for %s, and cannot figure out how to download it', idtext)
@@ -1576,7 +1578,7 @@ def cmd_setpdf (argv):
     with connect () as db:
         # Check that we know what pub we're talking about
         try:
-            id = db.locate_pub (idtext)
+            pub = db.locate_pub (idtext)
         except PubLocateError as e:
             die (e)
 
@@ -1599,7 +1601,7 @@ def cmd_setpdf (argv):
         shutil.copyfile (pdfpath, dest)
 
         # Update the DB
-        db.execute ('INSERT OR REPLACE INTO pdfs VALUES (?, ?)', (sha1, id))
+        db.execute ('INSERT OR REPLACE INTO pdfs VALUES (?, ?)', (sha1, pub.id))
 
 
 def cmd_setsecret (argv):

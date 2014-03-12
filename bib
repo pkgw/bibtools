@@ -1285,11 +1285,11 @@ def cmd_ads (argv):
         except PubLocateError as e:
             die (e)
 
-        if pub.bc is None:
+        if pub.bibcode is None:
             die ('cannot open ADS for this publication: no bibcode on record')
 
         db.log_action (pub.id, HA_VISIT)
-        open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/' + urlquote (pub.bc))
+        open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/' + urlquote (pub.bibcode))
 
 
 def cmd_apage (argv):

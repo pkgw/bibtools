@@ -12,20 +12,6 @@ import HTMLParser # renamed to html.parser in Python 3.
 from urllib2 import quote as urlquote
 
 
-# Things that are hardcoded but shouldn't be!
-#
-# The user_agent is because otherwise nature.com gives us the mobile site, which
-# happens to not include the easily-recognized <a> tag linking to the paper PDF.
-# I don't know exactly what's needed, but if we just send 'Mozilla/5.0' as the UA,
-# nature.com gives us a 500 error (!). So I've just copied my current browser's
-# UA.
-
-pdfreader = 'evince'
-url_opener = 'xdg-open'
-user_agent = 'Mozilla/5.0 (X11; Linux x86_64; rv:27.0) Gecko/20100101 Firefox/27.0'
-openssl_cmd = '/usr/bin/openssl'
-
-
 # Generic app infrastructure
 
 def die (fmt, *args):
@@ -162,7 +148,8 @@ def open_url (url):
     prints out a few warnings when you launch it and I really want
     to make those disappear."""
 
-    launch_background_silent (url_opener, [url_opener, url])
+    opener = BibConfig ().get_or_die ('apps', 'url-opener')
+    launch_background_silent (opener, [opener, url])
 
 
 # Configuration subsystem
@@ -174,20 +161,14 @@ class BibConfig (configparser.RawConfigParser):
     def __init__ (self):
         # stupid old-style classes can't use super()
         configparser.RawConfigParser.__init__ (self)
+        self.read (datapath ('defaults.cfg'))
         self.read (bibpath ('bib.cfg'))
-
-
-    def tryget (self, section, option):
-        try:
-            return self.get (section, option)
-        except (configparser.NoSectionError, configparser.NoOptionError):
-            return None
 
 
     def get_or_die (self, section, option):
         try:
             return self.get (section, option)
-        except (configparser.NoSectionError, configparser.NoOptionError):
+        except configparser.Error:
             die ('cannot find required configuration key %s/%s', section, option)
 
 
@@ -195,14 +176,11 @@ class BibConfig (configparser.RawConfigParser):
         # TODO: return some kind of null proxy if nothing configured. Then
         # we can kill get_proxy_or_die.
 
-        if not self.has_section ('proxy'):
+        try:
+            kind = self.get ('proxy', 'kind')
+            username = self.get ('proxy', 'username')
+        except configparser.Error:
             return None
-
-        username = self.tryget ('proxy', 'username')
-        if username is None:
-            return None # can't do anything without this
-
-        kind = self.tryget ('proxy', 'kind') or 'harvard'
 
         # It's not good to have this hanging around in memory, but Python
         # strings are immutable and we have no idea what (if anything) `del
@@ -816,6 +794,8 @@ def load_secret_keys ():
 def store_user_secret ():
     import random, string, subprocess
 
+    openssl = BibConfig ().get_or_die ('apps', 'openssl')
+
     # Generate a random password for the key generation. Python SystemRandom
     # uses /dev/urandom, so it's possible that the password may be derived
     # in a low-entropy state, but ... meh.
@@ -833,7 +813,7 @@ def store_user_secret ():
                    0o600) # just in case ...
 
     with os.fdopen (kfd, 'w') as kfile:
-        subprocess.check_call ([openssl_cmd, 'enc', '-aes-256-cbc', '-k', keypass,
+        subprocess.check_call ([openssl, 'enc', '-aes-256-cbc', '-k', keypass,
                                 '-P', '-md', 'sha1'], stdout=kfile, shell=False,
                                close_fds=True)
 
@@ -850,7 +830,7 @@ def store_user_secret ():
         print 'Enter password, then Enter, then control-D twice:'
 
         with os.fdopen (sfd, 'w') as sfile:
-            subprocess.check_call ([openssl_cmd, 'enc', '-aes-256-cbc', '-e', '-K',
+            subprocess.check_call ([openssl, 'enc', '-aes-256-cbc', '-e', '-K',
                                     key, '-iv', iv], stdout=sfile, shell=False,
                                    close_fds=True)
 
@@ -862,8 +842,10 @@ def store_user_secret ():
 def load_user_secret ():
     import subprocess
 
+    openssl = BibConfig ().get_or_die ('apps', 'openssl')
+
     key, iv = load_secret_keys ()
-    secret = subprocess.check_output ([openssl_cmd, 'enc', '-aes-256-cbc', '-d',
+    secret = subprocess.check_output ([openssl, 'enc', '-aes-256-cbc', '-d',
                                        '-K', key, '-iv', iv, '-in',
                                        bibpath ('secret.bin')], shell=False,
                                       close_fds=True)
@@ -964,8 +946,14 @@ class HarvardProxy (object):
         self.opener = urllib2.build_opener (urllib2.HTTPRedirectHandler (),
                                             urllib2.HTTPCookieProcessor (self.cj))
 
-        # XXX This doesn't quite belong here.
-        self.opener.addheaders = [('User-Agent', user_agent)]
+        # XXX This doesn't quite belong here. We need it because otherwise
+        # nature.com gives us the mobile site, which happens to not include
+        # the easily-recognized <a> tag linking to the paper PDF. I don't know
+        # exactly what's needed, but if we just send 'Mozilla/5.0' as the UA,
+        # nature.com gives us a 500 error (!). So I've just copied my current
+        # browser's UA.
+        ua = BibConfig ().get_or_die ('proxy', 'user-agent')
+        self.opener.addheaders = [('User-Agent', ua)]
 
         self.inputs = list (self.default_inputs)
         self.inputs.append (('username', username))
@@ -1593,6 +1581,7 @@ def cmd_read (argv):
     if sha1 is None:
         die ('no saved PDF for %s, and cannot figure out how to download it', idtext)
 
+    pdfreader = BibConfig ().get_or_die ('apps', 'pdf-reader')
     launch_background_silent (pdfreader, [pdfreader, libpath (sha1, 'pdf')])
 
 

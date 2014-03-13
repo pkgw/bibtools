@@ -1288,6 +1288,106 @@ def autolearn_arxiv (arxiv):
     return info
 
 
+# Searching ADS
+
+def _run_ads_search (searchterms, filterterms):
+    # TODO: access to more API args
+    import urllib, json
+
+    apikey = BibConfig ().get_or_die ('api-keys', 'ads')
+
+    q = [('q', ' '.join (searchterms)),
+         ('dev_key', apikey)]
+
+    for ft in filterterms:
+        q.append (('filter', ft))
+
+    url = 'http://adslabs.org/adsabs/api/search?' + urllib.urlencode (q)
+    return json.load (urllib2.urlopen (url))
+
+
+def parse_search (interms):
+    """We go to the trouble of parsing searches ourselves because ADS's syntax
+    is quite verbose. Terms we support:
+
+    (integer) -> year specification
+       if this year is 2014, 16--99 are treated as 19NN,
+       and 00--15 is treated as 20NN (for "2015 in prep" papers)
+       Otherwise, treated as a full year.
+    """
+
+    outterms = []
+    bareword = None
+
+    from time import localtime
+    thisyear = localtime ()[0]
+    next_twodigit_year = (thisyear + 1) % 100
+
+    for interm in interms:
+        try:
+            asint = int (interm)
+        except ValueError:
+            pass
+        else:
+            if asint < 100:
+                if asint > next_twodigit_year:
+                    outterms.append (('year', asint + (thisyear // 100 - 1) * 100))
+                else:
+                    outterms.append (('year', asint + (thisyear // 100) * 100))
+            else:
+                outterms.append (('year', asint))
+            continue
+
+        # It must be the bareword
+        if bareword is None:
+            bareword = interm
+            continue
+
+        die ('searches only support a single "bare word" right now')
+
+    if bareword is not None:
+        outterms.append (('surname', bareword)) # note the assumption here
+
+    return outterms
+
+
+def search_ads (terms):
+    if len (terms) < 2:
+        die ('require at least two search terms for ADS')
+
+    adsterms = []
+
+    for info in terms:
+        if info[0] == 'year':
+            adsterms.append ('year:%d' % info[1])
+        elif info[0] == 'surname':
+            adsterms.append ('author:"%s"' % info[1])
+        else:
+            die ('don\'t know how to express search term %r to ADS', info)
+
+    r = _run_ads_search (adsterms, ['database:astronomy']) # XXX more hardcoding
+
+    maxnfaslen = 0
+    maxbclen = 0
+    info = []
+
+    for item in r['results']['docs'][:20]:
+        # year isn't important since it's embedded in bibcode.
+        title = item['title'][0] # not sure why this is a list?
+        bibcode = item['identifier'][0] # ditto
+        nfas = normalize_surname (parse_name (_translate_ads_name (item['author'][0]))[1])
+
+        maxnfaslen = max (maxnfaslen, len (nfas))
+        maxbclen = max (maxbclen, len (bibcode))
+        info.append ((bibcode, nfas, title))
+
+    ofs = maxnfaslen + maxbclen + 4
+
+    for bc, nfas, title in info:
+        print '%*s  %*s  ' % (maxbclen, bc, maxnfaslen, nfas),
+        print_truncated (title, ofs)
+
+
 # UI subroutines
 
 def print_generic_listing (db, pub_seq):
@@ -1594,6 +1694,13 @@ def cmd_recent (argv):
                                                   'FROM pubs AS p, history AS h '
                                                   'WHERE p.id == h.pubid '
                                                   'ORDER BY date DESC LIMIT 10'))
+
+
+def cmd_rq (argv):
+    if len (argv) < 2:
+        raise UsageError ('expected arguments')
+
+    search_ads (parse_search (argv[1:]))
 
 
 def cmd_setpdf (argv):

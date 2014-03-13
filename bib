@@ -24,7 +24,6 @@ pdfreader = 'evince'
 url_opener = 'xdg-open'
 user_agent = 'Mozilla/5.0 (X11; Linux x86_64; rv:27.0) Gecko/20100101 Firefox/27.0'
 openssl_cmd = '/usr/bin/openssl'
-crossref_api_key = 'peter-bulk@newton.cx'
 
 
 # Generic app infrastructure
@@ -183,6 +182,13 @@ class BibConfig (configparser.RawConfigParser):
             return self.get (section, option)
         except (configparser.NoSectionError, configparser.NoOptionError):
             return None
+
+
+    def get_or_die (self, section, option):
+        try:
+            return self.get (section, option)
+        except (configparser.NoSectionError, configparser.NoOptionError):
+            die ('cannot find required configuration key %s/%s', section, option)
 
 
     def get_proxy (self):
@@ -1206,8 +1212,11 @@ def autolearn_bibcode (bibcode):
 def autolearn_doi (doi):
     import xml.etree.ElementTree as ET
 
+    # XXX loading config scattershot as-needed isn't ideal ...
+    apikey = BibConfig ().get_or_die ('api-keys', 'crossref')
+
     url = ('http://crossref.org/openurl/?id=%s&noredirect=true&pid=%s&'
-           'format=unixref' % (urlquote (doi), urlquote (crossref_api_key)))
+           'format=unixref' % (urlquote (doi), urlquote (apikey)))
     info = {'doi': doi, 'keep': 0} # because we're autolearning
 
     # XXX sad to be not doing this incrementally, but Py 2.x doesn't

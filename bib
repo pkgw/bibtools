@@ -368,7 +368,7 @@ class BibDB (sqlite3.Connection):
                 yield pub
 
             if not gotany and not noneok:
-                raise PubLocateError ('no publications matched' + textid)
+                raise PubLocateError ('no publications matched ' + textid)
 
 
     def locate_pub (self, text, noneok=False, autolearn=False):
@@ -1665,7 +1665,7 @@ def cmd_list (argv):
         raise UsageError ('expected arguments')
 
     with connect () as db:
-        print_generic_listing (db, db.locate_pubs (False, *argv[1:]))
+        print_generic_listing (db, db.locate_pubs (True, *argv[1:]))
 
 
 def cmd_read (argv):

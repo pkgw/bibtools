@@ -35,3 +35,9 @@ CREATE TABLE pdfs (
        sha1 TEXT UNIQUE PRIMARY KEY,
        pubid INTEGER
 );
+
+CREATE TABLE publists (
+       listtype INTEGER,
+       idx INTEGER,
+       pubid INTEGER
+);

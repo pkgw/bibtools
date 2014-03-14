@@ -44,6 +44,9 @@ class UsageError (BibError):
 class PubLocateError (BibError):
     pass
 
+class MultiplePubsError (PubLocateError):
+    pass
+
 
 _whitespace_re = re.compile (r'\s+')
 
@@ -380,7 +383,7 @@ class BibDB (sqlite3.Connection):
                 thepub = pub
             else:
                 # Second match. There will be no third match.
-                raise PubLocateError ('more than one publication matched ' + text)
+                raise MultiplePubsError ('more than one publication matched ' + text)
 
         if thepub is not None:
             return thepub
@@ -395,6 +398,11 @@ class BibDB (sqlite3.Connection):
     def locate_or_die (self, text, autolearn=False):
         try:
             return self.locate_pub (text, autolearn=autolearn)
+        except MultiplePubsError as e:
+            print >>sys.stderr, 'error:', e
+            print >>sys.stderr
+            print_generic_listing (self, self.locate_pubs (True, text))
+            raise SystemExit (1)
         except PubLocateError as e:
             die (e)
 

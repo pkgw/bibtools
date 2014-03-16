@@ -1412,6 +1412,9 @@ def print_generic_listing (db, pub_seq):
         title = pub.title or '(no title)'
         nick = db.choose_pub_nickname (pub.id) or ''
 
+        if isinstance (year, int):
+            year = '%04d' % year
+
         info.append ((nfas, year, title, nick))
         maxnfaslen = max (maxnfaslen, len (nfas))
         maxnicklen = max (maxnicklen, len (nick))
@@ -1419,7 +1422,7 @@ def print_generic_listing (db, pub_seq):
     ofs = maxnfaslen + maxnicklen + 9
 
     for nfas, year, title, nick in info:
-        print '%*s.%04d  %*s  ' % (maxnfaslen, nfas, year, maxnicklen, nick),
+        print '%*s.%s  %*s  ' % (maxnfaslen, nfas, year, maxnicklen, nick),
         print_truncated (title, ofs)
 
 

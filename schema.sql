@@ -31,6 +31,11 @@ CREATE TABLE nicknames (
        pubid INTEGER
 );
 
+CREATE TABLE notes (
+       pubid INTEGER,
+       note TEXT
+);
+
 CREATE TABLE pdfs (
        sha1 TEXT UNIQUE PRIMARY KEY,
        pubid INTEGER

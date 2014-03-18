@@ -39,4 +39,4 @@ fi
 
 mkdir -p$vee $prefix/bin $prefix/share/bib
 install -C$vee -m755 -t $prefix/bin bib
-install -C$vee -m644 -t $prefix/share/bib *.sql defaults.cfg
+install -C$vee -m644 -t $prefix/share/bib *.sql apj-issnmap.txt defaults.cfg

@@ -1431,11 +1431,25 @@ def search_ads (terms):
 class BibtexStyleBase (object):
     include_doi = True
     include_title = False
+    issn_name_map = None
     normalize_pages = False
 
 
 class ApjBibtexStyle (BibtexStyleBase):
     normalize_pages = True
+
+    def __init__ (self):
+        inm = {}
+
+        for line in open (datapath ('apj-issnmap.txt')):
+            line = line.split ('#')[0].strip ().decode ('utf-8')
+            if not len (line):
+                continue
+
+            issn, jname = line.split (None, 1)
+            inm[issn] = unicode_to_latex (jname)
+
+        self.issn_name_map = inm
 
 
 bibtex_styles = {'apj': ApjBibtexStyle}
@@ -1499,6 +1513,11 @@ def bibtexify_one (db, style, pub):
 
     if style.include_doi and pub.doi is not None:
         rd['doi'] = unicode_to_latex (pub.doi)
+
+    if style.issn_name_map is not None and 'issn' in rd:
+        ltxjname = style.issn_name_map.get (rd['issn'])
+        if ltxjname is not None:
+            rd['journal'] = ltxjname
 
     if style.normalize_pages and 'pages' in rd:
         p = rd['pages'].split ('--')[0]

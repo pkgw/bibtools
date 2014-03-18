@@ -16,6 +16,7 @@ CREATE TABLE author_names (
 );
 
 CREATE TABLE authors (
+       type INTEGER,
        pubid INTEGER,
        idx INTEGER,
        authid INTEGER

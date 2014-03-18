@@ -296,11 +296,14 @@ PubRow = collections.namedtuple ('PubRow',
                                  'id abstract arxiv bibcode doi keep nfas '
                                  'refdata title year'.split ())
 
+AUTHTYPE_AUTHOR = 0
+AUTHTYPE_EDITOR = 1
+
 AuthorNameRow = collections.namedtuple ('AuthorNameRow',
                                         ['name'])
 
 AuthorRow = collections.namedtuple ('AuthorRow',
-                                    'pubid idx authid'.split ())
+                                    'type pubid idx authid'.split ())
 
 HistoryRow = collections.namedtuple ('HistoryRow',
                                      'date pubid action'.split ())
@@ -449,7 +452,7 @@ class BibDB (sqlite3.Connection):
         return sha1
 
 
-    def learn_pub_authors (self, pubid, authors):
+    def learn_pub_authors (self, pubid, authtype, authors):
         c = self.cursor ()
 
         for idx, auth in enumerate (authors):
@@ -458,15 +461,16 @@ class BibDB (sqlite3.Connection):
             c.execute ('INSERT OR IGNORE INTO author_names VALUES (?)',
                        (auth, ))
             row = self.getfirst ('SELECT oid FROM author_names WHERE name = ?', auth)[0]
-            c.execute ('INSERT OR REPLACE INTO authors VALUES (?, ?, ?)',
-                       (pubid, idx, row))
+            c.execute ('INSERT OR REPLACE INTO authors VALUES (?, ?, ?, ?)',
+                       (authtype, pubid, idx, row))
 
 
-    def get_pub_authors (self, pubid):
+    def get_pub_authors (self, pubid, authtype=AUTHTYPE_AUTHOR):
         return (parse_name (a[0]) for a in
                 self.execute ('SELECT name FROM authors AS au, author_names AS an '
-                              'WHERE au.authid == an.oid AND au.pubid == ? '
-                              'ORDER BY idx', (pubid, )))
+                              'WHERE au.type == ? AND au.authid == an.oid '
+                              '  AND au.pubid == ? '
+                              'ORDER BY idx', (authtype, pubid, )))
 
 
     def get_pub_fas (self, pubid):
@@ -475,8 +479,9 @@ class BibDB (sqlite3.Connection):
         the 'pubs' table."""
 
         for t in self.execute ('SELECT name FROM authors AS au, author_names AS an '
-                               'WHERE au.authid == an.oid AND au.pubid == ? '
-                               'AND idx == 0', (pubid, )):
+                               'WHERE au.type == ? AND au.authid == an.oid '
+                               '  AND au.pubid == ? '
+                               'AND idx == 0', (AUTHTYPE_AUTHOR, pubid, )):
             return parse_name (t[0])[1]
 
         return None
@@ -518,7 +523,7 @@ class BibDB (sqlite3.Connection):
         pubid = c.lastrowid
 
         if authors is not None:
-            self.learn_pub_authors (pubid, authors)
+            self.learn_pub_authors (pubid, AUTHTYPE_AUTHOR, authors)
 
         if nickname is not None:
             try:
@@ -1476,7 +1481,7 @@ def bibtexify_one (db, style, pub):
     for k in rd.keys ():
         rd[k] = unicode_to_latex (rd[k])
 
-    names = list (db.get_pub_authors (pub.id))
+    names = list (db.get_pub_authors (pub.id, AUTHTYPE_AUTHOR))
     if len (names):
         rd['author'] = bibtexify_names (style, names)
 

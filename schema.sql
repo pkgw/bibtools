@@ -43,7 +43,7 @@ CREATE TABLE pdfs (
 );
 
 CREATE TABLE publists (
-       listtype INTEGER,
+       type INTEGER,
        idx INTEGER,
        pubid INTEGER
 );

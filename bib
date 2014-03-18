@@ -1418,10 +1418,11 @@ def search_ads (terms):
 class BibtexStyleBase (object):
     include_doi = True
     include_title = False
+    normalize_pages = False
 
 
 class ApjBibtexStyle (BibtexStyleBase):
-    pass
+    normalize_pages = True
 
 
 bibtex_styles = {'apj': ApjBibtexStyle}
@@ -1481,6 +1482,12 @@ def bibtexify_one (db, style, pub):
 
     if style.include_doi and pub.doi is not None:
         rd['doi'] = unicode_to_latex (pub.doi)
+
+    if style.normalize_pages and 'pages' in rd:
+        p = rd['pages'].split ('--')[0]
+        if p[-1] == '+':
+            p = p[:-1]
+        rd['pages'] = p
 
     if style.include_title and pub.title is not None:
         rd['title'] = unicode_to_latex (pub.title)

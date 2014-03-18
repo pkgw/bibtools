@@ -6,6 +6,7 @@ CREATE TABLE pubs (
        doi TEXT,
        keep INTEGER,
        nfas TEXT, /* normalized first-author surname */
+       refdata TEXT, /* JSON dict */
        title TEXT,
        year INTEGER
 );

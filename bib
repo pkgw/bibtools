@@ -1412,6 +1412,85 @@ def search_ads (terms):
         print_truncated (title, ofs)
 
 
+# Bibtex export
+# TODO: styles defined in a support file or something.
+
+class BibtexStyleBase (object):
+    include_doi = True
+    include_title = False
+
+
+class ApjBibtexStyle (BibtexStyleBase):
+    pass
+
+
+bibtex_styles = {'apj': ApjBibtexStyle}
+
+
+def _setup_unicode_to_latex ():
+    # XXX XXX even worse, don't want to modularize just yet
+    import unicode_to_latex
+    return unicode_to_latex.unicode_to_latex
+
+    # XXX XXX not reached!
+    # XXX fixme annoying to be duplicating my unicode_to_latex.py.
+    from bibtexparser.latexenc import unicode_to_latex as u2l
+
+    table = dict ((ord (k), unicode (v))
+                  for k, v in u2l
+                  if len (k) == 1)
+
+    del table[ord (u' ')]
+
+    return lambda u: u.translate (table).encode ('ascii')
+
+
+unicode_to_latex = _setup_unicode_to_latex ()
+
+
+def bibtexify_one (style, pub):
+    """Returns a dict in which the values are already latex-encoded.
+    '_type' is the bibtex type, '_ident' is the bibtex identifier."""
+
+    rd = json.loads (pub.refdata)
+
+    for k in rd.keys ():
+        rd[k] = unicode_to_latex (rd[k])
+
+    if style.include_doi and pub.doi is not None:
+        rd['doi'] = unicode_to_latex (pub.doi)
+
+    if style.include_title and pub.title is not None:
+        rd['title'] = unicode_to_latex (pub.title)
+
+    if pub.year is not None:
+        rd['year'] = str (pub.year)
+
+
+    return rd
+
+
+def write_bibtexified (write, btdata):
+    """This will mutate `btdata`."""
+
+    bttype = btdata.pop ('_type')
+    btid = btdata.pop ('_ident')
+
+    write ('@')
+    write (bttype)
+    write ('{')
+    write (btid)
+
+    for k in sorted (btdata.iterkeys ()):
+        write (',\n  ')
+        write (k)
+        write (' = {')
+        write (btdata[k])
+        write ('}')
+
+    write ('\n}\n')
+
+
 # UI subroutines
 
 def print_generic_listing (db, pub_seq):
@@ -1472,6 +1551,76 @@ def cmd_apage (argv):
 
         db.log_action (pub.id, HA_VISIT)
         open_url ('http://arxiv.org/abs/' + urlquote (pub.arxiv))
+
+
+def cmd_btexport (argv):
+    if len (argv) != 3:
+        raise UsageError ('expected exactly 2 arguments')
+
+    outstyle = argv[1]
+    auxfile = argv[2]
+
+    # Load/check style
+
+    factory = bibtex_styles.get (outstyle)
+    if factory is None:
+        die ('unrecognized BibTeX output style "%s"', outstyle)
+
+    style = factory ()
+
+    # Load cited nicknames
+
+    citednicks = set ()
+
+    for line in open (auxfile):
+        if not line.startswith (r'\citation{'):
+            continue
+
+        line = line.rstrip ()
+
+        if line[-1] != '}':
+            warn ('unexpected cite line in LaTeX aux file: "%s"', line)
+            continue
+
+        entries = line[10:-1]
+
+        # We provide a mechanism for ignoring raw bibtex entries
+        citednicks.update ([e for e in entries.split (',')
+                            if not e.startswith ('r.')])
+
+    # Export
+
+    seenids = {}
+    first = True
+    write = sys.stdout.write
+
+    with connect () as db:
+        for nick in sorted (citednicks):
+            curs = db.pub_fquery ('SELECT p.* FROM pubs AS p, nicknames AS n '
+                                  'WHERE p.id == n.pubid AND n.nickname == ?', nick)
+            res = list (curs)
+
+            if not len (res):
+                die ('citation to unrecognized nickname "%s"', nick)
+            if len (res) != 1:
+                die ('cant-happen multiple matches for nickname "%s"', nick)
+
+            pub = res[0]
+
+            if pub.id in seenids:
+                die ('"%s" and "%s" refer to the same publication; this will '
+                     'cause duplicate entries', nick, seenids[pub.id])
+
+            seenids[pub.id] = nick
+
+            if first:
+                first = False
+            else:
+                write ('\n')
+
+            bt = bibtexify_one (style, pub)
+            bt['_ident'] = nick
+            write_bibtexified (write, bt)
 
 
 def cmd_init (argv):
@@ -1642,7 +1791,7 @@ def _ingest_one (db, rec):
     # Gather reference information
     # TO DO: normalize editor, journal name, pages...
 
-    refdata = {}
+    refdata = {'_type': rec['type']}
 
     for k, v in rec.iteritems ():
         if k in ('type', 'id', 'abstract', 'archiveprefix', 'author',

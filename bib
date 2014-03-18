@@ -1448,7 +1448,25 @@ def _setup_unicode_to_latex ():
 unicode_to_latex = _setup_unicode_to_latex ()
 
 
-def bibtexify_one (style, pub):
+def bibtexify_name (style, name):
+    given, family = name
+
+    fbits = family.rsplit (',', 1)
+
+    if len (fbits) > 1:
+        return '{%s}, %s, %s' % (unicode_to_latex (fbits[0]),
+                                 unicode_to_latex (fbits[1]),
+                                 unicode_to_latex (given))
+
+    return '{%s}, %s' % (unicode_to_latex (fbits[0]),
+                         unicode_to_latex (given))
+
+
+def bibtexify_names (style, names):
+    return ' and '.join (bibtexify_name (style, n) for n in names)
+
+
+def bibtexify_one (db, style, pub):
     """Returns a dict in which the values are already latex-encoded.
     '_type' is the bibtex type, '_ident' is the bibtex identifier."""
 
@@ -1456,6 +1474,10 @@ def bibtexify_one (style, pub):
 
     for k in rd.keys ():
         rd[k] = unicode_to_latex (rd[k])
+
+    names = list (db.get_pub_authors (pub.id))
+    if len (names):
+        rd['author'] = bibtexify_names (style, names)
 
     if style.include_doi and pub.doi is not None:
         rd['doi'] = unicode_to_latex (pub.doi)
@@ -1618,7 +1640,7 @@ def cmd_btexport (argv):
             else:
                 write ('\n')
 
-            bt = bibtexify_one (style, pub)
+            bt = bibtexify_one (db, style, pub)
             bt['_ident'] = nick
             write_bibtexified (write, bt)
 

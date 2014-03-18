@@ -27,6 +27,19 @@ def warn (fmt, *args):
         print >>sys.stderr, 'warning:', fmt % args
 
 
+def reraise_context (fmt, *args):
+    if len (args):
+        cstr = fmt % args
+    else:
+        cstr = str (fmt)
+
+    ex = sys.exc_info ()[1]
+    if len (ex.args):
+        cstr = '%s: %s' % (cstr, ex.args[0])
+    ex.args = (cstr, ) + ex.args[1:]
+    raise
+
+
 class BibError (Exception):
     def __init__ (self, fmt, *args):
         if not len (args):

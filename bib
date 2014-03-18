@@ -504,6 +504,7 @@ class BibDB (sqlite3.Connection):
         """Note that `info` will be mutated."""
 
         authors = info.pop ('authors', ())
+        editors = info.pop ('editors', ())
         nickname = info.pop ('nickname', None)
 
         if 'abstract' in info:
@@ -522,8 +523,11 @@ class BibDB (sqlite3.Connection):
         c.execute ('INSERT INTO pubs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', row)
         pubid = c.lastrowid
 
-        if authors is not None:
+        if authors:
             self.learn_pub_authors (pubid, AUTHTYPE_AUTHOR, authors)
+
+        if editors:
+            self.learn_pub_authors (pubid, AUTHTYPE_EDITOR, editors)
 
         if nickname is not None:
             try:
@@ -1159,7 +1163,7 @@ def autolearn_pub (text):
 
 
 def _autolearn_bibcode_tag (info, tag, text):
-    # TODO: all authors, etc.
+    # TODO: editors?
 
     if tag == 'T':
         info['title'] = text
@@ -1227,6 +1231,10 @@ def autolearn_bibcode (bibcode):
 
 
 def autolearn_doi (doi):
+    # TODO: editors. See e.g. unixref output for 10.1007/978-3-642-14335-9_1
+    # -- three <contributors> sections (!), with contributor_role="editor" on
+    # the <person_name> element.
+
     import xml.etree.ElementTree as ET
 
     # XXX loading config scattershot as-needed isn't ideal ...
@@ -1484,6 +1492,10 @@ def bibtexify_one (db, style, pub):
     names = list (db.get_pub_authors (pub.id, AUTHTYPE_AUTHOR))
     if len (names):
         rd['author'] = bibtexify_names (style, names)
+
+    names = list (db.get_pub_authors (pub.id, AUTHTYPE_EDITOR))
+    if len (names):
+        rd['editor'] = bibtexify_names (style, names)
 
     if style.include_doi and pub.doi is not None:
         rd['doi'] = unicode_to_latex (pub.doi)
@@ -1789,6 +1801,13 @@ def _ingest_one (db, rec):
     else:
         authors = None
 
+    if 'editor' in rec:
+        # for some reason bibtexparser's editor() and author() filters work
+        # differently.
+        editors = [_translate_bibtex_name (_fix_bibtex (e['name'])) for e in rec['editor']]
+    else:
+        editors = None
+
     abstract = _fix_bibtex (abstract)
     title = _fix_bibtex (title)
 
@@ -1823,15 +1842,15 @@ def _ingest_one (db, rec):
     #    print 'mapped', doi, 'to', bibcode or '(lookup failed)'
 
     # Gather reference information
-    # TO DO: normalize editor, journal name, pages...
+    # TO DO: normalize journal name, pages...
 
     refdata = {'_type': rec['type']}
 
     for k, v in rec.iteritems ():
         if k in ('type', 'id', 'abstract', 'archiveprefix', 'author',
-                 'bibcode', 'day', 'doi', 'eprint', 'keyword', 'keywords',
-                 'link', 'month', 'posted-at', 'pmid', 'priority', 'title',
-                 'url', 'year'):
+                 'bibcode', 'day', 'doi', 'editor', 'eprint', 'keyword',
+                 'keywords', 'link', 'month', 'posted-at', 'pmid',
+                 'priority', 'title', 'url', 'year'):
             continue
         if k.startswith ('citeulike'):
             continue
@@ -1840,8 +1859,8 @@ def _ingest_one (db, rec):
     # Ready to insert.
 
     info = dict (abstract=abstract, arxiv=arxiv, authors=authors,
-                 bibcode=bibcode, doi=doi, nickname=nickname,
-                 refdata=refdata, title=title, year=year)
+                 bibcode=bibcode, doi=doi, editors=editors,
+                 nickname=nickname, refdata=refdata, title=title, year=year)
     db.learn_pub (info)
 
 
@@ -1851,9 +1870,9 @@ def cmd_ingest (argv):
 
     bibpath = argv[1]
     from bibtexparser.bparser import BibTexParser
-    from bibtexparser.customization import author, type, convert_to_unicode
+    from bibtexparser.customization import author, editor, type, convert_to_unicode
 
-    custom = lambda r: author (type (convert_to_unicode (r)))
+    custom = lambda r: editor (author (type (convert_to_unicode (r))))
 
     with open (bibpath) as bibfile, connect () as db:
         bp = BibTexParser (bibfile, customization=custom)

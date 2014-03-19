@@ -500,6 +500,13 @@ class BibDB (sqlite3.Connection):
         return n[0][0]
 
 
+    def _lint_refdata (self, info):
+        rd = info['refdata']
+
+        if rd.get ('journal') == 'ArXiv e-prints':
+            warn ('useless "ArXiv e-prints" bibliographical record')
+
+
     def learn_pub (self, info):
         """Note that `info` will be mutated."""
 
@@ -516,6 +523,7 @@ class BibDB (sqlite3.Connection):
             info['nfas'] = normalize_surname (parse_name (authors[0])[1])
 
         if 'refdata' in info:
+            self._lint_refdata (info)
             info['refdata'] = json.dumps (info['refdata'])
 
         row = nt_augment (PubRow, **info)

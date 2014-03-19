@@ -1689,6 +1689,9 @@ def cmd_btexport (argv):
 
 
 def cmd_init (argv):
+    if len (argv) != 1:
+        raise UsageError ('expected no arguments')
+
     mkdir_p (bibpath ())
 
     if os.path.exists (dbpath):

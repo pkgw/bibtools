@@ -1425,7 +1425,7 @@ def search_ads (terms, raw=False):
     for item in r['results']['docs'][:20]:
         # year isn't important since it's embedded in bibcode.
         title = item['title'][0] # not sure why this is a list?
-        bibcode = item['identifier'][0] # ditto
+        bibcode = item['bibcode']
         nfas = normalize_surname (parse_name (_translate_ads_name (item['author'][0]))[1])
 
         maxnfaslen = max (maxnfaslen, len (nfas))

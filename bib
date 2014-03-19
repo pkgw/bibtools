@@ -1974,7 +1974,7 @@ def cmd_refgrep (argv):
             val = rd.get (refkey)
 
             if val is not None:
-                print val
+                print val.encode ('utf-8')
 
 
 def cmd_rq (argv):

@@ -1396,7 +1396,7 @@ def parse_search (interms):
     return outterms
 
 
-def search_ads (terms):
+def search_ads (terms, raw=False):
     if len (terms) < 2:
         die ('require at least two search terms for ADS')
 
@@ -1411,6 +1411,12 @@ def search_ads (terms):
             die ('don\'t know how to express search term %r to ADS', info)
 
     r = _run_ads_search (adsterms, ['database:astronomy']) # XXX more hardcoding
+
+    if raw:
+        import codecs
+        out = codecs.getwriter ('utf-8') (sys.stdout)
+        json.dump (r, out, ensure_ascii=False, indent=2, separators=(',', ': '))
+        return
 
     maxnfaslen = 0
     maxbclen = 0
@@ -2018,7 +2024,12 @@ def cmd_rq (argv):
     if len (argv) < 2:
         raise UsageError ('expected arguments')
 
-    search_ads (parse_search (argv[1:]))
+    # XXX need a real option-parsing setup
+    rawmode = '--raw' in argv
+    if rawmode:
+        argv.remove ('--raw')
+
+    search_ads (parse_search (argv[1:]), raw=rawmode)
 
 
 def cmd_setpdf (argv):

@@ -1959,6 +1959,21 @@ def cmd_recent (argv):
                                                   'ORDER BY date DESC LIMIT 10'))
 
 
+def cmd_refgrep (argv):
+    if len (argv) != 2:
+        raise UsageError ('expected exactly one argument')
+
+    refkey = argv[1]
+
+    with connect () as db:
+        for pub in db.pub_query ('refdata NOT NULL'):
+            rd = json.loads (pub.refdata)
+            val = rd.get (refkey)
+
+            if val is not None:
+                print val
+
+
 def cmd_rq (argv):
     if len (argv) < 2:
         raise UsageError ('expected arguments')

@@ -1766,6 +1766,12 @@ def cmd_info (argv):
             print 'bibcode:', pub.bibcode
         if pub.doi is not None:
             print 'DOI:', pub.doi
+        if pub.refdata is not None:
+            rd = json.loads (pub.refdata)
+            print '~BibTeX: @%s {' % rd.pop ('_type'),
+            bits = ('%s="%s"' % t
+                    for t in sorted (rd.iteritems (), key=lambda t: t[0]))
+            print u', '.join (bits).encode ('utf-8'), '}'
 
         if pub.abstract is not None:
             print

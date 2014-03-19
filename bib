@@ -1118,7 +1118,7 @@ def doi_to_maybe_bibcode (doi):
     bibcode = None
 
     # XXX could convert this to an ADS 2.0 record search, something like
-    # http://adslabs.org/adsabs/api.record/{doi}/?dev_key=...
+    # http://adslabs.org/adsabs/api/record/{doi}/?dev_key=...
 
     url = ('http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?'
            'data_type=Custom&format=%25R&nocookieset=1&doi=' +
@@ -1187,7 +1187,7 @@ def _autolearn_bibcode_tag (info, tag, text):
 
 def autolearn_bibcode (bibcode):
     # XXX could/should convert this to an ADS 2.0 record search, something
-    # like http://adslabs.org/adsabs/api.record/{doi}/?dev_key=...
+    # like http://adslabs.org/adsabs/api/record/{doi}/?dev_key=...
 
     url = ('http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?'
            'data_type=PORTABLE&nocookieset=1&bibcode=' + urlquote (bibcode))
@@ -1686,6 +1686,29 @@ def cmd_btexport (argv):
             bt = bibtexify_one (db, style, pub)
             bt['_ident'] = nick
             write_bibtexified (write, bt)
+
+
+def cmd_canon_journal (argv):
+    if len (argv) not in (3, 4):
+        raise UsageError ('expected 2 or 3 arguments')
+
+    oldjournal = argv[1]
+    newjournal = argv[2]
+    newissn = argv[3] if len (argv) > 3 else None
+
+    with connect () as db:
+        for pub in db.pub_query ('refdata NOT NULL'):
+            rd = json.loads (pub.refdata)
+            if rd.get ('journal', '') != oldjournal:
+                continue
+
+            rd['journal'] = newjournal
+
+            if 'issn' not in rd and newissn is not None:
+                rd['issn'] = newissn
+
+            db.execute ('UPDATE pubs SET refdata = ? WHERE id == ?',
+                        (json.dumps (rd), pub.id))
 
 
 def cmd_init (argv):

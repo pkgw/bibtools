@@ -1690,6 +1690,9 @@ def cmd_btexport (argv):
                 die ('"%s" and "%s" refer to the same publication; this will '
                      'cause duplicate entries', nick, seenids[pub.id])
 
+            if pub.refdata is None:
+                die ('no reference data for "%s"', nick)
+
             seenids[pub.id] = nick
 
             if first:

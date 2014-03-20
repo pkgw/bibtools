@@ -526,8 +526,11 @@ class BibDB (sqlite3.Connection):
             warn ('useless "ArXiv e-prints" bibliographical record')
 
 
-    def learn_pub (self, info):
-        """Note that `info` will be mutated."""
+    def _fill_pub (self, info, pubid):
+        """Note that `info` will be mutated.
+
+        If pubid is None, a new record will be created; otherwise it will
+        be updated."""
 
         authors = info.pop ('authors', ())
         editors = info.pop ('editors', ())
@@ -547,8 +550,15 @@ class BibDB (sqlite3.Connection):
 
         row = nt_augment (PubRow, **info)
         c = self.cursor ()
-        c.execute ('INSERT INTO pubs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', row)
-        pubid = c.lastrowid
+
+        if pubid is not None:
+            # not elegant but as far as I can tell there's no alternative.
+            c.execute ('UPDATE pubs SET abstract=?, arxiv=?, bibcode=?, '
+                       '  doi=?, keep=?, nfas=?, refdata=?, title=?, year=? '
+                       'WHERE id == ?', row[1:] + (pubid, ))
+        else:
+            c.execute ('INSERT INTO pubs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', row)
+            pubid = c.lastrowid
 
         if authors:
             self.learn_pub_authors (pubid, AUTHTYPE_AUTHOR, authors)
@@ -567,6 +577,23 @@ class BibDB (sqlite3.Connection):
         tmp = list (row)
         tmp[0] = pubid
         return PubRow (*tmp)
+
+
+    def learn_pub (self, info):
+        """Note that `info` will be mutated."""
+        return self._fill_pub (info, None)
+
+
+    def update_pub (self, pub, info):
+        info['keep'] = pub.keep
+
+        self.execute ('DELETE FROM authors WHERE pubid == ?', (pub.id, ))
+        self.execute ('DELETE FROM nicknames WHERE pubid == ?', (pub.id, ))
+        # XXX later maybe:
+        #self.execute ('DELETE FROM notes WHERE pubid == ?', (pub.id, ))
+        #self.execute ('DELETE FROM publists WHERE pubid == ?', (pub.id, ))
+
+        return self._fill_pub (info, pub.id)
 
 
     def delete_pub (self, pubid):
@@ -1967,6 +1994,38 @@ def cmd_delete (argv):
         # all, if a --force flag is given.
         pub = db.locate_or_die (idtext, autolearn=True)
         db.delete_pub (pub.id)
+
+
+def cmd_edit (argv):
+    if len (argv) != 2:
+        raise UsageError ('expected exactly 1 argument')
+
+    import tempfile
+    idtext = argv[1]
+
+    with connect () as db:
+        pub = db.locate_or_die (idtext, autolearn=True)
+
+        work = tempfile.NamedTemporaryFile (prefix='bib.edit.', dir='.', delete=False)
+        enc = codecs.getwriter ('utf-8') (work)
+        text_export_one (db, pub, enc.write, 72)
+        work.close ()
+
+        run_editor (work.name)
+
+        enc = codecs.getreader ('utf-8') (open (work.name))
+        info = text_import_one (enc)
+        db.update_pub (pub, info)
+
+        try:
+            os.unlink (work.name)
+        except Exception as e:
+            warn ('couldn\'t delete temporary file "%s": %s', work.name, e)
+
+        try:
+            os.unlink (work.name + '~')
+        except:
+            pass # whatever.
 
 
 def cmd_init (argv):

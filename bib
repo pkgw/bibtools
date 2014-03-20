@@ -1610,14 +1610,14 @@ def text_import_one (stream):
         die ('title/year chunk must contain at least two lines')
 
     info['title'] = squish_spaces (' '.join (c[:-1]))
-    if info['title'] == '--no title--':
+    if info['title'].startswith ('--'):
         del info['title']
 
-    if c[-1] != '--no year--':
+    if not c[-1].startswith ('--'):
         try:
             info['year'] = int (c[-1])
         except Exception as e:
-            die ('publication year must be an integer or "--no year"; '
+            die ('publication year must be an integer or "--no year--"; '
                  'got "%s"', c[-1])
 
     # identifiers
@@ -1650,6 +1650,7 @@ def text_import_one (stream):
     namelist = info['authors'] = []
 
     for line in c:
+        # This "--" flag must be exact for --editors-- to work
         if line == '--no authors--':
             pass
         elif line == '--editors--':
@@ -1660,7 +1661,7 @@ def text_import_one (stream):
     # reference data
     c = _import_get_chunk (stream)
 
-    if c[0] != '--no reference data--':
+    if not c[0].startswith ('--'):
         rd = info['refdata'] = {}
 
         if c[0][0] != '@':
@@ -1684,7 +1685,7 @@ def text_import_one (stream):
         if not len (line):
             spacer = '\n'
         elif line == '--no abstract--':
-            pass
+            pass # exact match here too; legitimate lines could start with '--'
         else:
             abs += spacer + line
             spacer = ' '

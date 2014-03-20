@@ -237,6 +237,10 @@ def parse_name (text):
     return first, last.replace ('_', ' ')
 
 
+def encode_name (given, family):
+    return given + ' ' + family.replace (' ', '_')
+
+
 def _translate_ads_name (name):
     pieces = [x.strip () for x in name.split (',', 1)]
     surname = pieces[0].replace (' ', '_')
@@ -723,11 +727,16 @@ def get_stdout_width ():
     return -1
 
 
-def print_linewrapped (text, maxwidth=None):
+def print_linewrapped (text, maxwidth=None, width=None, write=None):
     """We assume that spaces within `text` are fungible."""
 
-    w = get_stdout_width ()
-    write = sys.stdout.write
+    if width is None:
+        w = get_stdout_width ()
+    else:
+        w = width
+
+    if write is None:
+        write = sys.stdout.write
 
     if w > maxwidth:
         # This intentionally doesn't apply if w < 0.
@@ -1456,6 +1465,83 @@ def search_ads (terms, raw=False):
         print_truncated (title, ofs)
 
 
+# Text export/import
+
+def text_export_one (db, pub, write, width):
+    # Title and year
+    if pub.title is None:
+        write ('--no title--\n')
+    else:
+        print_linewrapped (pub.title, width=width, write=write)
+    if pub.year is None:
+        write ('--no year--\n')
+    else:
+        write (str (pub.year))
+        write ('\n')
+    write ('\n')
+
+    # Unique identifiers
+    write ('arxiv = ')
+    write (pub.arxiv or '')
+    write ('\n')
+    write ('bibcode = ')
+    write (pub.bibcode or '')
+    write ('\n')
+    write ('doi = ')
+    write (pub.doi or '')
+    write ('\n')
+    for (nick, ) in db.execute ('SELECT nickname FROM nicknames WHERE pubid == ? '
+                                'ORDER BY nickname asc', (pub.id, )):
+        write ('nick = ')
+        write (nick)
+        write ('\n')
+    write ('\n')
+
+    # Authors
+    anyauth = False
+    for given, family in db.get_pub_authors (pub.id):
+        write (encode_name (given, family))
+        write ('\n')
+        anyauth = True
+    if not anyauth:
+        write ('--no authors--\n')
+    firsteditor = True
+    for given, family in db.get_pub_authors (pub.id, AUTHTYPE_EDITOR):
+        if firsteditor:
+            write ('--editors--\n')
+            firsteditor = False
+        write (encode_name (given, family))
+        write ('\n')
+    write ('\n')
+
+    # Reference info
+    if pub.refdata is None:
+        write ('--no reference data--\n')
+    else:
+        rd = json.loads (pub.refdata)
+
+        btype = rd.pop ('_type')
+        write ('@')
+        write (btype)
+        write ('\n')
+
+        for k in sorted (rd.iterkeys ()):
+            write (k)
+            write (' = ')
+            write (rd[k])
+            write ('\n')
+    write ('\n')
+
+    # Abstract
+    if pub.abstract is None:
+        write ('--no abstract--\n')
+    else:
+        print_linewrapped (pub.abstract, width=width, write=write, maxwidth=72)
+    write ('\n')
+
+    # TODO: notes, lists
+
+
 # Bibtex export
 # TODO: styles defined in a support file or something.
 
@@ -1814,7 +1900,7 @@ def cmd_info (argv):
 
         if pub.abstract is not None:
             print
-            print_linewrapped (pub.abstract, 72)
+            print_linewrapped (pub.abstract, maxwidth=72)
 
         db.log_action (pub.id, HA_VISIT)
 

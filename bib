@@ -1659,9 +1659,10 @@ def text_import_one (stream):
 
     # reference data
     c = _import_get_chunk (stream)
-    rd = info['refdata'] = {}
 
     if c[0] != '--no reference data--':
+        rd = info['refdata'] = {}
+
         if c[0][0] != '@':
             die ('reference data chunk must begin with an "@"; got "%s"', c[0])
         rd['_type'] = c[0][1:]

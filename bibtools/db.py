@@ -11,6 +11,7 @@ __all__ = ['connect']
 import collections, sqlite3
 
 from .util import *
+from . import *
 
 
 def connect ():

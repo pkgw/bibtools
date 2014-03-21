@@ -39,6 +39,12 @@ def connect ():
     return connect ()
 
 
+def get_proxy_or_die ():
+    from .config import BibConfig
+    from .proxy import get_proxy_or_die
+    return get_proxy_or_die (BibConfig ())
+
+
 # Monkeying with names!
 #
 # We store names like so:
@@ -980,25 +986,7 @@ class ApjBibtexStyle (BibtexStyleBase):
 bibtex_styles = {'apj': ApjBibtexStyle}
 
 
-def _setup_unicode_to_latex ():
-    # XXX XXX even worse, don't want to modularize just yet
-    import unicode_to_latex
-    return unicode_to_latex.unicode_to_latex
-
-    # XXX XXX not reached!
-    # XXX fixme annoying to be duplicating my unicode_to_latex.py.
-    from .hacked_bibtexparser.latexenc import unicode_to_latex as u2l
-
-    table = dict ((ord (k), unicode (v))
-                  for k, v in u2l
-                  if len (k) == 1)
-
-    del table[ord (u' ')]
-
-    return lambda u: u.translate (table).encode ('ascii')
-
-
-unicode_to_latex = _setup_unicode_to_latex ()
+from .unicode_to_latex import unicode_to_latex
 
 
 def bibtexify_name (style, name):

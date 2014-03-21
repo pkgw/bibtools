@@ -23,7 +23,7 @@ def cmd_ads (argv):
         if pub.bibcode is None:
             die ('cannot open ADS for this publication: no bibcode on record')
 
-        db.log_action (pub.id, HA_VISIT)
+        db.log_action (pub.id, 'visit')
         open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/' + urlquote (pub.bibcode))
 
 
@@ -38,7 +38,7 @@ def cmd_apage (argv):
         if pub.arxiv is None:
             die ('cannot open arxiv website: no identifier for record')
 
-        db.log_action (pub.id, HA_VISIT)
+        db.log_action (pub.id, 'visit')
         open_url ('http://arxiv.org/abs/' + urlquote (pub.arxiv))
 
 
@@ -241,7 +241,7 @@ def cmd_info (argv):
             print
             print_linewrapped (pub.abstract, maxwidth=72)
 
-        db.log_action (pub.id, HA_VISIT)
+        db.log_action (pub.id, 'visit')
 
 
 _bibtex_replacements = (
@@ -415,7 +415,7 @@ def cmd_jpage (argv):
         if pub.doi is None:
             die ('cannot open journal website: no DOI for record')
 
-        db.log_action (pub.id, HA_VISIT)
+        db.log_action (pub.id, 'visit')
         open_url ('http://dx.doi.org/' + urlquote (pub.doi))
 
 
@@ -506,12 +506,12 @@ def cmd_read (argv):
 
         sha1 = db.getfirstval ('SELECT sha1 FROM pdfs WHERE pubid = ?', pub.id)
         if sha1 is None:
-            proxy = BibConfig ().get_proxy_or_die ()
+            proxy = get_proxy_or_die ()
             sha1 = db.try_get_pdf_for_id (proxy, pub.id)
 
         if sha1 is not None:
             # no big deal if we fail later
-            db.log_action (pub.id, HA_READ)
+            db.log_action (pub.id, 'read')
 
     if sha1 is None:
         die ('no saved PDF for %s, and cannot figure out how to download it', idtext)

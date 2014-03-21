@@ -70,16 +70,6 @@ def squish_spaces (text):
 
 # The app!
 
-def _make_data_pather ():
-    # XXXX
-    def pathfunc (*args):
-        return os.path.join ('/a/share/bib', *args)
-    return pathfunc
-
-
-datapath = _make_data_pather ()
-
-
 def datastream (name):
     from pkg_resources import Requirement, resource_stream
     return resource_stream (Requirement.parse ('bibtools'),
@@ -197,7 +187,7 @@ class BibConfig (configparser.RawConfigParser):
     def __init__ (self):
         # stupid old-style classes can't use super()
         configparser.RawConfigParser.__init__ (self)
-        self.read (datapath ('defaults.cfg'))
+        self.readfp (datastream ('defaults.cfg'))
         self.read (bibpath ('bib.cfg'))
 
 
@@ -2050,7 +2040,7 @@ def cmd_init (argv):
 
     with connect () as db:
         try:
-            init = open (datapath ('schema.sql')).read ()
+            init = datastream ('schema.sql').read ()
             db.executescript (init)
         except sqlite3.OperationalError as e:
             die ('cannot initialize "%s": %s', dbpath, e)

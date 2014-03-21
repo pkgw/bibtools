@@ -17,7 +17,7 @@ setup (
     # install_requires = ['docutils >= 0.3'],
 
     package_data = {
-        'bibtools': ['*.sql', 'apj-issnmap.txt'],
+        'bibtools': ['*.sql', 'apj-issnmap.txt', 'defaults.cfg'],
     },
 
     entry_points = {

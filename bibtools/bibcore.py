@@ -22,7 +22,7 @@ replace nonletters with periods, so it's a gmail-ish form.
 
 __all__ = ('parse_name encode_name normalize_surname '
            'classify_pub_ref doi_to_maybe_bibcode autolearn_pub '
-           'print_generic_listing').split ()
+           'print_generic_listing parse_search').split ()
 
 import re
 from . import *
@@ -156,3 +156,50 @@ def print_generic_listing (db, pub_seq):
     for nfas, year, title, nick in info:
         print '%*s.%s  %*s  ' % (maxnfaslen, nfas, year, maxnicklen, nick),
         print_truncated (title, ofs)
+
+
+# Searching
+
+def parse_search (interms):
+    """We go to the trouble of parsing searches ourselves because ADS's syntax
+    is quite verbose. Terms we support:
+
+    (integer) -> year specification
+       if this year is 2014, 16--99 are treated as 19NN,
+       and 00--15 is treated as 20NN (for "2015 in prep" papers)
+       Otherwise, treated as a full year.
+    """
+
+    outterms = []
+    bareword = None
+
+    from time import localtime
+    thisyear = localtime ()[0]
+    next_twodigit_year = (thisyear + 1) % 100
+
+    for interm in interms:
+        try:
+            asint = int (interm)
+        except ValueError:
+            pass
+        else:
+            if asint < 100:
+                if asint > next_twodigit_year:
+                    outterms.append (('year', asint + (thisyear // 100 - 1) * 100))
+                else:
+                    outterms.append (('year', asint + (thisyear // 100) * 100))
+            else:
+                outterms.append (('year', asint))
+            continue
+
+        # It must be the bareword
+        if bareword is None:
+            bareword = interm
+            continue
+
+        die ('searches only support a single "bare word" right now')
+
+    if bareword is not None:
+        outterms.append (('surname', bareword)) # note the assumption here
+
+    return outterms

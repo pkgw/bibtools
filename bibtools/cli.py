@@ -10,7 +10,7 @@ __all__ = ['driver']
 
 from .util import *
 from . import *
-from .bibcore import print_generic_listing
+from .bibcore import print_generic_listing, parse_search
 
 
 def cmd_ads (argv):

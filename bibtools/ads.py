@@ -97,6 +97,7 @@ def autolearn_bibcode (bibcode):
 
 def _run_ads_search (searchterms, filterterms):
     # TODO: access to more API args
+    from .config import BibConfig
     apikey = BibConfig ().get_or_die ('api-keys', 'ads')
 
     q = [('q', ' '.join (searchterms)),

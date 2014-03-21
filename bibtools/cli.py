@@ -154,6 +154,29 @@ def cmd_edit (app, argv):
         pass # whatever.
 
 
+def cmd_forgetpdf (app, argv):
+    if len (argv) != 2:
+        raise UsageError ('expected exactly 1 argument')
+
+    idtext = argv[1]
+    pub = app.locate_or_die (idtext)
+
+    # It's not something I plan to do, but the schema does let us
+    # store multiple PDFs for one pub ...
+
+    any = False
+
+    for (sha1, ) in app.db.execute ('SELECT sha1 FROM pdfs '
+                                    'WHERE pubid == ?', (pub.id, )):
+        print 'orphaning', libpath (sha1, 'pdf')
+        any = True
+
+    if not any:
+        warn ('no PDFs were on file for "%s"', idtext)
+
+    app.db.execute ('DELETE FROM pdfs WHERE pubid == ?', (pub.id, ))
+
+
 def cmd_init (app, argv):
     from .db import init
 

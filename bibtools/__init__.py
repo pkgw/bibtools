@@ -1742,7 +1742,7 @@ def _setup_unicode_to_latex ():
 
     # XXX XXX not reached!
     # XXX fixme annoying to be duplicating my unicode_to_latex.py.
-    from bibtexparser.latexenc import unicode_to_latex as u2l
+    from .hacked_bibtexparser.latexenc import unicode_to_latex as u2l
 
     table = dict ((ord (k), unicode (v))
                   for k, v in u2l
@@ -2248,8 +2248,8 @@ def cmd_ingest (argv):
         raise UsageError ('expected exactly 1 argument')
 
     bibpath = argv[1]
-    from bibtexparser.bparser import BibTexParser
-    from bibtexparser.customization import author, editor, type, convert_to_unicode
+    from .hacked_bibtexparser.bparser import BibTexParser
+    from .hacked_bibtexparser.customization import author, editor, type, convert_to_unicode
 
     custom = lambda r: editor (author (type (convert_to_unicode (r))))
 

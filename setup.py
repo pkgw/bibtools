@@ -10,7 +10,9 @@ from setuptools import setup
 setup (
     name = 'bibtools',
     version = '0.1',
-    packages = ['bibtools'],
+
+    zip_safe = True,
+    packages = ['bibtools', 'bibtools.hacked_bibtexparser'],
 
     # install_requires = ['docutils >= 0.3'],
 

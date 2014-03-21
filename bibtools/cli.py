@@ -247,10 +247,10 @@ def _list_cmd_add (app, argv):
     dblistname = 'user_' + listname
 
     try:
-        for pub in db.locate_pubs (argv[2:], autolearn=True):
-            db.execute ('INSERT OR IGNORE INTO publists VALUES (?, '
-                        '  (SELECT ifnull(max(idx)+1,0) FROM publists WHERE name == ?), '
-                        '?)', (dblistname, dblistname, pub.id))
+        for pub in app.db.locate_pubs (argv[2:], autolearn=True):
+            app.db.execute ('INSERT OR IGNORE INTO publists VALUES (?, '
+                            '  (SELECT ifnull(max(idx)+1,0) FROM publists WHERE name == ?), '
+                            '?)', (dblistname, dblistname, pub.id))
     except Exception as e:
         die (e)
 
@@ -268,13 +268,13 @@ def _list_cmd_rm (app, argv):
     # only one of which is in the list, that's OK. So we need to process terms
     # individually.
 
-    c = db.cursor ()
+    c = app.db.cursor ()
 
     try:
         for idtext in argv[2:]:
             ndeleted = 0
 
-            for pub in db.locate_pubs ((idtext,)):
+            for pub in app.db.locate_pubs ((idtext,)):
                 c.execute ('DELETE FROM publists WHERE name == ? AND pubid == ?',
                            (dblistname, pub.id))
                 ndeleted += c.rowcount
@@ -293,10 +293,10 @@ def _list_cmd_summ (app, argv):
     # FIXME: check listname to avoid "bib list add abc+12 xyz+10" mistake
     dblistname = 'user_' + listname
 
-    q = db.pub_fquery ('SELECT p.* FROM pubs AS p, publists AS pl '
-                       'WHERE p.id == pl.pubid AND pl.name == ? '
-                       'ORDER BY pl.idx', (dblistname))
-    print_generic_listing (db, q)
+    q = app.db.pub_fquery ('SELECT p.* FROM pubs AS p, publists AS pl '
+                           'WHERE p.id == pl.pubid AND pl.name == ? '
+                           'ORDER BY pl.idx', dblistname)
+    print_generic_listing (app.db, q)
 
 
 def cmd_list (app, argv):
@@ -310,8 +310,7 @@ def cmd_list (app, argv):
         die ('"%s" is not a recognized subcommand of "list"; run me without '
              'arguments for usage help', subcmd)
 
-    with connect () as db:
-        subfunc (app, argv[1:])
+    subfunc (app, argv[1:])
 
 
 def cmd_read (app, argv):
@@ -343,11 +342,10 @@ def cmd_recent (app, argv):
     if len (argv) != 1:
         raise UsageError ('expected no arguments')
 
-    with connect () as db:
-        print_generic_listing (db, db.pub_fquery ('SELECT DISTINCT p.* '
-                                                  'FROM pubs AS p, history AS h '
-                                                  'WHERE p.id == h.pubid '
-                                                  'ORDER BY date DESC LIMIT 10'))
+    print_generic_listing (app.db, app.db.pub_fquery ('SELECT DISTINCT p.* '
+                                                      'FROM pubs AS p, history AS h '
+                                                      'WHERE p.id == h.pubid '
+                                                      'ORDER BY date DESC LIMIT 10'))
 
 
 def cmd_refgrep (app, argv):
@@ -427,8 +425,7 @@ def cmd_summ (app, argv):
     if len (argv) < 2:
         raise UsageError ('expected arguments')
 
-    with connect () as db:
-        print_generic_listing (db, db.locate_pubs (argv[1:], noneok=True))
+    print_generic_listing (app.db, app.db.locate_pubs (argv[1:], noneok=True))
 
 
 # Toplevel driver infrastructure

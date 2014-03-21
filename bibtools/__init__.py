@@ -6,11 +6,11 @@
 Docstring!
 """
 
-import codecs, collections, cookielib, errno, json, os.path, re, sqlite3, sys, urllib2
-import HTMLParser # renamed to html.parser in Python 3.
+import codecs, json, os.path, re, sqlite3, sys, urllib2
 
 from .util import *
 from .config import BibConfig
+from . import webutil as wu
 
 
 class BibError (Exception):
@@ -223,176 +223,7 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
     return s.hexdigest ()
 
 
-# Web scraping, proxy, etc. helpers.
-
-class NonRedirectingProcessor (urllib2.HTTPErrorProcessor):
-    # Copied from StackOverflow q 554446.
-    def http_response (self, request, response):
-        return response
-
-    https_response = http_response
-
-
-def get_url_from_redirection (url):
-    """Note that we don't go through the proxy class here for convenience, under
-    the assumption that all of these redirections involve public information
-    that won't require privileged access."""
-
-    opener = urllib2.build_opener (NonRedirectingProcessor ())
-    resp = opener.open (url)
-
-    if resp.code not in (301, 302, 303, 307) or 'Location' not in resp.headers:
-        die ('expected a redirection response for URL %s but didn\'t get one', url)
-
-    resp.close ()
-    return resp.headers['Location']
-
-
-class HarvardProxyLoginParser (HTMLParser.HTMLParser):
-    def __init__ (self):
-        HTMLParser.HTMLParser.__init__ (self)
-        self.formurl = None
-        self.inputs = []
-
-
-    def handle_starttag (self, tag, attrs):
-        if tag == 'form':
-            attrs = dict (attrs)
-            self.formurl = attrs.get ('action')
-            if attrs.get ('method') != 'post':
-                die ('unexpected form method')
-        elif tag == 'input':
-            attrs = dict (attrs)
-            if 'name' not in attrs or 'value' not in attrs:
-                die ('missing form input information')
-            self.inputs.append ((attrs['name'], attrs['value']))
-
-
-def parse_http_html (resp, parser):
-    debug = False
-
-    charset = resp.headers.getparam ('charset')
-    if charset is None:
-        charset = 'ISO-8859-1'
-
-    dec = codecs.getincrementaldecoder (charset) ()
-
-    if debug:
-        f = open ('debug.html', 'w')
-
-    while True:
-        d = resp.read (4096)
-        if not len (d):
-            text = dec.decode ('', final=True)
-            parser.feed (text)
-            break
-
-        if debug:
-            f.write (d)
-
-        text = dec.decode (d)
-        parser.feed (text)
-
-    if debug:
-        f.close ()
-
-    resp.close ()
-    parser.close ()
-    return parser
-
-
-class HarvardProxy (object):
-    suffix = '.ezp-prod1.hul.harvard.edu'
-    loginurl = 'https://www.pin1.harvard.edu/cas/login'
-    forwardurl = 'http://ezp-prod1.hul.harvard.edu/connect'
-
-    default_inputs = [
-        ('compositeAuthenticationSourceType', 'PIN'),
-    ]
-
-    def __init__ (self, username, password):
-        self.cj = cookielib.CookieJar ()
-        self.opener = urllib2.build_opener (urllib2.HTTPRedirectHandler (),
-                                            urllib2.HTTPCookieProcessor (self.cj))
-
-        # XXX This doesn't quite belong here. We need it because otherwise
-        # nature.com gives us the mobile site, which happens to not include
-        # the easily-recognized <a> tag linking to the paper PDF. I don't know
-        # exactly what's needed, but if we just send 'Mozilla/5.0' as the UA,
-        # nature.com gives us a 500 error (!). So I've just copied my current
-        # browser's UA.
-        ua = BibConfig ().get_or_die ('proxy', 'user-agent')
-        self.opener.addheaders = [('User-Agent', ua)]
-
-        self.inputs = list (self.default_inputs)
-        self.inputs.append (('username', username))
-        self.inputs.append (('password', password))
-
-
-    def login (self, resp):
-        # XXX we should verify the SSL cert of the counterparty, lest we send
-        # our password to malicious people.
-        parser = parse_http_html (resp, HarvardProxyLoginParser ())
-
-        if parser.formurl is None:
-            die ('malformed proxy page response?')
-
-        from urlparse import urljoin
-        posturl = urljoin (resp.url, parser.formurl)
-        values = {}
-
-        for name, value in parser.inputs:
-            values[name] = value
-
-        for name, value in self.inputs:
-            values[name] = value
-
-        from urllib import urlencode # yay terrible Python APIs
-        req = urllib2.Request (posturl, urlencode (values))
-        # The response will redirect to the original target page.
-        return self.opener.open (req)
-
-
-    def open (self, url):
-        from urlparse import urlparse, urlunparse
-        scheme, loc, path, params, query, frag = urlparse (url)
-
-        if loc.endswith ('arxiv.org'):
-            # For whatever reason, the proxy server doesn't work
-            # if we try to access Arxiv with it.
-            proxyurl = url
-        else:
-            loc += self.suffix
-            proxyurl = urlunparse ((scheme, loc, path, params, query, frag))
-
-        resp = self.opener.open (proxyurl)
-
-        if resp.url.startswith (self.loginurl):
-            resp = self.login (resp)
-
-        if resp.url.startswith (self.forwardurl):
-            # Sometimes we get forwarded to a separate cookie-setting page
-            # that requires us to re-request the original URL.
-            resp = self.opener.open (proxyurl)
-
-        return resp
-
-
-    def unmangle (self, url):
-        if url is None:
-            return None # convenience
-
-        from urlparse import urlparse, urlunparse
-
-        scheme, loc, path, params, query, frag = urlparse (url)
-        if not loc.endswith (self.suffix):
-            return url
-
-        loc = loc[:-len (self.suffix)]
-        return urlunparse ((scheme, loc, path, params, query, frag))
-
-
-class PDFUrlScraper (HTMLParser.HTMLParser):
+class PDFUrlScraper (wu.HTMLParser):
     """Observed places to look for PDF URLs:
 
     <meta> tag with name=citation_pdf_url -- IOP
@@ -402,7 +233,7 @@ class PDFUrlScraper (HTMLParser.HTMLParser):
     """
 
     def __init__ (self):
-        HTMLParser.HTMLParser.__init__ (self)
+        wu.HTMLParser.__init__ (self)
         self.pdfurl = None
 
 
@@ -425,7 +256,7 @@ class PDFUrlScraper (HTMLParser.HTMLParser):
 
 
 def scrape_pdf_url (resp):
-    parser = parse_http_html (resp, PDFUrlScraper ())
+    parser = wu.parse_http_html (resp, PDFUrlScraper ())
     if parser.pdfurl is None:
         return None
 
@@ -434,7 +265,7 @@ def scrape_pdf_url (resp):
 
 
 def doi_to_journal_url (doi):
-    return get_url_from_redirection ('http://dx.doi.org/' + urlquote (doi))
+    return wu.get_url_from_redirection ('http://dx.doi.org/' + urlquote (doi))
 
 
 def bibcode_to_maybe_pdf_url (bibcode):
@@ -446,7 +277,7 @@ def bibcode_to_maybe_pdf_url (bibcode):
 
     url = ('http://adsabs.harvard.edu/cgi-bin/nph-data_query?link_type=ARTICLE&bibcode='
            + urlquote (bibcode))
-    pdfurl = get_url_from_redirection (url)
+    pdfurl = wu.get_url_from_redirection (url)
     return pdfurl.replace ('&amp;', '&')
 
 

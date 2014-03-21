@@ -2468,7 +2468,10 @@ def usage ():
     print 'usage goes here'
 
 
-def driver (argv):
+def driver (argv=None):
+    if argv is None:
+        argv = sys.argv
+
     if len (argv) == 1 or argv[1] == '--help':
         usage ()
         return

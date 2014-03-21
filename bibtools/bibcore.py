@@ -126,6 +126,7 @@ def autolearn_pub (text):
         return autolearn_bibcode (text)
 
     if kind == 'arxiv':
+        from arxiv import autolearn_arxiv
         return autolearn_arxiv (text)
 
     die ('cannot auto-learn publication "%s"', text)

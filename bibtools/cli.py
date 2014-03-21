@@ -45,13 +45,12 @@ def cmd_apage (app, argv):
 
     idtext = argv[1]
 
-    with connect () as db:
-        pub = db.locate_or_die (idtext)
-        if pub.arxiv is None:
-            die ('cannot open arxiv website: no identifier for record')
+    pub = app.db.locate_or_die (idtext)
+    if pub.arxiv is None:
+        die ('cannot open arxiv website: no identifier for record')
 
-        db.log_action (pub.id, 'visit')
-        open_url ('http://arxiv.org/abs/' + wu.urlquote (pub.arxiv))
+    app.db.log_action (pub.id, 'visit')
+    app.open_url ('http://arxiv.org/abs/' + wu.urlquote (pub.arxiv))
 
 
 def cmd_btexport (app, argv):
@@ -426,13 +425,12 @@ def cmd_jpage (app, argv):
 
     idtext = argv[1]
 
-    with connect () as db:
-        pub = db.locate_or_die (idtext)
-        if pub.doi is None:
-            die ('cannot open journal website: no DOI for record')
+    pub = app.db.locate_or_die (idtext)
+    if pub.doi is None:
+        die ('cannot open journal website: no DOI for record')
 
-        db.log_action (pub.id, 'visit')
-        open_url ('http://dx.doi.org/' + wu.urlquote (pub.doi))
+    app.db.log_action (pub.id, 'visit')
+    app.open_url ('http://dx.doi.org/' + wu.urlquote (pub.doi))
 
 
 def _list_cmd_add (app, argv):

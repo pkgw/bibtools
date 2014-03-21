@@ -14,15 +14,9 @@ from . import BibError, webutil as wu
 from .util import *
 from .bibcore import print_generic_listing, parse_search
 
-from .config import BibConfig # XXX temporary
 
 class UsageError (BibError):
     pass
-
-
-def connect (): # XXX temporary
-    from . import BibApp
-    return BibApp ().db
 
 
 def cmd_ads (app, argv):
@@ -329,7 +323,7 @@ def cmd_read (app, argv):
         die ('no saved PDF for %s, and cannot figure out how to download it', idtext)
 
     app.db.log_action (pub.id, 'read')
-    pdfreader = BibConfig ().get_or_die ('apps', 'pdf-reader')
+    pdfreader = app.cfg.get_or_die ('apps', 'pdf-reader')
     launch_background_silent (pdfreader, [pdfreader, libpath (sha1, 'pdf')])
 
 
@@ -413,6 +407,7 @@ def cmd_setsecret (app, argv):
     if not sys.stdin.isatty ():
         die ('this command can only be run with standard input set to a TTY')
 
+    from .secret import store_user_secret
     store_user_secret ()
 
 

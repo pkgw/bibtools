@@ -45,15 +45,6 @@ def get_proxy_or_die ():
     return get_proxy_or_die (BibConfig ())
 
 
-def _translate_ads_name (name):
-    pieces = [x.strip () for x in name.split (',', 1)]
-    surname = pieces[0].replace (' ', '_')
-
-    if len (pieces) > 1:
-        return pieces[1] + ' ' + surname
-    return surname
-
-
 def _translate_unixref_name (personelem):
     # XXX: deal with "The Fermi-LAT Collaboration", "Gopal-Krishna", etc.
 
@@ -67,74 +58,6 @@ def _translate_arxiv_name (auth):
     # nontrivial last names will be gotten wrong. I don't see any point
     # in trying to solve this here.
     return auth.find (_atom_ns + 'name').text
-
-
-def _autolearn_bibcode_tag (info, tag, text):
-    # TODO: editors?
-
-    if tag == 'T':
-        info['title'] = text
-    elif tag == 'D':
-        info['year'] = int (text.split ('/')[-1])
-    elif tag == 'B':
-        info['abstract'] = text
-    elif tag == 'A':
-        info['authors'] = [_translate_ads_name (n) for n in text.split (';')]
-    elif tag == 'Y':
-        subdata = dict (s.strip ().split (': ', 1)
-                        for s in text.split (';'))
-
-        if 'DOI' in subdata:
-            info['doi'] = subdata['DOI']
-        if 'eprintid' in subdata:
-            value = subdata['eprintid']
-            if value.startswith ('arXiv:'):
-                info['arxiv'] = value[6:]
-
-
-def autolearn_bibcode (bibcode):
-    # XXX could/should convert this to an ADS 2.0 record search, something
-    # like http://adslabs.org/adsabs/api/record/{doi}/?dev_key=...
-
-    url = ('http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?'
-           'data_type=PORTABLE&nocookieset=1&bibcode=' + urlquote (bibcode))
-
-    info = {'bibcode': bibcode, 'keep': 0} # because we're autolearning
-    curtag = curtext = None
-
-    print '[Parsing', url, '...]'
-
-    for line in urllib2.urlopen (url):
-        line = line.decode ('iso-8859-1').strip ()
-
-        if not len (line):
-            if curtag is not None:
-                _autolearn_bibcode_tag (info, curtag, curtext)
-                curtag = curtext = None
-            continue
-
-        if curtag is None:
-            if line[0] == '%':
-                # starting a new tag
-                curtag = line[1]
-                curtext = line[3:]
-            elif line.startswith ('Retrieved '):
-                if not line.endswith ('selected: 1.'):
-                    die ('matched more than one publication')
-        else:
-            if line[0] == '%':
-                # starting a new tag, while we had one going before.
-                # finish up the previous
-                _autolearn_bibcode_tag (info, curtag, curtext)
-                curtag = line[1]
-                curtext = line[3:]
-            else:
-                curtext += ' ' + line
-
-    if curtag is not None:
-        _autolearn_bibcode_tag (info, curtag, curtext)
-
-    return info
 
 
 def autolearn_doi (doi):
@@ -232,23 +155,7 @@ def autolearn_arxiv (arxiv):
     return info
 
 
-# Searching ADS
-
-def _run_ads_search (searchterms, filterterms):
-    # TODO: access to more API args
-    import urllib, json
-
-    apikey = BibConfig ().get_or_die ('api-keys', 'ads')
-
-    q = [('q', ' '.join (searchterms)),
-         ('dev_key', apikey)]
-
-    for ft in filterterms:
-        q.append (('filter', ft))
-
-    url = 'http://adslabs.org/adsabs/api/search?' + urllib.urlencode (q)
-    return json.load (urllib2.urlopen (url))
-
+# Searching
 
 def parse_search (interms):
     """We go to the trouble of parsing searches ourselves because ADS's syntax
@@ -293,45 +200,3 @@ def parse_search (interms):
         outterms.append (('surname', bareword)) # note the assumption here
 
     return outterms
-
-
-def search_ads (terms, raw=False):
-    if len (terms) < 2:
-        die ('require at least two search terms for ADS')
-
-    adsterms = []
-
-    for info in terms:
-        if info[0] == 'year':
-            adsterms.append ('year:%d' % info[1])
-        elif info[0] == 'surname':
-            adsterms.append ('author:"%s"' % info[1])
-        else:
-            die ('don\'t know how to express search term %r to ADS', info)
-
-    r = _run_ads_search (adsterms, ['database:astronomy']) # XXX more hardcoding
-
-    if raw:
-        out = codecs.getwriter ('utf-8') (sys.stdout)
-        json.dump (r, out, ensure_ascii=False, indent=2, separators=(',', ': '))
-        return
-
-    maxnfaslen = 0
-    maxbclen = 0
-    info = []
-
-    for item in r['results']['docs'][:20]:
-        # year isn't important since it's embedded in bibcode.
-        title = item['title'][0] # not sure why this is a list?
-        bibcode = item['bibcode']
-        nfas = normalize_surname (parse_name (_translate_ads_name (item['author'][0]))[1])
-
-        maxnfaslen = max (maxnfaslen, len (nfas))
-        maxbclen = max (maxbclen, len (bibcode))
-        info.append ((bibcode, nfas, title))
-
-    ofs = maxnfaslen + maxbclen + 4
-
-    for bc, nfas, title in info:
-        print '%*s  %*s  ' % (maxbclen, bc, maxnfaslen, nfas),
-        print_truncated (title, ofs)

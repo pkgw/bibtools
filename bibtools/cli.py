@@ -552,6 +552,8 @@ def cmd_refgrep (argv):
 
 
 def cmd_rq (argv):
+    from .ads import search_ads
+
     if len (argv) < 2:
         raise UsageError ('expected arguments')
 

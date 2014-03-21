@@ -121,6 +121,7 @@ def autolearn_pub (text):
         return autolearn_doi (text)
 
     if kind == 'bibcode':
+        from ads import autolearn_bibcode
         return autolearn_bibcode (text)
 
     if kind == 'arxiv':

@@ -51,8 +51,8 @@ class BibApp (object):
     @property
     def proxy (self):
         if self._theproxy is None:
-            from .proxy import get_proxy_or_die
-            self._theproxy = get_proxy_or_die (self.cfg)
+            from .proxy import get_proxy
+            self._theproxy = get_proxy (self.cfg)
         return self._theproxy
 
 

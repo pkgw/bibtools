@@ -6,7 +6,7 @@
 Proxies.
 """
 
-__all__ = ('get_proxy get_proxy_or_die').split ()
+__all__ = ('get_proxy').split ()
 
 import cookielib, urllib2
 
@@ -70,7 +70,6 @@ class HarvardProxy (object):
         if parser.formurl is None:
             die ('malformed proxy page response?')
 
-        from urlparse import urljoin
         posturl = urljoin (resp.url, parser.formurl)
         values = {}
 
@@ -80,14 +79,12 @@ class HarvardProxy (object):
         for name, value in self.inputs:
             values[name] = value
 
-        from urllib import urlencode # yay terrible Python APIs
         req = urllib2.Request (posturl, urlencode (values))
         # The response will redirect to the original target page.
         return self.opener.open (req)
 
 
     def open (self, url):
-        from urlparse import urlparse, urlunparse
         scheme, loc, path, params, query, frag = urlparse (url)
 
         if loc.endswith ('arxiv.org'):
@@ -115,8 +112,6 @@ class HarvardProxy (object):
         if url is None:
             return None # convenience
 
-        from urlparse import urlparse, urlunparse
-
         scheme, loc, path, params, query, frag = urlparse (url)
         if not loc.endswith (self.suffix):
             return url
@@ -125,10 +120,15 @@ class HarvardProxy (object):
         return urlunparse ((scheme, loc, path, params, query, frag))
 
 
-def get_proxy (cfg):
-    # TODO: return some kind of null proxy if nothing configured. Then
-    # we can kill get_proxy_or_die.
+class NullProxy (object):
+    def open (url):
+        return urlopen (url)
 
+    def unmangle (url):
+        return url
+
+
+def get_proxy (cfg):
     from .secret import load_user_secret
     from .config import Error
 
@@ -136,22 +136,15 @@ def get_proxy (cfg):
         kind = cfg.get ('proxy', 'kind')
         username = cfg.get ('proxy', 'username')
     except Error:
-        return None
+        kind = None
 
-    # It's not good to have this hanging around in memory, but Python
+    # It's not good to have the password hanging around in memory, but Python
     # strings are immutable and we have no idea what (if anything) `del
-    # password` would accomplish, so I don't think we can really do
-    # better.
-    password = load_user_secret (cfg)
+    # password` would accomplish, so I don't think we can really do better.
 
     if kind == 'harvard':
+        password = load_user_secret (cfg)
         return HarvardProxy (cfg, username, password)
 
-    die ('don\'t recognize proxy kind "%s"', kind)
-
-
-def get_proxy_or_die (cfg):
-    proxy = get_proxy (cfg)
-    if proxy is None:
-        die ('no fulltext-access proxy is configured')
-    return proxy
+    warn ('no proxy defined; will likely have trouble obtaining full-text articles')
+    return NullProxy ()

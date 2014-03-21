@@ -1,6 +1,7 @@
 *.pyc
 /*.egg-info
+/Makefile
 /build
-/config.sh
+/config.status
 /dist
 /pkgw.bib

@@ -408,7 +408,7 @@ def cmd_setsecret (app, argv):
         die ('this command can only be run with standard input set to a TTY')
 
     from .secret import store_user_secret
-    store_user_secret ()
+    store_user_secret (app.cfg)
 
 
 def cmd_summ (app, argv):

@@ -43,7 +43,7 @@ class HarvardProxy (object):
         ('compositeAuthenticationSourceType', 'PIN'),
     ]
 
-    def __init__ (self, username, password):
+    def __init__ (self, cfg, username, password):
         self.cj = cookielib.CookieJar ()
         self.opener = urllib2.build_opener (urllib2.HTTPRedirectHandler (),
                                             urllib2.HTTPCookieProcessor (self.cj))
@@ -54,8 +54,7 @@ class HarvardProxy (object):
         # exactly what's needed, but if we just send 'Mozilla/5.0' as the UA,
         # nature.com gives us a 500 error (!). So I've just copied my current
         # browser's UA.
-        from .config import BibConfig
-        ua = BibConfig ().get_or_die ('proxy', 'user-agent')
+        ua = cfg.get_or_die ('proxy', 'user-agent')
         self.opener.addheaders = [('User-Agent', ua)]
 
         self.inputs = list (self.default_inputs)
@@ -143,10 +142,10 @@ def get_proxy (cfg):
     # strings are immutable and we have no idea what (if anything) `del
     # password` would accomplish, so I don't think we can really do
     # better.
-    password = load_user_secret ()
+    password = load_user_secret (cfg)
 
     if kind == 'harvard':
-        return HarvardProxy (username, password)
+        return HarvardProxy (cfg, username, password)
 
     die ('don\'t recognize proxy kind "%s"', kind)
 

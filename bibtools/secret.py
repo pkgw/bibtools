@@ -49,9 +49,8 @@ def _load_secret_keys ():
     return key, iv
 
 
-def store_user_secret ():
-    from .config import BibConfig
-    openssl = BibConfig ().get_or_die ('apps', 'openssl')
+def store_user_secret (cfg):
+    openssl = cfg.get_or_die ('apps', 'openssl')
 
     # Generate a random password for the key generation. Python SystemRandom
     # uses /dev/urandom, so it's possible that the password may be derived
@@ -96,11 +95,9 @@ def store_user_secret ():
         set_terminal_echo (True)
 
 
-def load_user_secret ():
+def load_user_secret (cfg):
     import subprocess
-
-    from .config import BibConfig
-    openssl = BibConfig ().get_or_die ('apps', 'openssl')
+    openssl = cfg.get_or_die ('apps', 'openssl')
 
     key, iv = _load_secret_keys ()
     secret = subprocess.check_output ([openssl, 'enc', '-aes-256-cbc', '-d',

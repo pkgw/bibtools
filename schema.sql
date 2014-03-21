@@ -12,39 +12,47 @@ CREATE TABLE pubs (
 );
 
 CREATE TABLE author_names (
-       name TEXT UNIQUE PRIMARY KEY
+       name TEXT UNIQUE PRIMARY KEY NOT NULL
 );
 
 CREATE TABLE authors (
-       type INTEGER,
-       pubid INTEGER,
-       idx INTEGER,
-       authid INTEGER
+       type INTEGER NOT NULL,
+       pubid INTEGER NOT NULL,
+       idx INTEGER NOT NULL,
+       authid INTEGER NOT NULL,
+       FOREIGN KEY (pubid) REFERENCES pubs(id),
+       FOREIGN KEY (authid) REFERENCES author_names(oid)
 );
 
 CREATE TABLE history (
-       date INTEGER PRIMARY KEY,
-       pubid INTEGER,
-       action INTEGER
+       date INTEGER PRIMARY KEY NOT NULL,
+       pubid INTEGER NOT NULL,
+       action INTEGER NOT NULL,
+       FOREIGN KEY (pubid) REFERENCES pubs(id)
 );
 
 CREATE TABLE nicknames (
-       nickname TEXT UNIQUE PRIMARY KEY,
-       pubid INTEGER
+       nickname TEXT UNIQUE PRIMARY KEY NOT NULL,
+       pubid INTEGER NOT NULL,
+       FOREIGN KEY (pubid) REFERENCES pubs(id)
 );
 
 CREATE TABLE notes (
-       pubid INTEGER,
-       note TEXT
+       pubid INTEGER NOT NULL,
+       note TEXT NOT NULL,
+       FOREIGN KEY (pubid) REFERENCES pubs(id)
 );
 
 CREATE TABLE pdfs (
-       sha1 TEXT UNIQUE PRIMARY KEY,
-       pubid INTEGER
+       sha1 TEXT UNIQUE PRIMARY KEY NOT NULL,
+       pubid INTEGER NOT NULL,
+       FOREIGN KEY (pubid) REFERENCES pubs(id)
 );
 
 CREATE TABLE publists (
-       type INTEGER,
-       idx INTEGER,
-       pubid INTEGER
+       name TEXT NOT NULL,
+       idx INTEGER NOT NULL,
+       pubid INTEGER NOT NULL,
+       FOREIGN KEY (pubid) REFERENCES pubs(id),
+       UNIQUE (name, pubid)
 );

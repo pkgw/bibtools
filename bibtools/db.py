@@ -161,6 +161,8 @@ class BibDB (sqlite3.Connection):
 
 
     def try_get_pdf_for_id (self, proxy, id):
+        from fetchpdf import try_fetch_pdf
+
         r = self.getfirst ('SELECT arxiv, bibcode, doi FROM pubs WHERE id = ?', id)
         arxiv, bibcode, doi = r
 

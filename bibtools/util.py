@@ -11,9 +11,8 @@ import errno, os.path, re, sys
 
 # Generic things
 
-__all__ = ('die warn reraise_context squish_spaces mkdir_p urlquote').split ()
+__all__ = ('die warn reraise_context squish_spaces mkdir_p').split ()
 
-from urllib2 import quote as urlquote
 
 def die (fmt, *args):
     if not len (args):

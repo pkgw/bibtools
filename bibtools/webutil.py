@@ -6,12 +6,15 @@
 Various utilities for HTTP-related activities.
 """
 
+__all__ = ('HTMLParser get_url_from_redirection parse_http_html '
+           'urljoin urlparse urlquote').split ()
+
 import codecs, cookielib, urllib2
 
 from .util import *
 
-__all__ = ('HTMLParser get_url_from_redirection parse_http_html').split ()
-
+urlquote = urllib2.quote
+from urlparse import urljoin, urlparse
 
 try:
     # renamed in Python 3.

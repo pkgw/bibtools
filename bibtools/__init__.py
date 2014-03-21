@@ -10,6 +10,8 @@ import codecs, collections, cookielib, errno, json, os.path, re, sqlite3, sys, u
 import HTMLParser # renamed to html.parser in Python 3.
 
 from .util import *
+from .config import BibConfig
+
 
 class BibError (Exception):
     def __init__ (self, fmt, *args):
@@ -34,53 +36,6 @@ class MultiplePubsError (PubLocateError):
 dbpath = bibpath ('db.sqlite3')
 
 
-# Configuration subsystem
-# note: module renamed to configparser in Python 3.
-
-import ConfigParser as configparser
-
-class BibConfig (configparser.RawConfigParser):
-    def __init__ (self):
-        # stupid old-style classes can't use super()
-        configparser.RawConfigParser.__init__ (self)
-        self.readfp (datastream ('defaults.cfg'))
-        self.read (bibpath ('bib.cfg'))
-
-
-    def get_or_die (self, section, option):
-        try:
-            return self.get (section, option)
-        except configparser.Error:
-            die ('cannot find required configuration key %s/%s', section, option)
-
-
-    def get_proxy (self):
-        # TODO: return some kind of null proxy if nothing configured. Then
-        # we can kill get_proxy_or_die.
-
-        try:
-            kind = self.get ('proxy', 'kind')
-            username = self.get ('proxy', 'username')
-        except configparser.Error:
-            return None
-
-        # It's not good to have this hanging around in memory, but Python
-        # strings are immutable and we have no idea what (if anything) `del
-        # password` would accomplish, so I don't think we can really do
-        # better.
-        password = load_user_secret ()
-
-        if kind == 'harvard':
-            return HarvardProxy (username, password)
-
-        die ('don\'t recognize proxy kind "%s"', kind)
-
-
-    def get_proxy_or_die (self):
-        proxy = self.get_proxy ()
-        if proxy is None:
-            die ('no fulltext-access proxy is configured')
-        return proxy
 
 
 # Monkeying with names!
@@ -577,106 +532,6 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
             f.write (b)
 
     return s.hexdigest ()
-
-
-# Handling of the user's login secret. I've made the decision to store this on
-# disk without requiring user input to access the secret -- i.e., this is what
-# Firefox does for user website passwords when a Master Password hasn't been
-# enabled. I feel sketchy about this, but if Mozilla is OK with it, then so
-# am I.
-#
-# I follow what I believe to be Firefox's storage strategy, which is to use
-# symmetric encryption to store the secret on disk, with the relevant
-# encryption keys also stored on disk. Obviously this only provides security
-# against a completely unmotivated attacker, but it prevents accidental
-# disclosure, and again, this approach seems to be good enough for Mozilla.
-#
-# There are crypto modules for Python, but the examples I saw were lengthy and
-# the modules aren't preinstalled on my computer (therefore most people
-# probably don't have them), so I've farmed out the work to the openssl CLI.
-#
-# Because we're in Python, I'm sure that we're doing all sorts of unfortunate
-# things like keeping the decrypted secret in memory for too long, etc.
-
-
-def load_secret_keys ():
-    key = iv = None
-
-    with open (bibpath ('secret.key')) as kfile:
-        for line in kfile:
-            line = line.strip ()
-
-            if line.startswith ('key='):
-                key = line[4:]
-            elif line.startswith ('iv ='):
-                iv = line[4:]
-
-    if key is None or iv is None:
-        die ('damaged secret key file %s?', bibpath ('secret.key'))
-
-    return key, iv
-
-
-def store_user_secret ():
-    import random, string, subprocess
-
-    openssl = BibConfig ().get_or_die ('apps', 'openssl')
-
-    # Generate a random password for the key generation. Python SystemRandom
-    # uses /dev/urandom, so it's possible that the password may be derived
-    # in a low-entropy state, but ... meh.
-
-    sys = random.SystemRandom ()
-    pool = string.digits + string.letters + string.punctuation
-    keypass = ''.join (sys.choice (pool) for _ in xrange (64))
-
-    # Generate the static keys
-
-    os.umask (0o177)
-
-    kfd = os.open (bibpath ('secret.key'),
-                   os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
-                   0o600) # just in case ...
-
-    with os.fdopen (kfd, 'w') as kfile:
-        subprocess.check_call ([openssl, 'enc', '-aes-256-cbc', '-k', keypass,
-                                '-P', '-md', 'sha1'], stdout=kfile, shell=False,
-                               close_fds=True)
-
-    # Encrypt and store password
-
-    sfd = os.open (bibpath ('secret.bin'),
-                   os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
-                   0o600) # just in case ...
-
-    key, iv = load_secret_keys ()
-
-    try:
-        set_terminal_echo (False)
-        print 'Enter password, then Enter, then control-D twice:'
-
-        with os.fdopen (sfd, 'w') as sfile:
-            subprocess.check_call ([openssl, 'enc', '-aes-256-cbc', '-e', '-K',
-                                    key, '-iv', iv], stdout=sfile, shell=False,
-                                   close_fds=True)
-
-        print 'Success.'
-    finally:
-        set_terminal_echo (True)
-
-
-def load_user_secret ():
-    import subprocess
-
-    openssl = BibConfig ().get_or_die ('apps', 'openssl')
-
-    key, iv = load_secret_keys ()
-    secret = subprocess.check_output ([openssl, 'enc', '-aes-256-cbc', '-d',
-                                       '-K', key, '-iv', iv, '-in',
-                                       bibpath ('secret.bin')], shell=False,
-                                      close_fds=True)
-    secret = secret[:-1] # strip trailing newline imposed by our input method
-    return secret
 
 
 # Web scraping, proxy, etc. helpers.

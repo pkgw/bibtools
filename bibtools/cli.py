@@ -8,9 +8,21 @@ The command-line interface.
 
 __all__ = ['driver']
 
+import sys
+
+from . import BibError
 from .util import *
-from . import *
 from .bibcore import print_generic_listing, parse_search
+
+from .config import BibConfig # XXX temporary
+
+class UsageError (BibError):
+    pass
+
+
+def connect (): # XXX temporary
+    from . import BibApp
+    return BibApp ().db
 
 
 def cmd_ads (argv):

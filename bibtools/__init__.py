@@ -3,14 +3,10 @@
 # Licensed under the GNU General Public License, version 3 or higher.
 
 """
-Docstring!
+Global structure for the bibliography tool.
 """
 
-import codecs, json, os.path, re, sqlite3, sys, urllib2
-
-from .util import *
-from .config import BibConfig
-from . import webutil as wu
+__all__ = ('BibApp BibError PubLocateError MultiplePubsError').split ()
 
 
 class BibError (Exception):
@@ -24,9 +20,6 @@ class BibError (Exception):
         return self.bibmsg
 
 
-class UsageError (BibError):
-    pass
-
 class PubLocateError (BibError):
     pass
 
@@ -34,12 +27,40 @@ class MultiplePubsError (PubLocateError):
     pass
 
 
-def connect ():
-    from .db import connect
-    return connect ()
+class BibApp (object):
+    _thedb = None
+    _thecfg = None
+    _theproxy = None
+
+    @property
+    def db (self):
+        if self._thedb is None:
+            from .db import connect
+            self._thedb = connect ()
+        return self._thedb
 
 
-def get_proxy_or_die ():
-    from .config import BibConfig
-    from .proxy import get_proxy_or_die
-    return get_proxy_or_die (BibConfig ())
+    @property
+    def cfg (self):
+        if self._thecfg is None:
+            from .config import BibConfig
+            self._thecfg = BibConfig ()
+        return self._thecfg
+
+
+    @property
+    def proxy (self):
+        if self._theproxy is None:
+            from .proxy import get_proxy_or_die
+            self._theproxy = get_proxy_or_die (self.cfg)
+        return self._theproxy
+
+
+    def __enter__ (self):
+        return self
+
+
+    def __exit__ (self, etype, evalue, etb):
+        if self._thedb is not None:
+            self._thedb.commit ()
+            self._thedb.close ()

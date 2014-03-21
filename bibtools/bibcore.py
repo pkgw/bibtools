@@ -25,8 +25,8 @@ __all__ = ('parse_name encode_name normalize_surname '
            'print_generic_listing parse_search').split ()
 
 import re
-from . import *
 
+from .util import *
 
 def parse_name (text):
     given, family = text.rsplit (' ', 1)

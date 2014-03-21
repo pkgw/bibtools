@@ -10,7 +10,7 @@ __all__ = ['driver']
 
 import sys
 
-from . import BibError
+from . import BibError, webutil as wu
 from .util import *
 from .bibcore import print_generic_listing, parse_search
 
@@ -25,22 +25,21 @@ def connect (): # XXX temporary
     return BibApp ().db
 
 
-def cmd_ads (argv):
+def cmd_ads (app, argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
     idtext = argv[1]
 
-    with connect () as db:
-        pub = db.locate_or_die (idtext)
-        if pub.bibcode is None:
-            die ('cannot open ADS for this publication: no bibcode on record')
+    pub = app.db.locate_or_die (idtext)
+    if pub.bibcode is None:
+        die ('cannot open ADS for this publication: no bibcode on record')
 
-        db.log_action (pub.id, 'visit')
-        open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/' + urlquote (pub.bibcode))
+    app.db.log_action (pub.id, 'visit')
+    app.open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/' + wu.urlquote (pub.bibcode))
 
 
-def cmd_apage (argv):
+def cmd_apage (app, argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
@@ -52,10 +51,10 @@ def cmd_apage (argv):
             die ('cannot open arxiv website: no identifier for record')
 
         db.log_action (pub.id, 'visit')
-        open_url ('http://arxiv.org/abs/' + urlquote (pub.arxiv))
+        open_url ('http://arxiv.org/abs/' + wu.urlquote (pub.arxiv))
 
 
-def cmd_btexport (argv):
+def cmd_btexport (app, argv):
     from bibtex import bibtex_styles, bibtexify_one, write_bibtexified
 
     if len (argv) != 3:
@@ -130,7 +129,7 @@ def cmd_btexport (argv):
             write_bibtexified (write, bt)
 
 
-def cmd_canon_journal (argv):
+def cmd_canon_journal (app, argv):
     if len (argv) not in (3, 4):
         raise UsageError ('expected 2 or 3 arguments')
 
@@ -153,7 +152,7 @@ def cmd_canon_journal (argv):
                         (json.dumps (rd), pub.id))
 
 
-def cmd_delete (argv):
+def cmd_delete (app, argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
@@ -166,7 +165,7 @@ def cmd_delete (argv):
         db.delete_pub (pub.id)
 
 
-def cmd_edit (argv):
+def cmd_edit (app, argv):
     from . import textfmt
 
     if len (argv) != 2:
@@ -200,7 +199,7 @@ def cmd_edit (argv):
             pass # whatever.
 
 
-def cmd_init (argv):
+def cmd_init (app, argv):
     if len (argv) != 1:
         raise UsageError ('expected no arguments')
 
@@ -217,7 +216,7 @@ def cmd_init (argv):
             die ('cannot initialize "%s": %s', dbpath, e)
 
 
-def cmd_info (argv):
+def cmd_info (app, argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
@@ -404,7 +403,7 @@ def _ingest_one (db, rec):
     db.learn_pub (info)
 
 
-def cmd_ingest (argv):
+def cmd_ingest (app, argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
@@ -421,7 +420,7 @@ def cmd_ingest (argv):
             _ingest_one (db, rec)
 
 
-def cmd_jpage (argv):
+def cmd_jpage (app, argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
@@ -433,10 +432,10 @@ def cmd_jpage (argv):
             die ('cannot open journal website: no DOI for record')
 
         db.log_action (pub.id, 'visit')
-        open_url ('http://dx.doi.org/' + urlquote (pub.doi))
+        open_url ('http://dx.doi.org/' + wu.urlquote (pub.doi))
 
 
-def _list_cmd_add (db, argv):
+def _list_cmd_add (app, argv):
     if len (argv) < 3:
         raise UsageError ('expected at least 2 arguments')
 
@@ -453,7 +452,7 @@ def _list_cmd_add (db, argv):
         die (e)
 
 
-def _list_cmd_rm (db, argv):
+def _list_cmd_rm (app, argv):
     if len (argv) < 3:
         raise UsageError ('expected at least 2 arguments')
 
@@ -483,7 +482,7 @@ def _list_cmd_rm (db, argv):
         die (e)
 
 
-def _list_cmd_summ (db, argv):
+def _list_cmd_summ (app, argv):
     if len (argv) != 2:
         raise UsageError ('expected one argument')
 
@@ -497,7 +496,7 @@ def _list_cmd_summ (db, argv):
     print_generic_listing (db, q)
 
 
-def cmd_list (argv):
+def cmd_list (app, argv):
     if len (argv) < 2:
         raise UsageError ('"list" requires a subcommand')
 
@@ -509,10 +508,10 @@ def cmd_list (argv):
              'arguments for usage help', subcmd)
 
     with connect () as db:
-        subfunc (db, argv[1:])
+        subfunc (app, argv[1:])
 
 
-def cmd_read (argv):
+def cmd_read (app, argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
@@ -537,7 +536,7 @@ def cmd_read (argv):
     launch_background_silent (pdfreader, [pdfreader, libpath (sha1, 'pdf')])
 
 
-def cmd_recent (argv):
+def cmd_recent (app, argv):
     if len (argv) != 1:
         raise UsageError ('expected no arguments')
 
@@ -548,7 +547,7 @@ def cmd_recent (argv):
                                                   'ORDER BY date DESC LIMIT 10'))
 
 
-def cmd_refgrep (argv):
+def cmd_refgrep (app, argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly one argument')
 
@@ -563,7 +562,7 @@ def cmd_refgrep (argv):
                 print val.encode ('utf-8')
 
 
-def cmd_rq (argv):
+def cmd_rq (app, argv):
     from .ads import search_ads
 
     if len (argv) < 2:
@@ -577,7 +576,7 @@ def cmd_rq (argv):
     search_ads (parse_search (argv[1:]), raw=rawmode)
 
 
-def cmd_setpdf (argv):
+def cmd_setpdf (app, argv):
     if len (argv) != 3:
         raise UsageError ('expected exactly 2 arguments')
 
@@ -612,7 +611,7 @@ def cmd_setpdf (argv):
         db.execute ('INSERT OR REPLACE INTO pdfs VALUES (?, ?)', (sha1, pub.id))
 
 
-def cmd_setsecret (argv):
+def cmd_setsecret (app, argv):
     if len (argv) != 1:
         raise UsageError ('expected no arguments')
 
@@ -622,7 +621,7 @@ def cmd_setsecret (argv):
     store_user_secret ()
 
 
-def cmd_summ (argv):
+def cmd_summ (app, argv):
     if len (argv) < 2:
         raise UsageError ('expected arguments')
 
@@ -651,12 +650,15 @@ def driver (argv=None):
         die ('"%s" is not a recognized subcommand; run me without '
              'arguments for usage help', cmdname)
 
-    try:
-        cmdfunc (argv[1:])
-    except UsageError as ue:
-        # TODO: synopsize command-specific usage help as an attribute on the
-        # function (so we can auto-gen a multi-command usage summary too)
-        raise SystemExit ('usage error: ' + ue.bibmsg)
+    from . import BibApp
+
+    with BibApp () as app:
+        try:
+            cmdfunc (app, argv[1:])
+        except UsageError as ue:
+            # TODO: synopsize command-specific usage help as an attribute on the
+            # function (so we can auto-gen a multi-command usage summary too)
+            raise SystemExit ('usage error: ' + ue.bibmsg)
 
     return 0
 

@@ -137,14 +137,14 @@ def launch_background_silent (cmd, argv):
     os.execlp (cmd, *argv)
 
 
-def open_url (url):
+def open_url (app, url):
     """Opens up the URL in some GUI program and returns.
 
     Python has a `webbrowser` module that does this, but my Firefox
     prints out a few warnings when you launch it and I really want
     to make those disappear."""
 
-    opener = BibConfig ().get_or_die ('apps', 'url-opener')
+    opener = app.cfg.get_or_die ('apps', 'url-opener')
     launch_background_silent (opener, [opener, url])
 
 

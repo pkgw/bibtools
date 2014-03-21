@@ -64,3 +64,10 @@ class BibApp (object):
         if self._thedb is not None:
             self._thedb.commit ()
             self._thedb.close ()
+
+
+    # Global-level helpers
+
+    def open_url (self, url):
+        from .util import open_url
+        open_url (self, url)

@@ -54,7 +54,7 @@ def cmd_apage (app, argv):
 
 
 def cmd_btexport (app, argv):
-    from bibtex import bibtex_styles, bibtexify_one, write_bibtexified
+    from bibtex import bibtex_styles, export_to_bibtex
 
     if len (argv) != 3:
         raise UsageError ('expected exactly 2 arguments')
@@ -63,7 +63,6 @@ def cmd_btexport (app, argv):
     auxfile = argv[2]
 
     # Load/check style
-
     factory = bibtex_styles.get (outstyle)
     if factory is None:
         die ('unrecognized BibTeX output style "%s"', outstyle)
@@ -71,7 +70,6 @@ def cmd_btexport (app, argv):
     style = factory ()
 
     # Load cited nicknames
-
     citednicks = set ()
 
     for line in open (auxfile):
@@ -90,42 +88,8 @@ def cmd_btexport (app, argv):
         citednicks.update ([e for e in entries.split (',')
                             if not e.startswith ('r.')])
 
-    # Export
-
-    seenids = {}
-    first = True
-    write = sys.stdout.write
-
-    with connect () as db:
-        for nick in sorted (citednicks):
-            curs = db.pub_fquery ('SELECT p.* FROM pubs AS p, nicknames AS n '
-                                  'WHERE p.id == n.pubid AND n.nickname == ?', nick)
-            res = list (curs)
-
-            if not len (res):
-                die ('citation to unrecognized nickname "%s"', nick)
-            if len (res) != 1:
-                die ('cant-happen multiple matches for nickname "%s"', nick)
-
-            pub = res[0]
-
-            if pub.id in seenids:
-                die ('"%s" and "%s" refer to the same publication; this will '
-                     'cause duplicate entries', nick, seenids[pub.id])
-
-            if pub.refdata is None:
-                die ('no reference data for "%s"', nick)
-
-            seenids[pub.id] = nick
-
-            if first:
-                first = False
-            else:
-                write ('\n')
-
-            bt = bibtexify_one (db, style, pub)
-            bt['_ident'] = nick
-            write_bibtexified (write, bt)
+    # Ready to write
+    export_to_bibtex (app, style, citednicks)
 
 
 def cmd_canon_journal (app, argv):

@@ -9,9 +9,9 @@ TODO: styles defined in a support file or something.
 
 """
 
-__all__ = ('bibtexify_one write_bibtexified').split ()
+__all__ = ('bibtexify_one export_to_bibtex write_bibtexified').split ()
 
-import json
+import json, sys
 
 from .util import *
 from .unicode_to_latex import unicode_to_latex
@@ -143,3 +143,41 @@ def write_bibtexified (write, btdata):
         write ('}')
 
     write ('\n}\n')
+
+
+def export_to_bibtex (app, style, citednicks, write=None):
+    if write is None:
+        write = sys.stdout.write
+
+    seenids = {}
+    first = True
+
+    for nick in sorted (citednicks):
+        curs = app.db.pub_fquery ('SELECT p.* FROM pubs AS p, nicknames AS n '
+                                  'WHERE p.id == n.pubid AND n.nickname == ?', nick)
+        res = list (curs)
+
+        if not len (res):
+            die ('citation to unrecognized nickname "%s"', nick)
+        if len (res) != 1:
+            die ('cant-happen multiple matches for nickname "%s"', nick)
+
+        pub = res[0]
+
+        if pub.id in seenids:
+            die ('"%s" and "%s" refer to the same publication; this will '
+                 'cause duplicate entries', nick, seenids[pub.id])
+
+        if pub.refdata is None:
+            die ('no reference data for "%s"', nick)
+
+        seenids[pub.id] = nick
+
+        if first:
+            first = False
+        else:
+            write ('\n')
+
+        bt = bibtexify_one (app.db, style, pub)
+        bt['_ident'] = nick
+        write_bibtexified (write, bt)

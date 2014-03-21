@@ -155,6 +155,8 @@ def cmd_delete (argv):
 
 
 def cmd_edit (argv):
+    from . import textfmt
+
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
@@ -166,13 +168,13 @@ def cmd_edit (argv):
 
         work = tempfile.NamedTemporaryFile (prefix='bib.edit.', dir='.', delete=False)
         enc = codecs.getwriter ('utf-8') (work)
-        text_export_one (db, pub, enc.write, 72)
+        textfmt.text_export_one (db, pub, enc.write, 72)
         work.close ()
 
         run_editor (work.name)
 
         enc = codecs.getreader ('utf-8') (open (work.name))
-        info = text_import_one (enc)
+        info = textfmt.text_import_one (enc)
         db.update_pub (pub, info)
 
         try:

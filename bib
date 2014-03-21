@@ -2266,14 +2266,6 @@ def cmd_jpage (argv):
         open_url ('http://dx.doi.org/' + urlquote (pub.doi))
 
 
-def cmd_list (argv):
-    if len (argv) < 2:
-        raise UsageError ('expected arguments')
-
-    with connect () as db:
-        print_generic_listing (db, db.locate_pubs (True, *argv[1:]))
-
-
 def cmd_read (argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
@@ -2380,6 +2372,14 @@ def cmd_setsecret (argv):
         die ('this command can only be run with standard input set to a TTY')
 
     store_user_secret ()
+
+
+def cmd_summ (argv):
+    if len (argv) < 2:
+        raise UsageError ('expected arguments')
+
+    with connect () as db:
+        print_generic_listing (db, db.locate_pubs (True, *argv[1:]))
 
 
 # Toplevel driver infrastructure

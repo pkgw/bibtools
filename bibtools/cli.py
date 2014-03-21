@@ -175,42 +175,41 @@ def cmd_info (app, argv):
 
     idtext = argv[1]
 
-    with connect () as db:
-        # TODO: should be OK to match multiple publications and print them all
-        # out.
+    # TODO: should be OK to match multiple publications and print them all
+    # out.
 
-        pub = db.locate_or_die (idtext, autolearn=True)
+    pub = app.db.locate_or_die (idtext, autolearn=True)
 
-        year = pub.year or 'no year'
-        title = pub.title or '(no title)'
+    year = pub.year or 'no year'
+    title = pub.title or '(no title)'
 
-        authors = list (db.get_pub_authors (pub.id))
-        if len (authors):
-            authstr = ', '.join (a[1] for a in authors)
-        else:
-            authstr = '(no authors)'
+    authors = list (app.db.get_pub_authors (pub.id))
+    if len (authors):
+        authstr = ', '.join (a[1] for a in authors)
+    else:
+        authstr = '(no authors)'
 
-        print title
-        print authstr, '(%s)' % year
+    print title
+    print authstr, '(%s)' % year
 
-        if pub.arxiv is not None:
-            print 'arxiv:', pub.arxiv
-        if pub.bibcode is not None:
-            print 'bibcode:', pub.bibcode
-        if pub.doi is not None:
-            print 'DOI:', pub.doi
-        if pub.refdata is not None:
-            rd = json.loads (pub.refdata)
-            print '~BibTeX: @%s {' % rd.pop ('_type'),
-            bits = ('%s="%s"' % t
-                    for t in sorted (rd.iteritems (), key=lambda t: t[0]))
-            print u', '.join (bits).encode ('utf-8'), '}'
+    if pub.arxiv is not None:
+        print 'arxiv:', pub.arxiv
+    if pub.bibcode is not None:
+        print 'bibcode:', pub.bibcode
+    if pub.doi is not None:
+        print 'DOI:', pub.doi
+    if pub.refdata is not None:
+        rd = json.loads (pub.refdata)
+        print '~BibTeX: @%s {' % rd.pop ('_type'),
+        bits = ('%s="%s"' % t
+                for t in sorted (rd.iteritems (), key=lambda t: t[0]))
+        print u', '.join (bits).encode ('utf-8'), '}'
 
-        if pub.abstract is not None:
-            print
-            print_linewrapped (pub.abstract, maxwidth=72)
+    if pub.abstract is not None:
+        print
+        print_linewrapped (pub.abstract, maxwidth=72)
 
-        db.log_action (pub.id, 'visit')
+    app.db.log_action (pub.id, 'visit')
 
 
 def cmd_ingest (app, argv):

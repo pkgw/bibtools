@@ -8,7 +8,7 @@ The command-line interface.
 
 __all__ = ['driver']
 
-import json, sys
+import codecs, json, os.path, sys
 
 from . import BibError, webutil as wu
 from .util import *
@@ -129,36 +129,35 @@ def cmd_delete (app, argv):
 
 def cmd_edit (app, argv):
     from . import textfmt
+    from tempfile import NamedTemporaryFile
 
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
-    import tempfile
     idtext = argv[1]
 
-    with connect () as db:
-        pub = db.locate_or_die (idtext, autolearn=True)
+    pub = app.db.locate_or_die (idtext, autolearn=True)
 
-        work = tempfile.NamedTemporaryFile (prefix='bib.edit.', dir='.', delete=False)
-        enc = codecs.getwriter ('utf-8') (work)
-        textfmt.text_export_one (db, pub, enc.write, 72)
-        work.close ()
+    work = NamedTemporaryFile (prefix='bib.edit.', dir='.', delete=False)
+    enc = codecs.getwriter ('utf-8') (work)
+    textfmt.export_one (app, pub, enc.write, 72)
+    work.close ()
 
-        run_editor (work.name)
+    run_editor (work.name)
 
-        enc = codecs.getreader ('utf-8') (open (work.name))
-        info = textfmt.text_import_one (enc)
-        db.update_pub (pub, info)
+    enc = codecs.getreader ('utf-8') (open (work.name))
+    info = textfmt.import_one (enc)
+    app.db.update_pub (pub, info)
 
-        try:
-            os.unlink (work.name)
-        except Exception as e:
-            warn ('couldn\'t delete temporary file "%s": %s', work.name, e)
+    try:
+        os.unlink (work.name)
+    except Exception as e:
+        warn ('couldn\'t delete temporary file "%s": %s', work.name, e)
 
-        try:
-            os.unlink (work.name + '~')
-        except:
-            pass # whatever.
+    try:
+        os.unlink (work.name + '~')
+    except:
+        pass # whatever.
 
 
 def cmd_init (app, argv):

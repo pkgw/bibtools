@@ -8,11 +8,11 @@ The main database.
 
 __all__ = ['connect']
 
-import collections, sqlite3
+import collections, json, sqlite3, sys
 
+from . import PubLocateError, MultiplePubsError
 from .util import *
 from .bibcore import *
-from . import *
 
 
 def connect ():

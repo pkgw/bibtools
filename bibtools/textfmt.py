@@ -6,7 +6,7 @@
 Import/export from our text format.
 """
 
-__all__ = ('text_export_one text_import_one').split ()
+__all__ = ('export_one import_one').split ()
 
 import json
 
@@ -14,7 +14,7 @@ from .util import *
 from .bibcore import *
 
 
-def text_export_one (db, pub, write, width):
+def export_one (app, pub, write, width):
     # Title and year
     if pub.title is None:
         write ('--no title--\n')
@@ -37,8 +37,8 @@ def text_export_one (db, pub, write, width):
     write ('doi = ')
     write (pub.doi or '')
     write ('\n')
-    for (nick, ) in db.execute ('SELECT nickname FROM nicknames WHERE pubid == ? '
-                                'ORDER BY nickname asc', (pub.id, )):
+    for (nick, ) in app.db.execute ('SELECT nickname FROM nicknames WHERE pubid == ? '
+                                    'ORDER BY nickname asc', (pub.id, )):
         write ('nick = ')
         write (nick)
         write ('\n')
@@ -46,14 +46,14 @@ def text_export_one (db, pub, write, width):
 
     # Authors
     anyauth = False
-    for given, family in db.get_pub_authors (pub.id, 'author'):
+    for given, family in app.db.get_pub_authors (pub.id, 'author'):
         write (encode_name (given, family))
         write ('\n')
         anyauth = True
     if not anyauth:
         write ('--no authors--\n')
     firsteditor = True
-    for given, family in db.get_pub_authors (pub.id, 'editor'):
+    for given, family in app.db.get_pub_authors (pub.id, 'editor'):
         if firsteditor:
             write ('--editors--\n')
             firsteditor = False
@@ -106,7 +106,7 @@ def _import_get_chunk (stream, gotoend=False):
     return lines
 
 
-def text_import_one (stream):
+def import_one (stream):
     info = {}
 
     # title / year

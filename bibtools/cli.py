@@ -380,30 +380,30 @@ def cmd_setpdf (app, argv):
 
     import hashlib, shutil
 
-    with connect () as db:
-        # Check that we know what pub we're talking about
-        pub = db.locate_or_die (idtext)
+    pub = app.db.locate_or_die (idtext)
 
-        # Get SHA1 of the PDF
-        with open (pdfpath) as f:
-            s = hashlib.sha1 ()
+    # Get SHA1 of the PDF -- we could be more efficient by copying
+    # to a temporary path whil we're at it, but, meh.
 
-            while True:
-                b = f.read (4096)
-                if not len (b):
-                    break
+    with open (pdfpath) as f:
+        s = hashlib.sha1 ()
 
-                s.update (b)
+        while True:
+            b = f.read (4096)
+            if not len (b):
+                break
 
-            sha1 = s.hexdigest ()
+            s.update (b)
 
-        # Copy it into the library
-        ensure_libpath_exists (sha1)
-        dest = libpath (sha1, 'pdf')
-        shutil.copyfile (pdfpath, dest)
+        sha1 = s.hexdigest ()
 
-        # Update the DB
-        db.execute ('INSERT OR REPLACE INTO pdfs VALUES (?, ?)', (sha1, pub.id))
+    # Copy it into the library
+    ensure_libpath_exists (sha1)
+    dest = libpath (sha1, 'pdf')
+    shutil.copyfile (pdfpath, dest)
+
+    # Update the DB
+    app.db.execute ('INSERT OR REPLACE INTO pdfs VALUES (?, ?)', (sha1, pub.id))
 
 
 def cmd_setsecret (app, argv):

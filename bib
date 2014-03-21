@@ -2287,6 +2287,36 @@ def _list_cmd_add (db, argv):
         die (e)
 
 
+def _list_cmd_rm (db, argv):
+    if len (argv) < 3:
+        raise UsageError ('expected at least 2 arguments')
+
+    listname = argv[1]
+    # FIXME: check listname to avoid "bib list add abc+12 xyz+10" mistake
+    dblistname = 'user_' + listname
+
+    # We want to complain if an individual term doesn't match anything in the
+    # list, but if the user specifies "williams.*" and we get a bunch of hits
+    # only one of which is in the list, that's OK. So we need to process terms
+    # individually.
+
+    c = db.cursor ()
+
+    try:
+        for idtext in argv[2:]:
+            ndeleted = 0
+
+            for pub in db.locate_pubs ((idtext,)):
+                c.execute ('DELETE FROM publists WHERE name == ? AND pubid == ?',
+                           (dblistname, pub.id))
+                ndeleted += c.rowcount
+
+            if not ndeleted:
+                warn ('no entries in "%s" matched "%s"', listname, idtext)
+    except Exception as e:
+        die (e)
+
+
 def _list_cmd_summ (db, argv):
     if len (argv) != 2:
         raise UsageError ('expected one argument')

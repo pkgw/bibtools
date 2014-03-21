@@ -21,7 +21,7 @@ setup (
     },
 
     entry_points = {
-        'console_scripts': ['bib = bibtools:driver'],
+        'console_scripts': ['bib = bibtools.cli:driver'],
     },
 
     author = 'Peter Williams',

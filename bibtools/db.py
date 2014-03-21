@@ -6,7 +6,7 @@
 The main database.
 """
 
-__all__ = ['connect']
+__all__ = ('connect init').split ()
 
 import collections, json, sqlite3, sys
 
@@ -15,9 +15,26 @@ from .util import *
 from .bibcore import *
 
 
+dbpath = bibpath ('db.sqlite3')
+
 def connect ():
-    dbpath = bibpath ('db.sqlite3')
     return sqlite3.connect (dbpath, factory=BibDB)
+
+
+def init (app):
+    import os.path
+
+    init = datastream ('schema.sql').read ()
+
+    mkdir_p (bibpath ())
+
+    if os.path.exists (dbpath):
+        die ('the file "%s" already exists', dbpath)
+
+    try:
+        app.db.executescript (init)
+    except sqlite3.OperationalError as e:
+        die ('cannot initialize "%s": %s', dbpath, e)
 
 
 PubRow = collections.namedtuple ('PubRow',

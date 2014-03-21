@@ -161,20 +161,12 @@ def cmd_edit (app, argv):
 
 
 def cmd_init (app, argv):
+    from .db import init
+
     if len (argv) != 1:
         raise UsageError ('expected no arguments')
 
-    mkdir_p (bibpath ())
-
-    if os.path.exists (dbpath):
-        die ('the file "%s" already exists', dbpath)
-
-    with connect () as db:
-        try:
-            init = datastream ('schema.sql').read ()
-            db.executescript (init)
-        except sqlite3.OperationalError as e:
-            die ('cannot initialize "%s": %s', dbpath, e)
+    init (app)
 
 
 def cmd_info (app, argv):

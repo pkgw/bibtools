@@ -8,7 +8,7 @@ The command-line interface.
 
 __all__ = ['driver']
 
-import sys
+import json, sys
 
 from . import BibError, webutil as wu
 from .util import *
@@ -100,18 +100,17 @@ def cmd_canon_journal (app, argv):
     newjournal = argv[2]
     newissn = argv[3] if len (argv) > 3 else None
 
-    with connect () as db:
-        for pub in db.pub_query ('refdata NOT NULL'):
-            rd = json.loads (pub.refdata)
-            if rd.get ('journal', '') != oldjournal:
-                continue
+    for pub in app.db.pub_query ('refdata NOT NULL'):
+        rd = json.loads (pub.refdata)
+        if rd.get ('journal', '') != oldjournal:
+            continue
 
-            rd['journal'] = newjournal
+        rd['journal'] = newjournal
 
-            if 'issn' not in rd and newissn is not None:
-                rd['issn'] = newissn
+        if 'issn' not in rd and newissn is not None:
+            rd['issn'] = newissn
 
-            db.execute ('UPDATE pubs SET refdata = ? WHERE id == ?',
+        app.db.execute ('UPDATE pubs SET refdata = ? WHERE id == ?',
                         (json.dumps (rd), pub.id))
 
 
@@ -515,13 +514,12 @@ def cmd_refgrep (app, argv):
 
     refkey = argv[1]
 
-    with connect () as db:
-        for pub in db.pub_query ('refdata NOT NULL'):
-            rd = json.loads (pub.refdata)
-            val = rd.get (refkey)
+    for pub in app.db.pub_query ('refdata NOT NULL'):
+        rd = json.loads (pub.refdata)
+        val = rd.get (refkey)
 
-            if val is not None:
-                print val.encode ('utf-8')
+        if val is not None:
+            print val.encode ('utf-8')
 
 
 def cmd_rq (app, argv):

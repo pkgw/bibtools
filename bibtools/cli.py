@@ -120,11 +120,11 @@ def cmd_delete (app, argv):
 
     idtext = argv[1]
 
-    with connect () as db:
-        # TODO: mode to match multiple publications and delete them
-        # all, if a --force flag is given.
-        pub = db.locate_or_die (idtext, autolearn=True)
-        db.delete_pub (pub.id)
+    # TODO: mode to match multiple publications and delete them
+    # all, if a --force flag is given.
+
+    pub = app.db.locate_or_die (idtext, autolearn=True)
+    app.db.delete_pub (pub.id)
 
 
 def cmd_edit (app, argv):

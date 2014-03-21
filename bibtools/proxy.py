@@ -43,19 +43,11 @@ class HarvardProxy (object):
         ('compositeAuthenticationSourceType', 'PIN'),
     ]
 
-    def __init__ (self, cfg, username, password):
+    def __init__ (self, user_agent, username, password):
         self.cj = cookielib.CookieJar ()
         self.opener = urllib2.build_opener (urllib2.HTTPRedirectHandler (),
                                             urllib2.HTTPCookieProcessor (self.cj))
-
-        # XXX This doesn't quite belong here. We need it because otherwise
-        # nature.com gives us the mobile site, which happens to not include
-        # the easily-recognized <a> tag linking to the paper PDF. I don't know
-        # exactly what's needed, but if we just send 'Mozilla/5.0' as the UA,
-        # nature.com gives us a 500 error (!). So I've just copied my current
-        # browser's UA.
-        ua = cfg.get_or_die ('proxy', 'user-agent')
-        self.opener.addheaders = [('User-Agent', ua)]
+        self.opener.addheaders = [('User-Agent', user_agent)]
 
         self.inputs = list (self.default_inputs)
         self.inputs.append (('username', username))
@@ -121,10 +113,13 @@ class HarvardProxy (object):
 
 
 class NullProxy (object):
-    def open (url):
+    def __init__ (self, user_agent):
+        pass # XXX we should honor user_agent; see below.
+
+    def open (self, url):
         return urlopen (url)
 
-    def unmangle (url):
+    def unmangle (self, url):
         return url
 
 
@@ -138,13 +133,21 @@ def get_proxy (cfg):
     except Error:
         kind = None
 
+    # This is awkward. All proxies have to be able to send a User-Agent that
+    # we specify. This is because otherwise nature.com gives us its mobile
+    # site, which happens to not include the easily-recognized <a> tag linking
+    # to the paper PDF. I don't know exactly what's needed, but if we just
+    # send 'Mozilla/5.0' as the UA, nature.com gives us a 500 error (!). So
+    # I've just copied my current browser's UA.
+    ua = cfg.get_or_die ('proxy', 'user-agent')
+
     # It's not good to have the password hanging around in memory, but Python
     # strings are immutable and we have no idea what (if anything) `del
     # password` would accomplish, so I don't think we can really do better.
 
     if kind == 'harvard':
         password = load_user_secret (cfg)
-        return HarvardProxy (cfg, username, password)
+        return HarvardProxy (ua, username, password)
 
     warn ('no proxy defined; will likely have trouble obtaining full-text articles')
-    return NullProxy ()
+    return NullProxy (ua)

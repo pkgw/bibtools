@@ -6,10 +6,11 @@
 The command-line interface.
 """
 
+__all__ = ['driver']
+
 from .util import *
 from . import *
-
-__all__ = ['driver']
+from .bibcore import print_generic_listing
 
 
 def cmd_ads (argv):

@@ -7,13 +7,14 @@ Various utilities for HTTP-related activities.
 """
 
 __all__ = ('HTMLParser get_url_from_redirection parse_http_html '
-           'urljoin urlparse urlquote').split ()
+           'urljoin urlopen urlparse urlquote').split ()
 
 import codecs, cookielib, urllib2
 
 from .util import *
 
 urlquote = urllib2.quote
+urlopen = urllib2.urlopen
 from urlparse import urljoin, urlparse
 
 try:

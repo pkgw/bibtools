@@ -66,6 +66,8 @@ class BibDB (sqlite3.Connection):
 
 
     def locate_pubs (self, textids, noneok=False, autolearn=False):
+        from .bibcore import classify_pub_ref
+
         for textid in textids:
             kind, text = classify_pub_ref (textid)
 

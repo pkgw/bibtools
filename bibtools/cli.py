@@ -213,164 +213,16 @@ def cmd_info (app, argv):
         db.log_action (pub.id, 'visit')
 
 
-_bibtex_replacements = (
-    '\\&ap;', u'~',
-    '\\&#177;', u'±',
-    '\&gt;~', u'⪞',
-    '\&lt;~', u'⪝',
-    '{', u'',
-    '}', u'',
-    '<SUP>', u'^',
-    '</SUP>', u'',
-    '<SUB>', u'_',
-    '</SUB>', u'',
-    'Delta', u'Δ',
-    'Omega', u'Ω',
-    '( ', u'(',
-    ' )', u')',
-    '[ ', u'[',
-    ' ]', u']',
-    ' ,', u',',
-    ' .', u'.',
-    ' ;', u';',
-    '\t', u' ',
-    '  ', u' ',
-)
-
-def _fix_bibtex (text):
-    """Ugggghhh. So many problems."""
-
-    if text is None:
-        return None
-
-    text = unicode (text)
-
-    for i in xrange (0, len (_bibtex_replacements), 2):
-        text = text.replace (_bibtex_replacements[i], _bibtex_replacements[i+1])
-    return text
-
-
-def sniff_url (url):
-    from urllib2 import unquote
-
-    p = 'http://dx.doi.org/'
-    if url.startswith (p):
-        return 'doi', unquote (url[len (p):])
-
-    p = 'http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode='
-    if url.startswith (p):
-        return 'bibcode', unquote (url[len (p):])
-
-    p = 'http://labs.adsabs.harvard.edu/ui/abs/'
-    if url.startswith (p):
-        return 'bibcode', unquote (url[len (p):])
-
-    p = 'http://arxiv.org/abs/'
-    if url.startswith (p):
-        return 'arxiv', unquote (url[len (p):])
-
-    p = 'http://arxiv.org/pdf/'
-    if url.startswith (p):
-        return 'arxiv', unquote (url[len (p):])
-
-    return None, None
-
-
-def _ingest_one (db, rec):
-    abstract = rec.get ('abstract')
-    arxiv = rec.get ('eprint')
-    bibcode = rec.get ('bibcode')
-    doi = rec.get ('doi')
-    nickname = rec.get ('id')
-    title = rec.get ('title')
-    year = rec.get ('year')
-
-    if year is not None:
-        year = int (year)
-
-    if 'author' in rec:
-        authors = [_translate_bibtex_name (_fix_bibtex (a)) for a in rec['author']]
-    else:
-        authors = None
-
-    if 'editor' in rec:
-        # for some reason bibtexparser's editor() and author() filters work
-        # differently.
-        editors = [_translate_bibtex_name (_fix_bibtex (e['name'])) for e in rec['editor']]
-    else:
-        editors = None
-
-    abstract = _fix_bibtex (abstract)
-    title = _fix_bibtex (title)
-
-    # Augment information with what we can get from URLs
-
-    urlinfo = []
-
-    if 'url' in rec:
-        urlinfo.append (sniff_url (rec['url']))
-
-    for k, v in rec.iteritems ():
-        if k.startswith ('citeulike-linkout-'):
-            urlinfo.append (sniff_url (v))
-
-    for kind, info in urlinfo:
-        if kind is None:
-            continue
-
-        if kind == 'bibcode' and bibcode is None:
-            bibcode = info
-
-        if kind == 'doi' and doi is None:
-            doi = info
-
-        if kind == 'arxiv' and arxiv is None:
-            arxiv = info
-
-    # Shape up missing bibcodes
-    # XXX: deactivated since I've embedded everything I can in the original file
-    #if bibcode is None and doi is not None:
-    #    bibcode = doi_to_maybe_bibcode (doi)
-    #    print 'mapped', doi, 'to', bibcode or '(lookup failed)'
-
-    # Gather reference information
-    # TO DO: normalize journal name, pages...
-
-    refdata = {'_type': rec['type']}
-
-    for k, v in rec.iteritems ():
-        if k in ('type', 'id', 'abstract', 'archiveprefix', 'author',
-                 'bibcode', 'day', 'doi', 'editor', 'eprint', 'keyword',
-                 'keywords', 'link', 'month', 'posted-at', 'pmid',
-                 'priority', 'title', 'url', 'year'):
-            continue
-        if k.startswith ('citeulike'):
-            continue
-        refdata[k] = v
-
-    # Ready to insert.
-
-    info = dict (abstract=abstract, arxiv=arxiv, authors=authors,
-                 bibcode=bibcode, doi=doi, editors=editors,
-                 nicknames=[nickname], refdata=refdata, title=title, year=year)
-    db.learn_pub (info)
-
-
 def cmd_ingest (app, argv):
+    from .bibtex import import_stream
+
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
     bibpath = argv[1]
-    from .hacked_bibtexparser.bparser import BibTexParser
-    from .hacked_bibtexparser.customization import author, editor, type, convert_to_unicode
 
-    custom = lambda r: editor (author (type (convert_to_unicode (r))))
-
-    with open (bibpath) as bibfile, connect () as db:
-        bp = BibTexParser (bibfile, customization=custom)
-
-        for rec in bp.get_entry_list ():
-            _ingest_one (db, rec)
+    with open (bibpath) as f:
+        import_stream (app, f)
 
 
 def cmd_jpage (app, argv):

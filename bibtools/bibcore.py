@@ -20,7 +20,7 @@ replace nonletters with periods, so it's a gmail-ish form.
 
 """
 
-__all__ = ('parse_name encode_name normalize_surname '
+__all__ = ('parse_name encode_name normalize_surname sniff_url '
            'classify_pub_ref doi_to_maybe_bibcode autolearn_pub '
            'print_generic_listing parse_search').split ()
 
@@ -79,6 +79,40 @@ def classify_pub_ref (text):
         return 'nfasy', normalize_surname (surname) + '.' + year
 
     return 'nickname', text
+
+
+def sniff_url (url):
+    """Should return classifiers consistent with classify_pub_ref."""
+
+    from webutil import urlunquote
+
+    p = 'http://dx.doi.org/'
+    if url.startswith (p):
+        return 'doi', urlunquote (url[len (p):])
+
+    p = 'http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode='
+    if url.startswith (p):
+        return 'bibcode', urlunquote (url[len (p):])
+
+    p = 'http://labs.adsabs.harvard.edu/ui/abs/'
+    if url.startswith (p):
+        return 'bibcode', urlunquote (url[len (p):])
+
+    p = 'http://labs.adsabs.harvard.edu/adsabs/abs/'
+    if url.startswith (p):
+        if url[-1] == '/':
+            url = url[:-1]
+        return 'bibcode', urlunquote (url[len (p):])
+
+    p = 'http://arxiv.org/abs/'
+    if url.startswith (p):
+        return 'arxiv', urlunquote (url[len (p):])
+
+    p = 'http://arxiv.org/pdf/'
+    if url.startswith (p):
+        return 'arxiv', urlunquote (url[len (p):])
+
+    return None, None
 
 
 def doi_to_maybe_bibcode (doi):

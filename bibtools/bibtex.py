@@ -9,15 +9,53 @@ TODO: styles defined in a support file or something.
 
 """
 
-__all__ = ('bibtexify_one export_to_bibtex write_bibtexified').split ()
+__all__ = ('import_stream bibtexify_one export_to_bibtex write_bibtexified').split ()
 
 import json, sys
 
 from .util import *
+from .bibcore import *
 from .unicode_to_latex import unicode_to_latex
 
 
-# Import (TODO: move over all the ingest-related stuff)
+# Import
+
+_bibtex_replacements = (
+    '\\&ap;', u'~',
+    '\\&#177;', u'±',
+    '\&gt;~', u'⪞',
+    '\&lt;~', u'⪝',
+    '{', u'',
+    '}', u'',
+    '<SUP>', u'^',
+    '</SUP>', u'',
+    '<SUB>', u'_',
+    '</SUB>', u'',
+    'Delta', u'Δ',
+    'Omega', u'Ω',
+    '( ', u'(',
+    ' )', u')',
+    '[ ', u'[',
+    ' ]', u']',
+    ' ,', u',',
+    ' .', u'.',
+    ' ;', u';',
+    '\t', u' ',
+    '  ', u' ',
+)
+
+def _fix_bibtex (text):
+    """Ugggghhh. So many problems."""
+
+    if text is None:
+        return None
+
+    text = unicode (text)
+
+    for i in xrange (0, len (_bibtex_replacements), 2):
+        text = text.replace (_bibtex_replacements[i], _bibtex_replacements[i+1])
+    return text
+
 
 def _translate_bibtex_name (name):
     # generically: von Foo, Jr, Bob C. ; citeulike always gives us comma form
@@ -34,6 +72,97 @@ def _translate_bibtex_name (name):
         warn ('CiteULike mis-parsed name, I think: %s', name)
 
     return first + ' ' + surname
+
+
+def _import_one (app, rec):
+    abstract = rec.get ('abstract')
+    arxiv = rec.get ('eprint')
+    bibcode = rec.get ('bibcode')
+    doi = rec.get ('doi')
+    nickname = rec.get ('id')
+    title = rec.get ('title')
+    year = rec.get ('year')
+
+    if year is not None:
+        year = int (year)
+
+    if 'author' in rec:
+        authors = [_translate_bibtex_name (_fix_bibtex (a)) for a in rec['author']]
+    else:
+        authors = None
+
+    if 'editor' in rec:
+        # for some reason bibtexparser's editor() and author() filters work
+        # differently.
+        editors = [_translate_bibtex_name (_fix_bibtex (e['name'])) for e in rec['editor']]
+    else:
+        editors = None
+
+    abstract = _fix_bibtex (abstract)
+    title = _fix_bibtex (title)
+
+    # Augment information with what we can get from URLs
+
+    urlinfo = []
+
+    if 'url' in rec:
+        urlinfo.append (sniff_url (rec['url']))
+
+    for k, v in rec.iteritems ():
+        if k.startswith ('citeulike-linkout-'):
+            urlinfo.append (sniff_url (v))
+
+    for kind, info in urlinfo:
+        if kind is None:
+            continue
+
+        if kind == 'bibcode' and bibcode is None:
+            bibcode = info
+
+        if kind == 'doi' and doi is None:
+            doi = info
+
+        if kind == 'arxiv' and arxiv is None:
+            arxiv = info
+
+    # Shape up missing bibcodes
+    # XXX: deactivated since I've embedded everything I can in the original file
+    #if bibcode is None and doi is not None:
+    #    bibcode = doi_to_maybe_bibcode (doi)
+    #    print 'mapped', doi, 'to', bibcode or '(lookup failed)'
+
+    # Gather reference information
+    # TO DO: normalize journal name, pages...
+
+    refdata = {'_type': rec['type']}
+
+    for k, v in rec.iteritems ():
+        if k in ('type', 'id', 'abstract', 'archiveprefix', 'author',
+                 'bibcode', 'day', 'doi', 'editor', 'eprint', 'keyword',
+                 'keywords', 'link', 'month', 'posted-at', 'pmid',
+                 'priority', 'title', 'url', 'year'):
+            continue
+        if k.startswith ('citeulike'):
+            continue
+        refdata[k] = v
+
+    # Ready to insert.
+
+    info = dict (abstract=abstract, arxiv=arxiv, authors=authors,
+                 bibcode=bibcode, doi=doi, editors=editors,
+                 nicknames=[nickname], refdata=refdata, title=title, year=year)
+    app.db.learn_pub (info)
+
+
+def import_stream (app, bibstream):
+    from .hacked_bibtexparser.bparser import BibTexParser
+    from .hacked_bibtexparser.customization import author, editor, type, convert_to_unicode
+
+    custom = lambda r: editor (author (type (convert_to_unicode (r))))
+    bp = BibTexParser (bibstream, customization=custom)
+
+    for rec in bp.get_entry_list ():
+        _import_one (app, rec)
 
 
 # Export

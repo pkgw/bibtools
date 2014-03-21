@@ -361,7 +361,7 @@ class BibDB (sqlite3.Connection):
         return v[0]
 
 
-    def locate_pubs (self, noneok, *textids):
+    def locate_pubs (self, textids, noneok=False, autolearn=False):
         for textid in textids:
             kind, text = classify_pub_ref (textid)
 
@@ -402,6 +402,10 @@ class BibDB (sqlite3.Connection):
                 gotany = True
                 yield pub
 
+            if not gotany and autolearn:
+                yield self.learn_pub (autolearn_pub (textid))
+                continue
+
             if not gotany and not noneok:
                 raise PubLocateError ('no publications matched ' + textid)
 
@@ -412,7 +416,7 @@ class BibDB (sqlite3.Connection):
 
         thepub = None
 
-        for pub in self.locate_pubs (noneok, text):
+        for pub in self.locate_pubs ((text,), noneok, autolearn):
             if thepub is None:
                 # First match.
                 thepub = pub
@@ -436,7 +440,7 @@ class BibDB (sqlite3.Connection):
         except MultiplePubsError as e:
             print >>sys.stderr, 'error:', e
             print >>sys.stderr
-            print_generic_listing (self, self.locate_pubs (True, text))
+            print_generic_listing (self, self.locate_pubs ((text,), noneok=True))
             raise SystemExit (1)
         except PubLocateError as e:
             die (e)
@@ -2379,7 +2383,7 @@ def cmd_summ (argv):
         raise UsageError ('expected arguments')
 
     with connect () as db:
-        print_generic_listing (db, db.locate_pubs (True, *argv[1:]))
+        print_generic_listing (db, db.locate_pubs (argv[1:], noneok=True))
 
 
 # Toplevel driver infrastructure

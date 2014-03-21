@@ -80,6 +80,12 @@ def _make_data_pather ():
 datapath = _make_data_pather ()
 
 
+def datastream (name):
+    from pkg_resources import Requirement, resource_stream
+    return resource_stream (Requirement.parse ('bibtools'),
+                            'bibtools/' + name)
+
+
 def _make_user_data_pather ():
     datadir = os.environ.get ('XDG_DATA_HOME',
                               os.path.expanduser ('~/.local/share'))
@@ -1715,7 +1721,7 @@ class ApjBibtexStyle (BibtexStyleBase):
     def __init__ (self):
         inm = {}
 
-        for line in open (datapath ('apj-issnmap.txt')):
+        for line in datastream ('apj-issnmap.txt'):
             line = line.split ('#')[0].strip ().decode ('utf-8')
             if not len (line):
                 continue

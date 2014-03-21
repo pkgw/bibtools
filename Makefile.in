@@ -1,17 +1,21 @@
 install_args = @install_args@
+python = python
 
 default:
-	@echo make targets are: install, clean, pristine
+	@echo make targets are: install, clean, dist, pristine
 
 install:
 	@mkdir -p build
-	python setup.py install $(install_args) >build/install.log
+	$(python) setup.py install $(install_args) >build/install.log
 
 clean:
 	-rm -rf *.egg-info *.pyc build dist
 
 pristine: clean
 	-rm -f Makefile config.status
+
+dist:
+	$(python) setup.py sdist
 
 Makefile: Makefile.in
 	./config.status

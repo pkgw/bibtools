@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 # -*- mode: python; coding: utf-8 -*-
 # Copyright 2014 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License, version 3 or higher.
@@ -2490,5 +2489,8 @@ def driver (argv=None):
         # function (so we can auto-gen a multi-command usage summary too)
         raise SystemExit ('usage error: ' + ue.bibmsg)
 
+    return 0
+
+
 if __name__ == '__main__':
-    driver (sys.argv)
+    driver ()

@@ -2270,6 +2270,52 @@ def cmd_jpage (argv):
         open_url ('http://dx.doi.org/' + urlquote (pub.doi))
 
 
+def _list_cmd_add (db, argv):
+    if len (argv) < 3:
+        raise UsageError ('expected at least 2 arguments')
+
+    listname = argv[1]
+    # FIXME: check listname to avoid "bib list add abc+12 xyz+10" mistake
+    dblistname = 'user_' + listname
+
+    try:
+        for pub in db.locate_pubs (argv[2:], autolearn=True):
+            db.execute ('INSERT OR IGNORE INTO publists VALUES (?, '
+                        '  (SELECT ifnull(max(idx)+1,0) FROM publists WHERE name == ?), '
+                        '?)', (dblistname, dblistname, pub.id))
+    except Exception as e:
+        die (e)
+
+
+def _list_cmd_summ (db, argv):
+    if len (argv) != 2:
+        raise UsageError ('expected one argument')
+
+    listname = argv[1]
+    # FIXME: check listname to avoid "bib list add abc+12 xyz+10" mistake
+    dblistname = 'user_' + listname
+
+    q = db.pub_fquery ('SELECT p.* FROM pubs AS p, publists AS pl '
+                       'WHERE p.id == pl.pubid AND pl.name == ? '
+                       'ORDER BY pl.idx', (dblistname))
+    print_generic_listing (db, q)
+
+
+def cmd_list (argv):
+    if len (argv) < 2:
+        raise UsageError ('"list" requires a subcommand')
+
+    subcmd = argv[1]
+    subfunc = globals ().get ('_list_cmd_' + subcmd.replace ('-', '_'))
+
+    if not callable (subfunc):
+        die ('"%s" is not a recognized subcommand of "list"; run me without '
+             'arguments for usage help', subcmd)
+
+    with connect () as db:
+        subfunc (db, argv[1:])
+
+
 def cmd_read (argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')

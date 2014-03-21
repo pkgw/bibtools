@@ -11,6 +11,7 @@ __all__ = ['connect']
 import collections, sqlite3
 
 from .util import *
+from .bibcore import *
 from . import *
 
 
@@ -198,6 +199,8 @@ class BibDB (sqlite3.Connection):
 
 
     def get_pub_authors (self, pubid, authtype='author'):
+        authtype = authtypes[authtype]
+
         return (parse_name (a[0]) for a in
                 self.execute ('SELECT name FROM authors AS au, author_names AS an '
                               'WHERE au.type == ? AND au.authid == an.oid '

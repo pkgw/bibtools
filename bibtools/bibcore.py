@@ -141,7 +141,7 @@ def doi_to_maybe_bibcode (doi):
     return lastnonempty
 
 
-def autolearn_pub (text):
+def autolearn_pub (app, text):
     kind, text = classify_pub_ref (text)
 
     if kind == 'doi':
@@ -153,15 +153,15 @@ def autolearn_pub (text):
 
     if kind == 'doi':
         from crossref import autolearn_doi
-        return autolearn_doi (text)
+        return autolearn_doi (app, text)
 
     if kind == 'bibcode':
         from ads import autolearn_bibcode
-        return autolearn_bibcode (text)
+        return autolearn_bibcode (app, text)
 
     if kind == 'arxiv':
         from arxiv import autolearn_arxiv
-        return autolearn_arxiv (text)
+        return autolearn_arxiv (app, text)
 
     die ('cannot auto-learn publication "%s"', text)
 

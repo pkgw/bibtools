@@ -22,14 +22,12 @@ def _translate_unixref_name (personelem):
     return given + ' ' + sur.replace (' ', '_')
 
 
-def autolearn_doi (doi):
+def autolearn_doi (app, doi):
     # TODO: editors. See e.g. unixref output for 10.1007/978-3-642-14335-9_1
     # -- three <contributors> sections (!), with contributor_role="editor" on
     # the <person_name> element.
 
-    # XXX loading config scattershot as-needed isn't ideal ...
-    from .config import BibConfig
-    apikey = BibConfig ().get_or_die ('api-keys', 'crossref')
+    apikey = app.cfg.get_or_die ('api-keys', 'crossref')
 
     url = ('http://crossref.org/openurl/?id=%s&noredirect=true&pid=%s&'
            'format=unixref' % (urlquote (doi), wu.urlquote (apikey)))

@@ -25,7 +25,7 @@ def cmd_ads (app, argv):
 
     idtext = argv[1]
 
-    pub = app.db.locate_or_die (idtext)
+    pub = app.locate_or_die (idtext)
     if pub.bibcode is None:
         die ('cannot open ADS for this publication: no bibcode on record')
 
@@ -39,7 +39,7 @@ def cmd_apage (app, argv):
 
     idtext = argv[1]
 
-    pub = app.db.locate_or_die (idtext)
+    pub = app.locate_or_die (idtext)
     if pub.arxiv is None:
         die ('cannot open arxiv website: no identifier for record')
 
@@ -117,7 +117,7 @@ def cmd_delete (app, argv):
     # TODO: mode to match multiple publications and delete them
     # all, if a --force flag is given.
 
-    pub = app.db.locate_or_die (idtext, autolearn=True)
+    pub = app.locate_or_die (idtext, autolearn=True)
     app.db.delete_pub (pub.id)
 
 
@@ -130,7 +130,7 @@ def cmd_edit (app, argv):
 
     idtext = argv[1]
 
-    pub = app.db.locate_or_die (idtext, autolearn=True)
+    pub = app.locate_or_die (idtext, autolearn=True)
 
     work = NamedTemporaryFile (prefix='bib.edit.', dir='.', delete=False)
     enc = codecs.getwriter ('utf-8') (work)
@@ -172,7 +172,7 @@ def cmd_info (app, argv):
     # TODO: should be OK to match multiple publications and print them all
     # out.
 
-    pub = app.db.locate_or_die (idtext, autolearn=True)
+    pub = app.locate_or_die (idtext, autolearn=True)
 
     year = pub.year or 'no year'
     title = pub.title or '(no title)'
@@ -224,7 +224,7 @@ def cmd_jpage (app, argv):
 
     idtext = argv[1]
 
-    pub = app.db.locate_or_die (idtext)
+    pub = app.locate_or_die (idtext)
     if pub.doi is None:
         die ('cannot open journal website: no DOI for record')
 
@@ -241,7 +241,7 @@ def _list_cmd_add (app, argv):
     dblistname = 'user_' + listname
 
     try:
-        for pub in app.db.locate_pubs (argv[2:], autolearn=True):
+        for pub in app.locate_pubs (argv[2:], autolearn=True):
             app.db.execute ('INSERT OR IGNORE INTO publists VALUES (?, '
                             '  (SELECT ifnull(max(idx)+1,0) FROM publists WHERE name == ?), '
                             '?)', (dblistname, dblistname, pub.id))
@@ -268,7 +268,7 @@ def _list_cmd_rm (app, argv):
         for idtext in argv[2:]:
             ndeleted = 0
 
-            for pub in app.db.locate_pubs ((idtext,)):
+            for pub in app.locate_pubs ((idtext,)):
                 c.execute ('DELETE FROM publists WHERE name == ? AND pubid == ?',
                            (dblistname, pub.id))
                 ndeleted += c.rowcount
@@ -313,7 +313,7 @@ def cmd_read (app, argv):
 
     idtext = argv[1]
 
-    pub = app.db.locate_or_die (idtext, autolearn=True)
+    pub = app.locate_or_die (idtext, autolearn=True)
 
     sha1 = app.db.getfirstval ('SELECT sha1 FROM pdfs WHERE pubid = ?', pub.id)
     if sha1 is None:
@@ -362,7 +362,7 @@ def cmd_rq (app, argv):
     if rawmode:
         argv.remove ('--raw')
 
-    search_ads (parse_search (argv[1:]), raw=rawmode)
+    search_ads (app, parse_search (argv[1:]), raw=rawmode)
 
 
 def cmd_setpdf (app, argv):
@@ -374,7 +374,7 @@ def cmd_setpdf (app, argv):
 
     import hashlib, shutil
 
-    pub = app.db.locate_or_die (idtext)
+    pub = app.locate_or_die (idtext)
 
     # Get SHA1 of the PDF -- we could be more efficient by copying
     # to a temporary path whil we're at it, but, meh.
@@ -415,7 +415,7 @@ def cmd_summ (app, argv):
     if len (argv) < 2:
         raise UsageError ('expected arguments')
 
-    print_generic_listing (app.db, app.db.locate_pubs (argv[1:], noneok=True))
+    print_generic_listing (app.db, app.locate_pubs (argv[1:], noneok=True))
 
 
 # Toplevel driver infrastructure

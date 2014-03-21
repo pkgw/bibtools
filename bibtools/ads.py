@@ -48,7 +48,7 @@ def _autolearn_bibcode_tag (info, tag, text):
                 info['arxiv'] = value[6:]
 
 
-def autolearn_bibcode (bibcode):
+def autolearn_bibcode (app, bibcode):
     # XXX could/should convert this to an ADS 2.0 record search, something
     # like http://adslabs.org/adsabs/api/record/{doi}/?dev_key=...
 
@@ -95,10 +95,9 @@ def autolearn_bibcode (bibcode):
 
 # Searching
 
-def _run_ads_search (searchterms, filterterms):
+def _run_ads_search (app, searchterms, filterterms):
     # TODO: access to more API args
-    from .config import BibConfig
-    apikey = BibConfig ().get_or_die ('api-keys', 'ads')
+    apikey = app.cfg.get_or_die ('api-keys', 'ads')
 
     q = [('q', ' '.join (searchterms)),
          ('dev_key', apikey)]
@@ -110,7 +109,7 @@ def _run_ads_search (searchterms, filterterms):
     return json.load (wu.urlopen (url))
 
 
-def search_ads (terms, raw=False):
+def search_ads (app, terms, raw=False):
     if len (terms) < 2:
         die ('require at least two search terms for ADS')
 
@@ -124,7 +123,7 @@ def search_ads (terms, raw=False):
         else:
             die ('don\'t know how to express search term %r to ADS', info)
 
-    r = _run_ads_search (adsterms, ['database:astronomy']) # XXX more hardcoding
+    r = _run_ads_search (app, adsterms, ['database:astronomy']) # XXX more hardcoding
 
     if raw:
         out = codecs.getwriter ('utf-8') (sys.stdout)

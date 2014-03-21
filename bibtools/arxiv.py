@@ -25,7 +25,7 @@ def _translate_arxiv_name (auth):
     return auth.find (_atom_ns + 'name').text
 
 
-def autolearn_arxiv (arxiv):
+def autolearn_arxiv (app, arxiv):
     url = 'http://export.arxiv.org/api/query?id_list=' + wu.urlquote (arxiv)
     info = {'arxiv': arxiv, 'keep': 0} # because we're autolearning
 

@@ -118,6 +118,7 @@ def autolearn_pub (text):
             kind, text = 'bibcode', bc
 
     if kind == 'doi':
+        from crossref import autolearn_doi
         return autolearn_doi (text)
 
     if kind == 'bibcode':

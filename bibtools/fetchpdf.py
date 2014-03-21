@@ -9,6 +9,8 @@ Downloading PDFs automagically.
 __all__ = ('try_fetch_pdf').split ()
 
 from hashlib import sha1
+
+from .util import *
 from . import webutil as wu
 
 
@@ -47,7 +49,7 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
 
     try:
         resp = proxy.open (pdfurl)
-    except urllib2.HTTPError as e:
+    except wu.HTTPError as e:
         if e.code == 404 and wu.urlparse (pdfurl)[1] == 'articles.adsabs.harvard.edu':
             warn ('ADS doesn\'t actually have the PDF on file')
             return None # ADS gave us a URL that turned out to be a lie.

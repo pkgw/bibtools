@@ -55,6 +55,14 @@ def classify_pub_ref (text):
     """Given some text that we believe identifies a publication, try to
     figure out how it does so."""
 
+    if text.startswith ('http'):
+        kind, value = sniff_url (text)
+        if kind is not None:
+            return kind, value
+        # TODO: if it's really a URL, try downloading the page and identifying
+        # the text from the HTML headers that most journals embed in their
+        # abstract pages.
+
     if text.startswith ('doi:'):
         return 'doi', text[4:]
 

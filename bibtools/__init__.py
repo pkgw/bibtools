@@ -71,3 +71,23 @@ class BibApp (object):
     def open_url (self, url):
         from .util import open_url
         open_url (self, url)
+
+
+    def try_get_pdf (self, pub):
+        import os
+        from util import bibpath, mkdir_p, ensure_libpath_exists, libpath
+        from fetchpdf import try_fetch_pdf
+
+        mkdir_p (bibpath ('lib'))
+        temppath = bibpath ('lib', 'incoming.pdf')
+
+        sha1 = try_fetch_pdf (self.proxy, temppath, arxiv=pub.arxiv,
+                              bibcode=pub.bibcode, doi=pub.doi)
+        if sha1 is None:
+            return None
+
+        ensure_libpath_exists (sha1)
+        destpath = libpath (sha1, 'pdf')
+        os.rename (temppath, destpath)
+        self.db.execute ('INSERT OR REPLACE INTO pdfs VALUES (?, ?)', (sha1, pub.id))
+        return sha1

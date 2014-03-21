@@ -319,21 +319,16 @@ def cmd_read (app, argv):
 
     idtext = argv[1]
 
-    with connect () as db:
-        pub = db.locate_or_die (idtext, autolearn=True)
+    pub = app.db.locate_or_die (idtext, autolearn=True)
 
-        sha1 = db.getfirstval ('SELECT sha1 FROM pdfs WHERE pubid = ?', pub.id)
-        if sha1 is None:
-            proxy = get_proxy_or_die ()
-            sha1 = db.try_get_pdf_for_id (proxy, pub.id)
-
-        if sha1 is not None:
-            # no big deal if we fail later
-            db.log_action (pub.id, 'read')
+    sha1 = app.db.getfirstval ('SELECT sha1 FROM pdfs WHERE pubid = ?', pub.id)
+    if sha1 is None:
+        sha1 = app.try_get_pdf (pub)
 
     if sha1 is None:
         die ('no saved PDF for %s, and cannot figure out how to download it', idtext)
 
+    app.db.log_action (pub.id, 'read')
     pdfreader = BibConfig ().get_or_die ('apps', 'pdf-reader')
     launch_background_silent (pdfreader, [pdfreader, libpath (sha1, 'pdf')])
 

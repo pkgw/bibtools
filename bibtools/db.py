@@ -180,27 +180,6 @@ class BibDB (sqlite3.Connection):
         return self.pub_fquery ('SELECT * FROM pubs WHERE ' + partial, *args)
 
 
-    def try_get_pdf_for_id (self, proxy, id):
-        from fetchpdf import try_fetch_pdf
-
-        r = self.getfirst ('SELECT arxiv, bibcode, doi FROM pubs WHERE id = ?', id)
-        arxiv, bibcode, doi = r
-
-        mkdir_p (bibpath ('lib'))
-        temppath = bibpath ('lib', 'incoming.pdf')
-
-        sha1 = try_fetch_pdf (proxy, temppath,
-                              arxiv=arxiv, bibcode=bibcode, doi=doi)
-        if sha1 is None:
-            return None
-
-        ensure_libpath_exists (sha1)
-        destpath = libpath (sha1, 'pdf')
-        os.rename (temppath, destpath)
-        self.execute ('INSERT OR REPLACE INTO pdfs VALUES (?, ?)', (sha1, id))
-        return sha1
-
-
     def learn_pub_authors (self, pubid, authtype, authors):
         authtype = authtypes[authtype]
         c = self.cursor ()

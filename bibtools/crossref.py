@@ -30,14 +30,14 @@ def autolearn_doi (app, doi):
     apikey = app.cfg.get_or_die ('api-keys', 'crossref')
 
     url = ('http://crossref.org/openurl/?id=%s&noredirect=true&pid=%s&'
-           'format=unixref' % (urlquote (doi), wu.urlquote (apikey)))
+           'format=unixref' % (wu.urlquote (doi), wu.urlquote (apikey)))
     info = {'doi': doi, 'keep': 0} # because we're autolearning
 
     # XXX sad to be not doing this incrementally, but Py 2.x doesn't
     # seem to have an incremental parser built in.
 
     print '[Parsing', url, '...]'
-    xmldoc = ''.join (wu.urllib2.urlopen (url))
+    xmldoc = ''.join (wu.urlopen (url))
     root = ET.fromstring (xmldoc)
 
     jelem = root.find ('doi_record/crossref/journal')

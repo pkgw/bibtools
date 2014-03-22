@@ -107,6 +107,7 @@ class BibApp (object):
                 yield pub
 
             if not gotany and autolearn:
+                from .bibcore import autolearn_pub
                 yield self.db.learn_pub (autolearn_pub (self, textid))
                 continue
 
@@ -132,6 +133,7 @@ class BibApp (object):
             return thepub
 
         if autolearn:
+            from .bibcore import autolearn_pub
             return self.db.learn_pub (autolearn_pub (self, text))
 
         # If we made it here, noneok must be true.

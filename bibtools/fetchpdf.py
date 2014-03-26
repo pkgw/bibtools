@@ -8,6 +8,7 @@ Downloading PDFs automagically.
 
 __all__ = ('try_fetch_pdf').split ()
 
+import os
 from hashlib import sha1
 
 from .util import *
@@ -69,7 +70,7 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
                     warn ('response does not seem to be a PDF')
                     resp.close ()
                     f.close ()
-                    os.unlink (temppath)
+                    os.unlink (destpath)
                     return None
                 first = False
 

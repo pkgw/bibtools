@@ -90,6 +90,7 @@ class PDFUrlScraper (wu.HTMLParser):
     <a> tag with id=download-pdf -- Nature (non-mobile site, newer)
     <a> tag with class=download-pdf -- Nature (older)
     <a> tag with class=pdf -- AIP
+    <a> tag with id=pdfLink -- ScienceDirect
     """
 
     def __init__ (self):
@@ -108,6 +109,8 @@ class PDFUrlScraper (wu.HTMLParser):
         elif tag == 'a':
             attrs = dict (attrs)
             if attrs.get ('id') == 'download-pdf':
+                self.pdfurl = attrs['href']
+            elif attrs.get ('id') == 'pdfLink':
                 self.pdfurl = attrs['href']
             elif attrs.get ('class') == 'download-pdf':
                 self.pdfurl = attrs['href']

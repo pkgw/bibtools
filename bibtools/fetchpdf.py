@@ -52,7 +52,10 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
     except wu.HTTPError as e:
         if e.code == 404 and wu.urlparse (pdfurl)[1] == 'articles.adsabs.harvard.edu':
             warn ('ADS doesn\'t actually have the PDF on file')
-            return None # ADS gave us a URL that turned out to be a lie.
+            # ADS gave us a URL that turned out to be a lie. Try again,
+            # ignoring it.
+            return try_fetch_pdf (proxy, destpath, arxiv=arxiv, bibcode=None,
+                                  doi=doi)
         raise
 
     first = True

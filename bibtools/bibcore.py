@@ -98,6 +98,10 @@ def sniff_url (url):
     if url.startswith (p):
         return 'doi', urlunquote (url[len (p):])
 
+    p = 'http://adsabs.harvard.edu/abs/'
+    if url.startswith (p):
+        return 'bibcode', urlunquote (url[len (p):])
+
     p = 'http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode='
     if url.startswith (p):
         return 'bibcode', urlunquote (url[len (p):])

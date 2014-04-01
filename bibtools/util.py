@@ -208,7 +208,7 @@ def get_term_width (tstream):
 
     if tstream.isatty ():
         try:
-            return unpack ('hh', ioctl (tstream.fileno (), termios.TIOCGWINSZ, '....'))[1]
+            return unpack (b'hh', ioctl (tstream.fileno (), termios.TIOCGWINSZ, b'....'))[1]
         except:
             pass
 

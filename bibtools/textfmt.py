@@ -14,12 +14,14 @@ from .util import *
 from .bibcore import *
 
 
-def export_one (app, pub, write, width):
+def export_one (app, pub, stream, width):
+    write = stream.write
+
     # Title and year
     if pub.title is None:
         write ('--no title--\n')
     else:
-        print_linewrapped (pub.title, width=width, write=write)
+        print_linewrapped (pub.title, width=width, stream=stream)
     if pub.year is None:
         write ('--no year--\n')
     else:
@@ -83,7 +85,7 @@ def export_one (app, pub, write, width):
     if pub.abstract is None:
         write ('--no abstract--\n')
     else:
-        print_linewrapped (pub.abstract, width=width, write=write, maxwidth=72)
+        print_linewrapped (pub.abstract, width=width, stream=stream, maxwidth=72)
     write ('\n')
 
     # TODO: notes, lists

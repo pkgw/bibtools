@@ -32,6 +32,19 @@ class BibApp (object):
     _thecfg = None
     _theproxy = None
 
+    def __init__ (self):
+        # Clean up encoding of streams so that we can have UTF-8 in
+        # exceptions and everything will be OK.
+        import codecs, sys
+
+        enc = sys.stdin.encoding or 'utf-8'
+        sys.stdin = codecs.getreader (enc) (sys.stdin)
+        enc = sys.stdout.encoding or enc
+        sys.stdout = codecs.getwriter (enc) (sys.stdout)
+        enc = sys.stderr.encoding or enc
+        sys.stderr = codecs.getwriter (enc) (sys.stderr)
+
+
     @property
     def db (self):
         if self._thedb is None:
@@ -177,7 +190,7 @@ class BibApp (object):
         return sha1
 
 
-    def export_all (self, write, width):
+    def export_all (self, stream, width):
         from .textfmt import export_one
         first = True
 
@@ -185,6 +198,6 @@ class BibApp (object):
             if first:
                 first = False
             else:
-                write ('\f\n')
+                stream.write ('\f\n')
 
-            export_one (self, pub, write, width)
+            export_one (self, pub, stream, width)

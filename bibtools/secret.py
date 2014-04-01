@@ -82,7 +82,7 @@ def store_user_secret (cfg):
     key, iv = _load_secret_keys ()
 
     try:
-        set_terminal_echo (False)
+        set_terminal_echo (sys.stdin, False)
         print 'Enter password, then Enter, then control-D twice:'
 
         with os.fdopen (sfd, 'w') as sfile:
@@ -92,7 +92,7 @@ def store_user_secret (cfg):
 
         print 'Success.'
     finally:
-        set_terminal_echo (True)
+        set_terminal_echo (sys.stdin, True)
 
 
 def load_user_secret (cfg):

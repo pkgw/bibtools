@@ -165,13 +165,18 @@ def run_editor (path):
 
 # Terminal tomfoolery
 
-__all__ += ('set_terminal_echo get_stdout_width print_linewrapped '
+__all__ += ('set_terminal_echo get_term_width print_linewrapped '
             'print_truncated').split ()
 
-def set_terminal_echo (enabled):
+def set_terminal_echo (tstream, enabled):
     import termios
 
-    fd = sys.stdin.fileno ()
+    if hasattr (tstream, 'stream'):
+        # Transparently handle a codec wrapper. Not sure of the best way to
+        # generically check for wrapper streams, but this'll do for now.
+        return set_terminal_echo (tstream.stream, enabled)
+
+    fd = tstream.fileno ()
     ifl, ofl, cfl, lfl, isp, osp, cc = termios.tcgetattr (fd)
 
     if enabled:
@@ -183,21 +188,26 @@ def set_terminal_echo (enabled):
                        [ifl, ofl, cfl, lfl, isp, osp, cc])
 
 
-def get_stdout_width ():
-    """If stdout is a terminal, use an ioctl to determine the width. If that
-    fails but $COLUMNS is set, use that. Otherwise, if we're on a TTY, use
-    a width of 80; if we're not, use -1, i.e. no linewrapping. I think this
-    is DTRT-logic."""
+def get_term_width (tstream):
+    """If tstream is a terminal, use an ioctl to determine the width. If that
+    fails but $COLUMNS is set, use that. Otherwise, if we're on a TTY, use a
+    width of 80; if we're not, use -1, i.e. no linewrapping. I think this is
+    DTRT-logic."""
 
     import sys, os, termios
     from fcntl import ioctl
     from struct import unpack
 
+    if hasattr (tstream, 'stream'):
+        # Transparently handle a codec wrapper. Not sure of the best way to
+        # generically check for wrapper streams, but this'll do for now.
+        return get_term_width (tstream.stream)
+
     w = None
 
-    if sys.stdout.isatty ():
+    if tstream.isatty ():
         try:
-            return unpack ('hh', ioctl (sys.stdout.fileno (), termios.TIOCGWINSZ, '....'))[1]
+            return unpack ('hh', ioctl (tstream.fileno (), termios.TIOCGWINSZ, '....'))[1]
         except:
             pass
 
@@ -206,28 +216,29 @@ def get_stdout_width ():
     except:
         pass
 
-    if sys.stdout.isatty ():
+    if tstream.isatty ():
         return 80
 
     return -1
 
 
-def print_linewrapped (text, maxwidth=None, width=None, write=None):
+def print_linewrapped (text, maxwidth=None, width=None, stream=None):
     """We assume that spaces within `text` are fungible."""
 
+    if stream is None:
+        stream = sys.stdout
+
     if width is None:
-        w = get_stdout_width ()
+        w = get_term_width (stream)
     else:
         w = width
-
-    if write is None:
-        write = sys.stdout.write
 
     if w > maxwidth:
         # This intentionally doesn't apply if w < 0.
         w = maxwidth
 
     first = True
+    write = stream.write
 
     if w < 0:
         ofs = 1
@@ -263,11 +274,14 @@ def print_linewrapped (text, maxwidth=None, width=None, write=None):
         write ('\n')
 
 
-def print_truncated (text, curofs):
+def print_truncated (text, curofs, stream=None):
     """We assume that spaces within `text` are fungible."""
 
-    w = get_stdout_width ()
-    write = sys.stdout.write
+    if stream is None:
+        stream = sys.stdout
+
+    w = get_term_width (stream)
+    write = stream.write
 
     if w < 0 or curofs + len (text) < w:
         write (text)

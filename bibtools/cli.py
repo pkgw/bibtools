@@ -125,11 +125,12 @@ def cmd_dump (app, argv):
     if len (argv) != 1:
         raise UsageError ('expected no arguments')
 
-    app.export_all (sys.stdout.write, 72)
+    app.export_all (sys.stdout, 72)
 
 
 def cmd_edit (app, argv):
     from . import textfmt
+
     from tempfile import NamedTemporaryFile
 
     if len (argv) != 2:
@@ -139,14 +140,14 @@ def cmd_edit (app, argv):
 
     pub = app.locate_or_die (idtext, autolearn=True)
 
-    work = NamedTemporaryFile (prefix='bib.edit.', dir='.', delete=False)
+    work = NamedTemporaryFile (prefix='bib.edit.', mode='wb', dir='.', delete=False)
     enc = codecs.getwriter ('utf-8') (work)
-    textfmt.export_one (app, pub, enc.write, 72)
+    textfmt.export_one (app, pub, enc, 72)
     work.close ()
 
     run_editor (work.name)
 
-    enc = codecs.getreader ('utf-8') (open (work.name))
+    enc = codecs.getreader ('utf-8') (open (work.name, 'rb'))
     info = textfmt.import_one (enc)
     app.db.update_pub (pub, info)
 
@@ -434,7 +435,9 @@ def cmd_setsecret (app, argv):
     if len (argv) != 1:
         raise UsageError ('expected no arguments')
 
-    if not sys.stdin.isatty ():
+    # Note that we've wrapped sys.stdin inside a UTF-8 decoder, so we have to
+    # check the true underlying stream.
+    if not sys.stdin.stream.isatty ():
         die ('this command can only be run with standard input set to a TTY')
 
     from .secret import store_user_secret

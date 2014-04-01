@@ -8,7 +8,7 @@ Tools relating to working with NASA's ADS.
 
 __all__ = ('autolearn_bibcode search_ads').split ()
 
-import codecs, json
+import json
 
 from .util import *
 from . import webutil as wu
@@ -126,8 +126,7 @@ def search_ads (app, terms, raw=False):
     r = _run_ads_search (app, adsterms, ['database:astronomy']) # XXX more hardcoding
 
     if raw:
-        out = codecs.getwriter ('utf-8') (sys.stdout)
-        json.dump (r, out, ensure_ascii=False, indent=2, separators=(',', ': '))
+        json.dump (r, sys.stdout, ensure_ascii=False, indent=2, separators=(',', ': '))
         return
 
     maxnfaslen = 0

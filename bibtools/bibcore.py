@@ -94,7 +94,7 @@ def classify_pub_ref (text):
 def sniff_url (url):
     """Should return classifiers consistent with classify_pub_ref."""
 
-    from webutil import urlunquote
+    from .webutil import urlunquote
 
     p = 'http://dx.doi.org/'
     if url.startswith (p):
@@ -130,7 +130,7 @@ def sniff_url (url):
 
 
 def doi_to_maybe_bibcode (doi):
-    from webutil import urlquote, urlopen
+    from .webutil import urlquote, urlopen
 
     bibcode = None
 
@@ -166,15 +166,15 @@ def autolearn_pub (app, text):
             kind, text = 'bibcode', bc
 
     if kind == 'doi':
-        from crossref import autolearn_doi
+        from .crossref import autolearn_doi
         return autolearn_doi (app, text)
 
     if kind == 'bibcode':
-        from ads import autolearn_bibcode
+        from .ads import autolearn_bibcode
         return autolearn_bibcode (app, text)
 
     if kind == 'arxiv':
-        from arxiv import autolearn_arxiv
+        from .arxiv import autolearn_arxiv
         return autolearn_arxiv (app, text)
 
     die ('cannot auto-learn publication "%s"', text)

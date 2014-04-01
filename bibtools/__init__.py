@@ -174,8 +174,8 @@ class BibApp (object):
 
     def try_get_pdf (self, pub):
         import os
-        from util import bibpath, mkdir_p, ensure_libpath_exists, libpath
-        from fetchpdf import try_fetch_pdf
+        from .util import bibpath, mkdir_p, ensure_libpath_exists, libpath
+        from .fetchpdf import try_fetch_pdf
 
         mkdir_p (bibpath ('lib'))
         temppath = bibpath ('lib', 'incoming.pdf')

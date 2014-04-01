@@ -6,12 +6,14 @@
 Various utilities for HTTP-related activities.
 """
 
-__all__ = ('HTMLParser HTTPError get_url_from_redirection parse_http_html '
-           'urlencode urljoin urlopen urlparse urlquote urlunparse urlunquote').split ()
-
+from __future__ import absolute_import, division, print_function, unicode_literals
 import codecs, cookielib, urllib, urllib2
 
 from .util import *
+
+__all__ = ('HTMLParser HTTPError get_url_from_redirection parse_http_html '
+           'urlencode urljoin urlopen urlparse urlquote urlunparse urlunquote').split ()
+
 
 urlencode = urllib.urlencode
 HTTPError = urllib2.HTTPError

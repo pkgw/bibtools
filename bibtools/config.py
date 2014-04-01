@@ -6,8 +6,7 @@
 Configuration subsystem
 """
 
-__all__ = ['BibConfig Error']
-
+from __future__ import absolute_import, division, print_function, unicode_literals
 try:
     # module renamed to this in Python 3.
     import configparser
@@ -15,6 +14,9 @@ except ImportError:
     import ConfigParser as configparser
 
 from .util import bibpath, datastream, die
+
+__all__ = ['BibConfig Error']
+
 
 RCP = configparser.RawConfigParser
 Error = configparser.Error

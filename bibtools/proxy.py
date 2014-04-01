@@ -6,12 +6,13 @@
 Proxies.
 """
 
-__all__ = ('get_proxy').split ()
-
+from __future__ import absolute_import, division, print_function, unicode_literals
 import cookielib, urllib2
 
 from .util import *
 from .webutil import *
+
+__all__ = ('get_proxy').split ()
 
 
 class HarvardProxyLoginParser (HTMLParser):

@@ -6,13 +6,14 @@
 Tools relating to working with NASA's ADS.
 """
 
-__all__ = ('autolearn_bibcode search_ads').split ()
-
+from __future__ import absolute_import, division, print_function, unicode_literals
 import json
 
 from .util import *
 from . import webutil as wu
 from .bibcore import *
+
+__all__ = ('autolearn_bibcode search_ads').split ()
 
 
 def _translate_ads_name (name):
@@ -58,7 +59,7 @@ def autolearn_bibcode (app, bibcode):
     info = {'bibcode': bibcode, 'keep': 0} # because we're autolearning
     curtag = curtext = None
 
-    print '[Parsing', url, '...]'
+    print ('[Parsing', url, '...]')
 
     for line in wu.urlopen (url):
         line = line.decode ('iso-8859-1').strip ()
@@ -146,5 +147,5 @@ def search_ads (app, terms, raw=False):
     ofs = maxnfaslen + maxbclen + 4
 
     for bc, nfas, title in info:
-        print '%*s  %*s  ' % (maxbclen, bc, maxnfaslen, nfas),
+        print ('%*s  %*s  ' % (maxbclen, bc, maxnfaslen, nfas), end='')
         print_truncated (title, ofs)

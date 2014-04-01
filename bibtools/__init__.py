@@ -6,6 +6,8 @@
 Global structure for the bibliography tool.
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 __all__ = ('BibApp BibError PubLocateError MultiplePubsError').split ()
 
 
@@ -157,8 +159,8 @@ class BibApp (object):
         try:
             return self.locate_pub (text, autolearn=autolearn)
         except MultiplePubsError as e:
-            print >>sys.stderr, 'error:', e
-            print >>sys.stderr
+            print ('error:', e, file=sys.stderr)
+            print (file=sys.stderr)
             print_generic_listing (self.db, self.locate_pubs ((text,), noneok=True))
             raise SystemExit (1)
         except PubLocateError as e:

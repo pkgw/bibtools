@@ -9,13 +9,14 @@ TODO: styles defined in a support file or something.
 
 """
 
-__all__ = ('import_stream bibtexify_one export_to_bibtex write_bibtexified').split ()
-
+from __future__ import absolute_import, division, print_function, unicode_literals
 import json, sys
 
 from .util import *
 from .bibcore import *
 from .unicode_to_latex import unicode_to_latex
+
+__all__ = ('import_stream bibtexify_one export_to_bibtex write_bibtexified').split ()
 
 
 # Import
@@ -129,7 +130,7 @@ def _import_one (app, rec):
     # XXX: deactivated since I've embedded everything I can in the original file
     #if bibcode is None and doi is not None:
     #    bibcode = doi_to_maybe_bibcode (doi)
-    #    print 'mapped', doi, 'to', bibcode or '(lookup failed)'
+    #    print ('mapped', doi, 'to', bibcode or '(lookup failed)')
 
     # Gather reference information
     # TO DO: normalize journal name, pages...

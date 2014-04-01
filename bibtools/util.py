@@ -6,6 +6,7 @@
 Various utilities, mostly generic.
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
 import errno, io, os.path, re, sys
 
 
@@ -22,9 +23,9 @@ def die (fmt, *args):
 
 def warn (fmt, *args):
     if not len (args):
-        print >>sys.stderr, 'warning:', fmt
+        print ('warning:', fmt, file=sys.stderr)
     else:
-        print >>sys.stderr, 'warning:', fmt % args
+        print ('warning:', fmt % args, file=sys.stderr)
 
 
 def reraise_context (fmt, *args):

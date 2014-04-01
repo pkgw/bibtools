@@ -6,13 +6,14 @@
 The command-line interface.
 """
 
-__all__ = ['driver']
-
+from __future__ import absolute_import, division, print_function, unicode_literals
 import codecs, io, json, os.path, sys
 
 from . import BibError, webutil as wu
 from .util import *
 from .bibcore import print_generic_listing, parse_search
+
+__all__ = ['driver']
 
 
 class UsageError (BibError):
@@ -178,7 +179,7 @@ def cmd_forgetpdf (app, argv):
 
     for (sha1, ) in app.db.execute ('SELECT sha1 FROM pdfs '
                                     'WHERE pubid == ?', (pub.id, )):
-        print 'orphaning', libpath (sha1, 'pdf')
+        print ('orphaning', libpath (sha1, 'pdf'))
         any = True
 
     if not any:
@@ -216,24 +217,24 @@ def cmd_info (app, argv):
     else:
         authstr = '(no authors)'
 
-    print title
-    print authstr, '(%s)' % year
+    print (title)
+    print (authstr, '(%s)' % year)
 
     if pub.arxiv is not None:
-        print 'arxiv:', pub.arxiv
+        print ('arxiv:', pub.arxiv)
     if pub.bibcode is not None:
-        print 'bibcode:', pub.bibcode
+        print ('bibcode:', pub.bibcode)
     if pub.doi is not None:
-        print 'DOI:', pub.doi
+        print ('DOI:', pub.doi)
     if pub.refdata is not None:
         rd = json.loads (pub.refdata)
-        print '~BibTeX: @%s {' % rd.pop ('_type'),
+        print ('~BibTeX: @%s {' % rd.pop ('_type'), end='')
         bits = ('%s="%s"' % t
                 for t in sorted (rd.iteritems (), key=lambda t: t[0]))
-        print u', '.join (bits).encode ('utf-8'), '}'
+        print (', '.join (bits), '}')
 
     if pub.abstract is not None:
-        print
+        print ()
         print_linewrapped (pub.abstract, maxwidth=72)
 
     app.db.log_action (pub.id, 'visit')
@@ -381,7 +382,7 @@ def cmd_refgrep (app, argv):
         val = rd.get (refkey)
 
         if val is not None:
-            print val.encode ('utf-8')
+            print (val)
 
 
 def cmd_rq (app, argv):
@@ -456,7 +457,7 @@ def cmd_summ (app, argv):
 # Toplevel driver infrastructure
 
 def usage ():
-    print 'usage goes here'
+    print ('usage goes here')
 
 
 def driver (argv=None):

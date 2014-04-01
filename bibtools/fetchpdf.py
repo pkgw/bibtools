@@ -6,13 +6,14 @@
 Downloading PDFs automagically.
 """
 
-__all__ = ('try_fetch_pdf').split ()
-
+from __future__ import absolute_import, division, print_function, unicode_literals
 import io, os
 from hashlib import sha1
 
 from .util import *
 from . import webutil as wu
+
+__all__ = ('try_fetch_pdf').split ()
 
 
 def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
@@ -24,7 +25,7 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
 
     if doi is not None:
         jurl = doi_to_journal_url (doi)
-        print '[Attempting to scrape', jurl, '...]'
+        print ('[Attempting to scrape', jurl, '...]')
         pdfurl = proxy.unmangle (scrape_pdf_url (proxy.open (jurl)))
 
     if pdfurl is None and bibcode is not None:
@@ -46,7 +47,7 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
 
     s = sha1 ()
 
-    print '[Trying', pdfurl, '...]'
+    print ('[Trying', pdfurl, '...]')
 
     try:
         resp = proxy.open (pdfurl)

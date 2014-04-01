@@ -6,11 +6,12 @@
 Things related to the CrossRef/DOI/OpenURL system.
 """
 
-__all__ = ('autolearn_doi').split ()
-
+from __future__ import absolute_import, division, print_function, unicode_literals
 import xml.etree.ElementTree as ET
 
 from . import webutil as wu
+
+__all__ = ('autolearn_doi').split ()
 
 
 def _translate_unixref_name (personelem):
@@ -36,7 +37,7 @@ def autolearn_doi (app, doi):
     # XXX sad to be not doing this incrementally, but Py 2.x doesn't
     # seem to have an incremental parser built in.
 
-    print '[Parsing', url, '...]'
+    print ('[Parsing', url, '...]')
     xmldoc = ''.join (wu.urlopen (url))
     root = ET.fromstring (xmldoc)
 

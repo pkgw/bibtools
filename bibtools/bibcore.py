@@ -20,13 +20,15 @@ replace nonletters with periods, so it's a gmail-ish form.
 
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+import re
+
+from .util import *
+
 __all__ = ('parse_name encode_name normalize_surname sniff_url '
            'classify_pub_ref doi_to_maybe_bibcode autolearn_pub '
            'print_generic_listing parse_search').split ()
 
-import re
-
-from .util import *
 
 def parse_name (text):
     given, family = text.rsplit (' ', 1)
@@ -160,7 +162,7 @@ def autolearn_pub (app, text):
         # ADS seems to have better data quality.
         bc = doi_to_maybe_bibcode (text)
         if bc is not None:
-            print '[Associated', text, 'to', bc + ']'
+            print ('[Associated', text, 'to', bc + ']')
             kind, text = 'bibcode', bc
 
     if kind == 'doi':
@@ -202,7 +204,7 @@ def print_generic_listing (db, pub_seq):
     ofs = maxnfaslen + maxnicklen + 9
 
     for nfas, year, title, nick in info:
-        print '%*s.%s  %*s  ' % (maxnfaslen, nfas, year, maxnicklen, nick),
+        print ('%*s.%s  %*s  ' % (maxnfaslen, nfas, year, maxnicklen, nick), end='')
         print_truncated (title, ofs)
 
 

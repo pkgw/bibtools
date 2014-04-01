@@ -6,12 +6,13 @@
 Things having to do with arxiv.org.
 """
 
-__all__ = ('autolearn_arxiv').split ()
-
+from __future__ import absolute_import, division, print_function, unicode_literals
 import xml.etree.ElementTree as ET
 
 from . import webutil as wu
 from .bibcore import doi_to_maybe_bibcode
+
+__all__ = ('autolearn_arxiv').split ()
 
 
 _atom_ns = '{http://www.w3.org/2005/Atom}'
@@ -32,7 +33,7 @@ def autolearn_arxiv (app, arxiv):
     # XXX sad to be not doing this incrementally, but Py 2.x doesn't
     # seem to have an incremental parser built in.
 
-    print '[Parsing', url, '...]'
+    print ('[Parsing', url, '...]')
     xmldoc = ''.join (wu.urlopen (url))
     root = ET.fromstring (xmldoc)
     ent = root.find (_atom_ns + 'entry')

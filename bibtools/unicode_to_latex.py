@@ -23,6 +23,9 @@ unicode_to_latex_string returns a Unicode string rather than bytes. That is,
 # converted via this XSL script: https://gist.github.com/798546 . Based on my
 # experience so far, the source table is far from perfect.
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+
 unicode_to_latex_table_base = {
     u"\u0023": r"\#",
     u"\u0024": r"\textdollar{}",
@@ -136,8 +139,8 @@ unicode_to_latex_table_base = {
     u"\u00FF": r'\"{y}', # note single-quoted string
     u"\u0100": r"\={A}",
     u"\u0101": r"\={a}",
-    u"\u0102": r"\u{A}",
-    u"\u0103": r"\u{a}",
+    u"\u0102": "\\u{A}", # note non-raw string (\u confuses Python)
+    u"\u0103": "\\u{a}", # note non-raw string (\u confuses Python)
     u"\u0104": r"\k{A}",
     u"\u0105": r"\k{a}",
     u"\u0106": r"\'{C}",
@@ -154,8 +157,8 @@ unicode_to_latex_table_base = {
     u"\u0111": r"\dj{}",
     u"\u0112": r"\={E}",
     u"\u0113": r"\={e}",
-    u"\u0114": r"\u{E}",
-    u"\u0115": r"\u{e}",
+    u"\u0114": "\\u{E}", # note non-raw string (\u confuses Python)
+    u"\u0115": "\\u{e}", # note non-raw string (\u confuses Python)
     u"\u0116": r"\.{E}",
     u"\u0117": r"\.{e}",
     u"\u0118": r"\k{E}",
@@ -164,8 +167,8 @@ unicode_to_latex_table_base = {
     u"\u011B": r"\v{e}",
     u"\u011C": r"\^{G}",
     u"\u011D": r"\^{g}",
-    u"\u011E": r"\u{G}",
-    u"\u011F": r"\u{g}",
+    u"\u011E": "\\u{G}", # note non-raw string (\u confuses Python)
+    u"\u011F": "\\u{g}", # note non-raw string (\u confuses Python)
     u"\u0120": r"\.{G}",
     u"\u0121": r"\.{g}",
     u"\u0122": r"\c{G}",
@@ -178,8 +181,8 @@ unicode_to_latex_table_base = {
     u"\u0129": r"\~{\i}",
     u"\u012A": r"\={I}",
     u"\u012B": r"\={\i}",
-    u"\u012C": r"\u{I}",
-    u"\u012D": r"\u{\i}",
+    u"\u012C": "\\u{I}", # note non-raw string (\u confuses Python)
+    u"\u012D": "\\u{\\i}", # note non-raw string (\u confuses Python)
     u"\u012E": r"\k{I}",
     u"\u012F": r"\k{i}",
     u"\u0130": r"\.{I}",
@@ -212,8 +215,8 @@ unicode_to_latex_table_base = {
     u"\u014B": r"\ng{}",
     u"\u014C": r"\={O}",
     u"\u014D": r"\={o}",
-    u"\u014E": r"\u{O}",
-    u"\u014F": r"\u{o}",
+    u"\u014E": "\\u{O}", # note non-raw string (\u confuses Python)
+    u"\u014F": "\\u{o}", # note non-raw string (\u confuses Python)
     u"\u0150": r"\H{O}",
     u"\u0151": r"\H{o}",
     u"\u0152": r"\OE{}",
@@ -242,8 +245,8 @@ unicode_to_latex_table_base = {
     u"\u0169": r"\~{u}",
     u"\u016A": r"\={U}",
     u"\u016B": r"\={u}",
-    u"\u016C": r"\u{U}",
-    u"\u016D": r"\u{u}",
+    u"\u016C": "\\u{U}", # note non-raw string (\u confuses Python)
+    u"\u016D": "\\u{u}", # note non-raw string (\u confuses Python)
     u"\u016E": r"\r{U}",
     u"\u016F": r"\r{u}",
     u"\u0170": r"\H{U}",
@@ -335,7 +338,7 @@ unicode_to_latex_table_base = {
     u"\u0302": r"\^",
     u"\u0303": r"\~",
     u"\u0304": r"\=",
-    u"\u0306": r"\u",
+    u"\u0306": "\\u", # note non-raw string (\u confuses Python)
     u"\u0307": r"\.",
     u"\u0308": r'\"', # note single-quoted string
     u"\u030A": r"\r",
@@ -385,7 +388,7 @@ unicode_to_latex_table_base = {
     u"\u03A1": r"\ensuremath{\Rho}",
     u"\u03A3": r"\ensuremath{\Sigma}",
     u"\u03A4": r"\ensuremath{\Tau}",
-    u"\u03A5": r"\ensuremath{\Upsilon}",
+    u"\u03A5": "\\ensuremath{\\Upsilon}", # note non-raw string (\u confuses Python)
     u"\u03A6": r"\ensuremath{\Phi}",
     u"\u03A7": r"\ensuremath{\Chi}",
     u"\u03A8": r"\ensuremath{\Psi}",
@@ -396,7 +399,7 @@ unicode_to_latex_table_base = {
     u"\u03AD": r"\acute{\epsilon}",
     u"\u03AE": r"\acute{\eta}",
     u"\u03AF": r"\acute{\iota}",
-    u"\u03B0": r"\acute{\ddot{\upsilon}}",
+    u"\u03B0": "\\acute{\\ddot{\\upsilon}}", # note non-raw string (\u confuses Python)
     u"\u03B1": r"\ensuremath{\alpha}",
     u"\u03B2": r"\ensuremath{\beta}",
     u"\u03B3": r"\ensuremath{\gamma}",
@@ -416,19 +419,19 @@ unicode_to_latex_table_base = {
     u"\u03C2": r"\ensuremath{\varsigma}",
     u"\u03C3": r"\ensuremath{\sigma}",
     u"\u03C4": r"\ensuremath{\tau}",
-    u"\u03C5": r"\ensuremath{\upsilon}",
+    u"\u03C5": "\\ensuremath{\\upsilon}", # note non-raw string (\u confuses Python)
     u"\u03C6": r"\ensuremath{\varphi}",
     u"\u03C7": r"\ensuremath{\chi}",
     u"\u03C8": r"\ensuremath{\psi}",
     u"\u03C9": r"\ensuremath{\omega}",
     u"\u03CA": r"\ensuremath{\ddot{\iota}}",
-    u"\u03CB": r"\ensuremath{\ddot{\upsilon}}",
+    u"\u03CB": "\\ensuremath{\\ddot{\\upsilon}}", # note non-raw string (\u confuses Python)
     u"\u03CC": r"\'{o}",
-    u"\u03CD": r"\acute{\upsilon}",
+    u"\u03CD": "\\acute{\\upsilon}", # note non-raw string (\u confuses Python)
     u"\u03CE": r"\acute{\omega}",
     u"\u03D0": r"\Pisymbol{ppi022}{87}",
     u"\u03D1": r"\textvartheta{}",
-    u"\u03D2": r"\ensuremath{\Upsilon}",
+    u"\u03D2": "\\ensuremath{\\Upsilon}", # note non-raw string (\u confuses Python)
     u"\u03D5": r"\ensuremath{\phi}",
     u"\u03D6": r"\ensuremath{\varpi}",
     u"\u03DA": r"\Stigma{}",
@@ -720,11 +723,11 @@ unicode_to_latex_table_base = {
     u"\u215D": r"\textfrac{5}{8}",
     u"\u215E": r"\textfrac{7}{8}",
     u"\u2190": r"\leftarrow{}",
-    u"\u2191": r"\uparrow{}",
+    u"\u2191": "\\uparrow{}", # note non-raw string (\u confuses Python)
     u"\u2192": r"\rightarrow{}",
     u"\u2193": r"\downarrow{}",
     u"\u2194": r"\leftrightarrow{}",
-    u"\u2195": r"\updownarrow{}",
+    u"\u2195": "\\updownarrow{}", # note non-raw string (\u confuses Python)
     u"\u2196": r"\nwarrow{}",
     u"\u2197": r"\nearrow{}",
     u"\u2198": r"\searrow{}",
@@ -753,8 +756,8 @@ unicode_to_latex_table_base = {
     u"\u21BB": r"\circlearrowright{}",
     u"\u21BC": r"\leftharpoonup{}",
     u"\u21BD": r"\leftharpoondown{}",
-    u"\u21BE": r"\upharpoonright{}",
-    u"\u21BF": r"\upharpoonleft{}",
+    u"\u21BE": "\\upharpoonright{}", # note non-raw string (\u confuses Python)
+    u"\u21BF": "\\upharpoonleft{}", # note non-raw string (\u confuses Python)
     u"\u21C0": r"\rightharpoonup{}",
     u"\u21C1": r"\rightharpoondown{}",
     u"\u21C2": r"\downharpoonright{}",
@@ -763,7 +766,7 @@ unicode_to_latex_table_base = {
     u"\u21C5": r"\dblarrowupdown{}",
     u"\u21C6": r"\leftrightarrows{}",
     u"\u21C7": r"\leftleftarrows{}",
-    u"\u21C8": r"\upuparrows{}",
+    u"\u21C8": "\\upuparrows{}", # note non-raw string (\u confuses Python)
     u"\u21C9": r"\rightrightarrows{}",
     u"\u21CA": r"\downdownarrows{}",
     u"\u21CB": r"\leftrightharpoons{}",
@@ -772,11 +775,11 @@ unicode_to_latex_table_base = {
     u"\u21CE": r"\nLeftrightarrow{}",
     u"\u21CF": r"\nRightarrow{}",
     u"\u21D0": r"\Leftarrow{}",
-    u"\u21D1": r"\Uparrow{}",
+    u"\u21D1": "\\uparrow{}", # note non-raw string (\u confuses Python)
     u"\u21D2": r"\Rightarrow{}",
     u"\u21D3": r"\Downarrow{}",
     u"\u21D4": r"\Leftrightarrow{}",
-    u"\u21D5": r"\Updownarrow{}",
+    u"\u21D5": "\\updownarrow{}", # note non-raw string (\u confuses Python)
     u"\u21DA": r"\Lleftarrow{}",
     u"\u21DB": r"\Rrightarrow{}",
     u"\u21DD": r"\rightsquigarrow{}",
@@ -906,7 +909,7 @@ unicode_to_latex_table_base = {
     u"\u2289": r"\not\supseteq{}",
     u"\u228A": r"\subsetneq{}",
     u"\u228B": r"\supsetneq{}",
-    u"\u228E": r"\uplus{}",
+    u"\u228E": "\\uplus{}", # note non-raw string (\u confuses Python)
     u"\u228F": r"\sqsubset{}",
     u"\u2290": r"\sqsupset{}",
     u"\u2291": r"\sqsubseteq{}",
@@ -991,7 +994,7 @@ unicode_to_latex_table_base = {
     u"\u22ED": r"\ntrianglerighteq{}",
     u"\u22EE": r"\vdots{}",
     u"\u22EF": r"\cdots{}",
-    u"\u22F0": r"\upslopeellipsis{}",
+    u"\u22F0": "\\upslopeellipsis{}", # note non-raw string (\u confuses Python)
     u"\u22F1": r"\downslopeellipsis{}",
     u"\u2305": r"\barwedge{}",
     u"\u2306": r"\perspcorrespond{}",
@@ -1001,8 +1004,8 @@ unicode_to_latex_table_base = {
     u"\u230B": r"\rfloor{}",
     u"\u2315": r"\recorder{}",
     u"\u2316": r'\mathchar"2208', # note single-quoted string
-    u"\u231C": r"\ulcorner{}",
-    u"\u231D": r"\urcorner{}",
+    u"\u231C": "\\ulcorner{}", # note non-raw string (\u confuses Python)
+    u"\u231D": "\\urcorner{}", # note non-raw string (\u confuses Python)
     u"\u231E": r"\llcorner{}",
     u"\u231F": r"\lrcorner{}",
     u"\u2322": r"\frown{}",
@@ -1070,7 +1073,7 @@ unicode_to_latex_table_base = {
     u"\u2642": r"\male{}",
     u"\u2643": r"\jupiter{}",
     u"\u2644": r"\saturn{}",
-    u"\u2645": r"\uranus{}",
+    u"\u2645": "\\uranus{}", # note non-raw string (\u confuses Python)
     u"\u2646": r"\neptune{}",
     u"\u2647": r"\pluto{}",
     u"\u2648": r"\aries{}",
@@ -1264,7 +1267,7 @@ unicode_to_latex_table_base = {
     u"\u27FC": r"\longmapsto{}",
     u"\u27FF": r"\sim\joinrel\leadsto",
     u"\u2905": r"\ElsevierGlyph{E212}",
-    u"\u2912": r"\UpArrowBar{}",
+    u"\u2912": "\\UpArrowBar{}", # note non-raw string (\u confuses Python)
     u"\u2913": r"\DownArrowBar{}",
     u"\u2923": r"\ElsevierGlyph{E20C}",
     u"\u2924": r"\ElsevierGlyph{E20D}",
@@ -1302,7 +1305,7 @@ unicode_to_latex_table_base = {
     u"\u295F": r"\DownRightTeeVector{}",
     u"\u2960": r"\LeftUpTeeVector{}",
     u"\u2961": r"\LeftDownTeeVector{}",
-    u"\u296E": r"\UpEquilibrium{}",
+    u"\u296E": "\\UpEquilibrium{}", # note non-raw string (\u confuses Python)
     u"\u296F": r"\ReverseUpEquilibrium{}",
     u"\u2970": r"\RoundImplies{}",
     u"\u297C": r"\ElsevierGlyph{E214}",
@@ -2062,7 +2065,7 @@ unicode_to_latex_table_base = {
     u"\uD6B9": r"\mathbf{\vartheta}",
     u"\uD6BA": r"\mathbf{\Sigma}",
     u"\uD6BB": r"\mathbf{\Tau}",
-    u"\uD6BC": r"\mathbf{\Upsilon}",
+    u"\uD6BC": "\\mathbf{\\Upsilon}", # note non-raw string (\u confuses Python)
     u"\uD6BD": r"\mathbf{\Phi}",
     u"\uD6BE": r"\mathbf{\Chi}",
     u"\uD6BF": r"\mathbf{\Psi}",
@@ -2085,7 +2088,7 @@ unicode_to_latex_table_base = {
     u"\uD6D3": r"\mathbf{\varsigma}",
     u"\uD6D4": r"\mathbf{\Sigma}",
     u"\uD6D5": r"\mathbf{\Tau}",
-    u"\uD6D6": r"\mathbf{\Upsilon}",
+    u"\uD6D6": "\\mathbf{\\Upsilon}", # note non-raw string (\u confuses Python)
     u"\uD6D7": r"\mathbf{\Phi}",
     u"\uD6D8": r"\mathbf{\Chi}",
     u"\uD6D9": r"\mathbf{\Psi}",
@@ -2114,7 +2117,7 @@ unicode_to_latex_table_base = {
     u"\uD6F3": r"\mathsl{\vartheta}",
     u"\uD6F4": r"\mathsl{\Sigma}",
     u"\uD6F5": r"\mathsl{\Tau}",
-    u"\uD6F6": r"\mathsl{\Upsilon}",
+    u"\uD6F6": "\mathsl{\\Upsilon}", # note non-raw string (\u confuses Python)
     u"\uD6F7": r"\mathsl{\Phi}",
     u"\uD6F8": r"\mathsl{\Chi}",
     u"\uD6F9": r"\mathsl{\Psi}",
@@ -2137,7 +2140,7 @@ unicode_to_latex_table_base = {
     u"\uD70D": r"\mathsl{\varsigma}",
     u"\uD70E": r"\mathsl{\Sigma}",
     u"\uD70F": r"\mathsl{\Tau}",
-    u"\uD710": r"\mathsl{\Upsilon}",
+    u"\uD710": "\\mathsl{\\Upsilon}", # note non-raw string (\u confuses Python)
     u"\uD711": r"\mathsl{\Phi}",
     u"\uD712": r"\mathsl{\Chi}",
     u"\uD713": r"\mathsl{\Psi}",
@@ -2166,7 +2169,7 @@ unicode_to_latex_table_base = {
     u"\uD72D": r"\mathbit{O}",
     u"\uD72E": r"\mathbit{\Sigma}",
     u"\uD72F": r"\mathbit{\Tau}",
-    u"\uD730": r"\mathbit{\Upsilon}",
+    u"\uD730": "\\mathbit{\\Upsilon}", # note non-raw string (\u confuses Python)
     u"\uD731": r"\mathbit{\Phi}",
     u"\uD732": r"\mathbit{\Chi}",
     u"\uD733": r"\mathbit{\Psi}",
@@ -2189,7 +2192,7 @@ unicode_to_latex_table_base = {
     u"\uD747": r"\mathbit{\varsigma}",
     u"\uD748": r"\mathbit{\Sigma}",
     u"\uD749": r"\mathbit{\Tau}",
-    u"\uD74A": r"\mathbit{\Upsilon}",
+    u"\uD74A": "\\mathbit{\\Upsilon}", # note non-raw string (\u confuses Python)
     u"\uD74B": r"\mathbit{\Phi}",
     u"\uD74C": r"\mathbit{\Chi}",
     u"\uD74D": r"\mathbit{\Psi}",
@@ -2218,7 +2221,7 @@ unicode_to_latex_table_base = {
     u"\uD767": r"\mathsfbf{\vartheta}",
     u"\uD768": r"\mathsfbf{\Sigma}",
     u"\uD769": r"\mathsfbf{\Tau}",
-    u"\uD76A": r"\mathsfbf{\Upsilon}",
+    u"\uD76A": "\\mathsfbf{\\Upsilon}", # note non-raw string (\u confuses Python)
     u"\uD76B": r"\mathsfbf{\Phi}",
     u"\uD76C": r"\mathsfbf{\Chi}",
     u"\uD76D": r"\mathsfbf{\Psi}",
@@ -2241,7 +2244,7 @@ unicode_to_latex_table_base = {
     u"\uD781": r"\mathsfbf{\varsigma}",
     u"\uD782": r"\mathsfbf{\Sigma}",
     u"\uD783": r"\mathsfbf{\Tau}",
-    u"\uD784": r"\mathsfbf{\Upsilon}",
+    u"\uD784": "\\mathsfbf{\\Upsilon}",  # note non-raw string (\u confuses Python)
     u"\uD785": r"\mathsfbf{\Phi}",
     u"\uD786": r"\mathsfbf{\Chi}",
     u"\uD787": r"\mathsfbf{\Psi}",
@@ -2270,7 +2273,7 @@ unicode_to_latex_table_base = {
     u"\uD7A1": r"\mathsfbfsl{\vartheta}",
     u"\uD7A2": r"\mathsfbfsl{\Sigma}",
     u"\uD7A3": r"\mathsfbfsl{\Tau}",
-    u"\uD7A4": r"\mathsfbfsl{\Upsilon}",
+    u"\uD7A4": "\\mathsfbfsl{\\Upsilon}", # note non-raw string (\u confuses Python)
     u"\uD7A5": r"\mathsfbfsl{\Phi}",
     u"\uD7A6": r"\mathsfbfsl{\Chi}",
     u"\uD7A7": r"\mathsfbfsl{\Psi}",
@@ -2293,7 +2296,7 @@ unicode_to_latex_table_base = {
     u"\uD7BB": r"\mathsfbfsl{\varsigma}",
     u"\uD7BC": r"\mathsfbfsl{\Sigma}",
     u"\uD7BD": r"\mathsfbfsl{\Tau}",
-    u"\uD7BE": r"\mathsfbfsl{\Upsilon}",
+    u"\uD7BE": "\\mathsfbfsl{\\Upsilon}", # note non-raw string (\u confuses Python)
     u"\uD7BF": r"\mathsfbfsl{\Phi}",
     u"\uD7C0": r"\mathsfbfsl{\Chi}",
     u"\uD7C1": r"\mathsfbfsl{\Psi}",

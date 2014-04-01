@@ -6,13 +6,14 @@
 The main database.
 """
 
-__all__ = ('connect init').split ()
-
+from __future__ import absolute_import, division, print_function, unicode_literals
 import collections, json, sqlite3, sys
 
 from . import PubLocateError, MultiplePubsError
 from .util import *
 from .bibcore import *
+
+__all__ = ('connect init').split ()
 
 
 dbpath = bibpath ('db.sqlite3')

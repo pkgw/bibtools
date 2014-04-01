@@ -24,11 +24,12 @@ things like keeping the decrypted secret in memory for too long, etc.
 
 """
 
-__all__ = ('load_user_secret store_user_secret').split ()
-
+from __future__ import absolute_import, division, print_function, unicode_literals
 import io, os, random, string, subprocess
 
 from .util import bibpath, set_terminal_echo
+
+__all__ = ('load_user_secret store_user_secret').split ()
 
 
 def _load_secret_keys ():
@@ -83,14 +84,14 @@ def store_user_secret (cfg):
 
     try:
         set_terminal_echo (sys.stdin, False)
-        print 'Enter password, then Enter, then control-D twice:'
+        print ('Enter password, then Enter, then control-D twice:')
 
         with io.open (sfd, 'wb') as sfile:
             subprocess.check_call ([openssl, 'enc', '-aes-256-cbc', '-e', '-K',
                                     key, '-iv', iv], stdout=sfile, shell=False,
                                    close_fds=True)
 
-        print 'Success.'
+        print ('Success.')
     finally:
         set_terminal_echo (sys.stdin, True)
 

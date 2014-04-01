@@ -8,7 +8,7 @@ The command-line interface.
 
 __all__ = ['driver']
 
-import codecs, json, os.path, sys
+import codecs, io, json, os.path, sys
 
 from . import BibError, webutil as wu
 from .util import *
@@ -66,7 +66,7 @@ def cmd_btexport (app, argv):
     # Load cited nicknames
     citednicks = set ()
 
-    for line in open (auxfile):
+    for line in io.open (auxfile, 'rt'):
         if not line.startswith (r'\citation{'):
             continue
 
@@ -140,6 +140,8 @@ def cmd_edit (app, argv):
 
     pub = app.locate_or_die (idtext, autolearn=True)
 
+    # While NamedTemporaryFile returns an existing stream, I think we're going
+    # to have to manually wrap it in a codec.
     work = NamedTemporaryFile (prefix='bib.edit.', mode='wb', dir='.', delete=False)
     enc = codecs.getwriter ('utf-8') (work)
     textfmt.export_one (app, pub, enc, 72)
@@ -245,7 +247,7 @@ def cmd_ingest (app, argv):
 
     bibpath = argv[1]
 
-    with open (bibpath) as f:
+    with io.open (bibpath, 'rt') as f:
         import_stream (app, f)
 
 
@@ -410,7 +412,7 @@ def cmd_setpdf (app, argv):
     # Get SHA1 of the PDF -- we could be more efficient by copying
     # to a temporary path whil we're at it, but, meh.
 
-    with open (pdfpath) as f:
+    with io.open (pdfpath, 'rb') as f:
         s = hashlib.sha1 ()
 
         while True:

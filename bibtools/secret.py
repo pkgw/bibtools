@@ -26,7 +26,7 @@ things like keeping the decrypted secret in memory for too long, etc.
 
 __all__ = ('load_user_secret store_user_secret').split ()
 
-import os, random, string, subprocess
+import io, os, random, string, subprocess
 
 from .util import bibpath, set_terminal_echo
 
@@ -34,7 +34,7 @@ from .util import bibpath, set_terminal_echo
 def _load_secret_keys ():
     key = iv = None
 
-    with open (bibpath ('secret.key')) as kfile:
+    with io.open (bibpath ('secret.key'), 'rt') as kfile:
         for line in kfile:
             line = line.strip ()
 
@@ -68,7 +68,7 @@ def store_user_secret (cfg):
                    os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
                    0o600) # just in case ...
 
-    with os.fdopen (kfd, 'w') as kfile:
+    with io.open (kfd, 'wt') as kfile:
         subprocess.check_call ([openssl, 'enc', '-aes-256-cbc', '-k', keypass,
                                 '-P', '-md', 'sha1'], stdout=kfile, shell=False,
                                close_fds=True)
@@ -85,7 +85,7 @@ def store_user_secret (cfg):
         set_terminal_echo (sys.stdin, False)
         print 'Enter password, then Enter, then control-D twice:'
 
-        with os.fdopen (sfd, 'w') as sfile:
+        with io.open (sfd, 'wb') as sfile:
             subprocess.check_call ([openssl, 'enc', '-aes-256-cbc', '-e', '-K',
                                     key, '-iv', iv], stdout=sfile, shell=False,
                                    close_fds=True)

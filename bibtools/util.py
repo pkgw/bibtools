@@ -6,7 +6,7 @@
 Various utilities, mostly generic.
 """
 
-import errno, os.path, re, sys
+import errno, io, os.path, re, sys
 
 
 # Generic things
@@ -128,9 +128,9 @@ def launch_background_silent (cmd, argv):
         os._exit (0) # this child is done
 
     # The second forked child actually exec()s the program.
-    nullin = open (os.devnull)
+    nullin = io.open (os.devnull, 'rb')
     os.dup2 (nullin.fileno (), 0)
-    nullout = open (os.devnull, 'w')
+    nullout = io.open (os.devnull, 'wb')
     os.dup2 (nullout.fileno (), 1)
     os.dup2 (nullout.fileno (), 2)
     os.closerange (3, resource.getrlimit (resource.RLIMIT_NOFILE)[0])

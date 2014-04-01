@@ -8,7 +8,7 @@ Downloading PDFs automagically.
 
 __all__ = ('try_fetch_pdf').split ()
 
-import os
+import io, os
 from hashlib import sha1
 
 from .util import *
@@ -61,7 +61,7 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
 
     first = True
 
-    with open (destpath, 'w') as f:
+    with io.open (destpath, 'wb') as f:
         while True:
             b = resp.read (4096)
 

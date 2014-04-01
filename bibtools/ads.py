@@ -130,7 +130,6 @@ def search_ads (app, terms, raw=False):
         json.dump (r, sys.stdout, ensure_ascii=False, indent=2, separators=(',', ': '))
         return
 
-    maxnfaslen = 0
     maxbclen = 0
     info = []
 
@@ -138,14 +137,15 @@ def search_ads (app, terms, raw=False):
         # year isn't important since it's embedded in bibcode.
         title = item['title'][0] # not sure why this is a list?
         bibcode = item['bibcode']
-        nfas = normalize_surname (parse_name (_translate_ads_name (item['author'][0]))[1])
+        authors = ', '.join (parse_name (_translate_ads_name (n))[1] for n in item['author'])
 
-        maxnfaslen = max (maxnfaslen, len (nfas))
         maxbclen = max (maxbclen, len (bibcode))
-        info.append ((bibcode, nfas, title))
+        info.append ((bibcode, title, authors))
 
-    ofs = maxnfaslen + maxbclen + 4
+    ofs = maxbclen + 2
 
-    for bc, nfas, title in info:
-        print ('%*s  %*s  ' % (maxbclen, bc, maxnfaslen, nfas), end='')
+    for bc, title, authors in info:
+        print ('%*s  ' % (maxbclen, bc), end='')
         print_truncated (title, ofs)
+        print ('    ', end='')
+        print_truncated (authors, 4)

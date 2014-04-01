@@ -121,6 +121,13 @@ def cmd_delete (app, argv):
     app.db.delete_pub (pub.id)
 
 
+def cmd_dump (app, argv):
+    if len (argv) != 1:
+        raise UsageError ('expected no arguments')
+
+    app.export_all (sys.stdout.write, 72)
+
+
 def cmd_edit (app, argv):
     from . import textfmt
     from tempfile import NamedTemporaryFile

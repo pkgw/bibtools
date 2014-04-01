@@ -175,3 +175,16 @@ class BibApp (object):
         os.rename (temppath, destpath)
         self.db.execute ('INSERT OR REPLACE INTO pdfs VALUES (?, ?)', (sha1, pub.id))
         return sha1
+
+
+    def export_all (self, write, width):
+        from .textfmt import export_one
+        first = True
+
+        for pub in self.db.pub_fquery ('SELECT * FROM pubs ORDER BY nfas ASC, year ASC'):
+            if first:
+                first = False
+            else:
+                write ('\f\n')
+
+            export_one (self, pub, write, width)

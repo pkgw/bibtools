@@ -14,12 +14,15 @@ __all__ = ('BibApp BibError PubLocateError MultiplePubsError').split ()
 class BibError (Exception):
     def __init__ (self, fmt, *args):
         if not len (args):
-            self.bibmsg = str (fmt)
+            self.bibmsg = unicode (fmt)
         else:
-            self.bibmsg = fmt % args
+            self.bibmsg = unicode (fmt) % args
+
+    def __unicode__ (self):
+        return self.bibmsg
 
     def __str__ (self):
-        return self.bibmsg
+        return self.bibmsg.encode ('utf-8')
 
 
 class PubLocateError (BibError):

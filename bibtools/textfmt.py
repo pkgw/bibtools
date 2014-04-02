@@ -26,7 +26,7 @@ def export_one (app, pub, stream, width):
     if pub.year is None:
         write ('--no year--\n')
     else:
-        write (str (pub.year))
+        write (unicode (pub.year))
         write ('\n')
     write ('\n')
 

@@ -248,7 +248,7 @@ def bibtexify_one (db, style, pub):
         rd['title'] = unicode_to_latex (pub.title)
 
     if pub.year is not None:
-        rd['year'] = str (pub.year)
+        rd['year'] = unicode (pub.year)
 
 
     return rd

@@ -399,6 +399,13 @@ def cmd_rq (app, argv):
     search_ads (app, parse_search (argv[1:]), raw=rawmode)
 
 
+def cmd_rsbackup (app, argv):
+    if len (argv) != 1:
+        raise UsageError ('expected no arguments')
+
+    app.rsync_backup ()
+
+
 def cmd_setpdf (app, argv):
     if len (argv) != 3:
         raise UsageError ('expected exactly 2 arguments')

@@ -206,3 +206,35 @@ class BibApp (object):
                 stream.write ('\f\n')
 
             export_one (self, pub, stream, width)
+
+
+    def rsync_backup (self):
+        import io, os.path, shutil, subprocess
+        from .util import bibpath, mkdir_p, reraise_context
+
+        dest = self.cfg.get_or_die ('backup', 'rsync-dest')
+        rsargs = self.cfg.get_or_die ('apps', 'rsync').split ()
+
+        exdir = bibpath ('export')
+        mkdir_p (bibpath ('lib'))
+        mkdir_p (exdir)
+
+        for stem in os.listdir (exdir):
+            os.unlink (os.path.join (exdir, stem))
+
+        with io.open (bibpath ('export', 'pubs.txt'), 'wt', encoding='utf-8') as f:
+            self.export_all (f, 78)
+
+        shutil.copyfile (bibpath ('bib.cfg'), os.path.join (exdir, 'bib.cfg'))
+
+        fullargs = rsargs + ['lib', 'export', dest]
+        try:
+            subprocess.check_call (fullargs,
+                                   close_fds=True,
+                                   shell=False,
+                                   cwd=bibpath ())
+        except Exception:
+            reraise_context ('while running "%s"', ' '.join (fullargs))
+
+        for stem in os.listdir (exdir):
+            os.unlink (os.path.join (exdir, stem))

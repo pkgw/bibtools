@@ -49,7 +49,7 @@ def cmd_apage (app, argv):
 
 
 def cmd_btexport (app, argv):
-    from bibtex import bibtex_styles, export_to_bibtex
+    from .bibtex import bibtex_styles, export_to_bibtex
 
     if len (argv) != 3:
         raise UsageError ('expected exactly 2 arguments')

@@ -13,6 +13,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import json, sys
 
 from .util import *
+from . import webutil as wu
 from .bibcore import *
 from .unicode_to_latex import unicode_to_latex
 
@@ -173,6 +174,7 @@ class BibtexStyleBase (object):
     include_title = False
     issn_name_map = None
     normalize_pages = False
+    aggressive_url = True
 
 
 class ApjBibtexStyle (BibtexStyleBase):
@@ -250,6 +252,17 @@ def bibtexify_one (db, style, pub):
     if pub.year is not None:
         rd['year'] = unicode (pub.year)
 
+    if style.aggressive_url:
+        # TODO: better place for best-URL logic.
+        if pub.doi is not None:
+            rd['url'] = unicode_to_latex ('http://dx.doi.org/' + wu.urlquote (pub.doi))
+        elif pub.bibcode is not None:
+            rd['url'] = unicode_to_latex ('http://adsabs.harvard.edu/abs/' +
+                                          wu.urlquote (pub.bibcode))
+        elif pub.arxiv is not None:
+            # old-style arxiv IDs have /'s that shouldn't be escaped; and arxiv IDs
+            # shouldn't need escaping.
+            rd['url'] = unicode_to_latex ('http://arxiv.org/abs/' + pub.arxiv)
 
     return rd
 

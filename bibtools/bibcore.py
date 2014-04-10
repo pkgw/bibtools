@@ -31,11 +31,15 @@ __all__ = ('parse_name encode_name normalize_surname sniff_url '
 
 
 def parse_name (text):
-    given, family = text.rsplit (' ', 1)
-    return given, family.replace ('_', ' ')
+    parts = text.rsplit (' ', 1)
+    if len (parts) == 1:
+        return '', parts[0].replace ('_', ' ')
+    return parts[0], parts[1].replace ('_', ' ')
 
 
 def encode_name (given, family):
+    if not len (given):
+        return family.replace (' ', '_')
     return given + ' ' + family.replace (' ', '_')
 
 

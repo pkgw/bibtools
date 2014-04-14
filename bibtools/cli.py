@@ -229,8 +229,12 @@ def cmd_info (app, argv):
     if pub.refdata is not None:
         rd = json.loads (pub.refdata)
         print ('~BibTeX: @%s {' % rd.pop ('_type'), end='')
-        bits = ('%s="%s"' % t
-                for t in sorted (rd.iteritems (), key=lambda t: t[0]))
+        def fmt (t):
+            k, v = t
+            if ' ' in v:
+                return k + '="' + v + '"'
+            return k + '=' + v
+        bits = (fmt (t) for t in sorted (rd.iteritems (), key=lambda t: t[0]))
         print (', '.join (bits), '}')
 
     if pub.abstract is not None:

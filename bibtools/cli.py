@@ -283,6 +283,19 @@ def _list_cmd_add (app, argv):
         die (e)
 
 
+def _list_cmd_list (app, argv):
+    if len (argv) != 1:
+        raise UsageError ('expected no arguments')
+
+    try:
+        q = app.db.execute ('SELECT DISTINCT name FROM publists WHERE '
+                            'name LIKE ? ORDER BY name ASC', ('user_%', ))
+        for (name, ) in q:
+            print (name[5:])
+    except Exception as e:
+        die (e)
+
+
 def _list_cmd_rm (app, argv):
     if len (argv) < 3:
         raise UsageError ('expected at least 2 arguments')

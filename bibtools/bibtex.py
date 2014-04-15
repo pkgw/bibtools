@@ -195,6 +195,9 @@ class BibtexStyleBase (object):
         return ' and '.join (self.render_name (n) for n in names)
 
 
+    def _massage_pub (self, db, pub, rd):
+        pass
+
     def render_pub (self, db, pub):
         """Returns a dict in which the values are already latex-encoded.
         '_type' is the bibtex type, '_ident' is the bibtex identifier."""
@@ -203,6 +206,8 @@ class BibtexStyleBase (object):
 
         for k in rd.keys ():
             rd[k] = unicode_to_latex (rd[k])
+
+        self._massage_pub (db, pub, rd)
 
         names = list (db.get_pub_authors (pub.id, 'author'))
         if len (names):
@@ -263,6 +268,12 @@ class ApjBibtexStyle (BibtexStyleBase):
             inm[issn] = unicode_to_latex (jname)
 
         self.issn_name_map = inm
+
+
+    def _massage_pub (self, db, pub, rd):
+        if rd.get ('issn') == '1996-756X':
+            # Proc. SPIE: rendered as article, not @inproceedings.
+            rd['_type'] = 'article'
 
 
 bibtex_styles = {'apj': ApjBibtexStyle}

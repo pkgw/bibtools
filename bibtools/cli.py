@@ -188,6 +188,92 @@ def cmd_forgetpdf (app, argv):
     app.db.execute ('DELETE FROM pdfs WHERE pubid == ?', (pub.id, ))
 
 
+def _group_cmd_add (app, argv):
+    if len (argv) < 3:
+        raise UsageError ('expected at least 2 arguments')
+
+    groupname = argv[1]
+    # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
+    dbgroupname = 'user_' + groupname
+
+    try:
+        for pub in app.locate_pubs (argv[2:], autolearn=True):
+            app.db.execute ('INSERT OR IGNORE INTO publists VALUES (?, '
+                            '  (SELECT ifnull(max(idx)+1,0) FROM publists WHERE name == ?), '
+                            '?)', (dbgroupname, dbgroupname, pub.id))
+    except Exception as e:
+        die (e)
+
+
+def _group_cmd_list (app, argv):
+    if len (argv) not in (1, 2):
+        raise UsageError ('expected 0 or 1 arguments')
+
+    try:
+        if len (argv) == 1:
+            # List the groups.
+            q = app.db.execute ('SELECT DISTINCT name FROM publists WHERE '
+                                'name LIKE ? ORDER BY name ASC', ('user_%', ))
+            for (name, ) in q:
+                print (name[5:])
+        else:
+            # List the items in a group.
+            groupname = argv[1]
+            # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
+            dbgroupname = 'user_' + groupname
+
+            q = app.db.pub_fquery ('SELECT p.* FROM pubs AS p, publists AS pl '
+                                   'WHERE p.id == pl.pubid AND pl.name == ? '
+                                   'ORDER BY pl.idx', dbgroupname)
+            print_generic_listing (app.db, q)
+    except Exception as e:
+        die (e)
+
+
+def _group_cmd_rm (app, argv):
+    if len (argv) < 3:
+        raise UsageError ('expected at least 2 arguments')
+
+    groupname = argv[1]
+    # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
+    dbgroupname = 'user_' + groupname
+
+    # We want to complain if an individual term doesn't match anything in the
+    # group, but if the user specifies "williams.*" and we get a bunch of hits
+    # only one of which is in the group, that's OK. So we need to process terms
+    # individually.
+
+    c = app.db.cursor ()
+
+    try:
+        for idtext in argv[2:]:
+            ndeleted = 0
+
+            for pub in app.locate_pubs ((idtext,)):
+                c.execute ('DELETE FROM publists WHERE name == ? AND pubid == ?',
+                           (dbgroupname, pub.id))
+                ndeleted += c.rowcount
+
+            if not ndeleted:
+                warn ('no entries in "%s" matched "%s"', groupname, idtext)
+    except Exception as e:
+        die (e)
+
+
+def cmd_group (app, argv):
+    if len (argv) < 2:
+        raise UsageError ('"group" requires a subcommand')
+
+    subcmd = argv[1]
+    subfunc = globals ().get ('_group_cmd_' + subcmd.replace ('-', '_'))
+
+    if not callable (subfunc):
+        die ('"%s" is not a recognized subcommand of "group"; run me without '
+             'arguments for usage help', subcmd)
+
+    subfunc (app, argv[1:])
+
+
 def cmd_init (app, argv):
     from .db import init
 
@@ -270,92 +356,11 @@ def cmd_jpage (app, argv):
     app.open_url ('http://dx.doi.org/' + wu.urlquote (pub.doi))
 
 
-def _list_cmd_add (app, argv):
-    if len (argv) < 3:
-        raise UsageError ('expected at least 2 arguments')
-
-    listname = argv[1]
-    # FIXME: check listname to avoid "bib list add abc+12 xyz+10" mistake
-    dblistname = 'user_' + listname
-
-    try:
-        for pub in app.locate_pubs (argv[2:], autolearn=True):
-            app.db.execute ('INSERT OR IGNORE INTO publists VALUES (?, '
-                            '  (SELECT ifnull(max(idx)+1,0) FROM publists WHERE name == ?), '
-                            '?)', (dblistname, dblistname, pub.id))
-    except Exception as e:
-        die (e)
-
-
-def _list_cmd_list (app, argv):
-    if len (argv) != 1:
-        raise UsageError ('expected no arguments')
-
-    try:
-        q = app.db.execute ('SELECT DISTINCT name FROM publists WHERE '
-                            'name LIKE ? ORDER BY name ASC', ('user_%', ))
-        for (name, ) in q:
-            print (name[5:])
-    except Exception as e:
-        die (e)
-
-
-def _list_cmd_rm (app, argv):
-    if len (argv) < 3:
-        raise UsageError ('expected at least 2 arguments')
-
-    listname = argv[1]
-    # FIXME: check listname to avoid "bib list add abc+12 xyz+10" mistake
-    dblistname = 'user_' + listname
-
-    # We want to complain if an individual term doesn't match anything in the
-    # list, but if the user specifies "williams.*" and we get a bunch of hits
-    # only one of which is in the list, that's OK. So we need to process terms
-    # individually.
-
-    c = app.db.cursor ()
-
-    try:
-        for idtext in argv[2:]:
-            ndeleted = 0
-
-            for pub in app.locate_pubs ((idtext,)):
-                c.execute ('DELETE FROM publists WHERE name == ? AND pubid == ?',
-                           (dblistname, pub.id))
-                ndeleted += c.rowcount
-
-            if not ndeleted:
-                warn ('no entries in "%s" matched "%s"', listname, idtext)
-    except Exception as e:
-        die (e)
-
-
-def _list_cmd_summ (app, argv):
-    if len (argv) != 2:
-        raise UsageError ('expected one argument')
-
-    listname = argv[1]
-    # FIXME: check listname to avoid "bib list add abc+12 xyz+10" mistake
-    dblistname = 'user_' + listname
-
-    q = app.db.pub_fquery ('SELECT p.* FROM pubs AS p, publists AS pl '
-                           'WHERE p.id == pl.pubid AND pl.name == ? '
-                           'ORDER BY pl.idx', dblistname)
-    print_generic_listing (app.db, q)
-
-
 def cmd_list (app, argv):
     if len (argv) < 2:
-        raise UsageError ('"list" requires a subcommand')
+        raise UsageError ('expected arguments')
 
-    subcmd = argv[1]
-    subfunc = globals ().get ('_list_cmd_' + subcmd.replace ('-', '_'))
-
-    if not callable (subfunc):
-        die ('"%s" is not a recognized subcommand of "list"; run me without '
-             'arguments for usage help', subcmd)
-
-    subfunc (app, argv[1:])
+    print_generic_listing (app.db, app.locate_pubs (argv[1:], noneok=True))
 
 
 def cmd_read (app, argv):
@@ -469,13 +474,6 @@ def cmd_setsecret (app, argv):
 
     from .secret import store_user_secret
     store_user_secret (app.cfg)
-
-
-def cmd_summ (app, argv):
-    if len (argv) < 2:
-        raise UsageError ('expected arguments')
-
-    print_generic_listing (app.db, app.locate_pubs (argv[1:], noneok=True))
 
 
 # Toplevel driver infrastructure

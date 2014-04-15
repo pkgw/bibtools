@@ -177,6 +177,76 @@ class BibtexStyleBase (object):
     aggressive_url = True
     title_types = set (('book',))
 
+    def render_name (self, name):
+        given, family = name
+
+        fbits = family.rsplit (',', 1)
+
+        if len (fbits) > 1:
+            return '{%s}, %s, %s' % (unicode_to_latex (fbits[0]),
+                                     unicode_to_latex (fbits[1]),
+                                     unicode_to_latex (given))
+
+        return '{%s}, %s' % (unicode_to_latex (fbits[0]),
+                             unicode_to_latex (given))
+
+
+    def render_names (self, names):
+        return ' and '.join (self.render_name (n) for n in names)
+
+
+    def render_pub (self, db, pub):
+        """Returns a dict in which the values are already latex-encoded.
+        '_type' is the bibtex type, '_ident' is the bibtex identifier."""
+
+        rd = json.loads (pub.refdata)
+
+        for k in rd.keys ():
+            rd[k] = unicode_to_latex (rd[k])
+
+        names = list (db.get_pub_authors (pub.id, 'author'))
+        if len (names):
+            rd['author'] = self.render_names (names)
+
+        names = list (db.get_pub_authors (pub.id, 'editor'))
+        if len (names):
+            rd['editor'] = self.render_names (names)
+
+        if self.include_doi and pub.doi is not None:
+            rd['doi'] = unicode_to_latex (pub.doi)
+
+        if self.issn_name_map is not None and 'issn' in rd:
+            ltxjname = self.issn_name_map.get (rd['issn'])
+            if ltxjname is not None:
+                rd['journal'] = ltxjname
+
+        if self.normalize_pages and 'pages' in rd:
+            p = rd['pages'].split ('--')[0]
+            if p[-1] == '+':
+                p = p[:-1]
+            rd['pages'] = p
+
+        if ((self.include_title_all or rd['_type'] in self.title_types) and
+            pub.title is not None):
+            rd['title'] = unicode_to_latex (pub.title)
+
+        if pub.year is not None:
+            rd['year'] = unicode (pub.year)
+
+        if self.aggressive_url:
+            # TODO: better place for best-URL logic.
+            if pub.doi is not None:
+                rd['url'] = unicode_to_latex ('http://dx.doi.org/' + wu.urlquote (pub.doi))
+            elif pub.bibcode is not None:
+                rd['url'] = unicode_to_latex ('http://adsabs.harvard.edu/abs/' +
+                                              wu.urlquote (pub.bibcode))
+            elif pub.arxiv is not None:
+                # old-style arxiv IDs have /'s that shouldn't be escaped; and arxiv IDs
+                # shouldn't need escaping.
+                rd['url'] = unicode_to_latex ('http://arxiv.org/abs/' + pub.arxiv)
+
+        return rd
+
 
 class ApjBibtexStyle (BibtexStyleBase):
     normalize_pages = True
@@ -196,77 +266,6 @@ class ApjBibtexStyle (BibtexStyleBase):
 
 
 bibtex_styles = {'apj': ApjBibtexStyle}
-
-
-def bibtexify_name (style, name):
-    given, family = name
-
-    fbits = family.rsplit (',', 1)
-
-    if len (fbits) > 1:
-        return '{%s}, %s, %s' % (unicode_to_latex (fbits[0]),
-                                 unicode_to_latex (fbits[1]),
-                                 unicode_to_latex (given))
-
-    return '{%s}, %s' % (unicode_to_latex (fbits[0]),
-                         unicode_to_latex (given))
-
-
-def bibtexify_names (style, names):
-    return ' and '.join (bibtexify_name (style, n) for n in names)
-
-
-def bibtexify_one (db, style, pub):
-    """Returns a dict in which the values are already latex-encoded.
-    '_type' is the bibtex type, '_ident' is the bibtex identifier."""
-
-    rd = json.loads (pub.refdata)
-
-    for k in rd.keys ():
-        rd[k] = unicode_to_latex (rd[k])
-
-    names = list (db.get_pub_authors (pub.id, 'author'))
-    if len (names):
-        rd['author'] = bibtexify_names (style, names)
-
-    names = list (db.get_pub_authors (pub.id, 'editor'))
-    if len (names):
-        rd['editor'] = bibtexify_names (style, names)
-
-    if style.include_doi and pub.doi is not None:
-        rd['doi'] = unicode_to_latex (pub.doi)
-
-    if style.issn_name_map is not None and 'issn' in rd:
-        ltxjname = style.issn_name_map.get (rd['issn'])
-        if ltxjname is not None:
-            rd['journal'] = ltxjname
-
-    if style.normalize_pages and 'pages' in rd:
-        p = rd['pages'].split ('--')[0]
-        if p[-1] == '+':
-            p = p[:-1]
-        rd['pages'] = p
-
-    if ((style.include_title_all or rd['_type'] in style.title_types) and
-        pub.title is not None):
-        rd['title'] = unicode_to_latex (pub.title)
-
-    if pub.year is not None:
-        rd['year'] = unicode (pub.year)
-
-    if style.aggressive_url:
-        # TODO: better place for best-URL logic.
-        if pub.doi is not None:
-            rd['url'] = unicode_to_latex ('http://dx.doi.org/' + wu.urlquote (pub.doi))
-        elif pub.bibcode is not None:
-            rd['url'] = unicode_to_latex ('http://adsabs.harvard.edu/abs/' +
-                                          wu.urlquote (pub.bibcode))
-        elif pub.arxiv is not None:
-            # old-style arxiv IDs have /'s that shouldn't be escaped; and arxiv IDs
-            # shouldn't need escaping.
-            rd['url'] = unicode_to_latex ('http://arxiv.org/abs/' + pub.arxiv)
-
-    return rd
 
 
 def write_bibtexified (write, btdata):
@@ -323,6 +322,6 @@ def export_to_bibtex (app, style, citednicks, write=None):
         else:
             write ('\n')
 
-        bt = bibtexify_one (app.db, style, pub)
+        bt = style.render_pub (app.db, pub)
         bt['_ident'] = nick
         write_bibtexified (write, bt)

@@ -171,10 +171,11 @@ def import_stream (app, bibstream):
 
 class BibtexStyleBase (object):
     include_doi = True
-    include_title = False
+    include_title_all = False
     issn_name_map = None
     normalize_pages = False
     aggressive_url = True
+    title_types = set (('book',))
 
 
 class ApjBibtexStyle (BibtexStyleBase):
@@ -246,7 +247,8 @@ def bibtexify_one (db, style, pub):
             p = p[:-1]
         rd['pages'] = p
 
-    if style.include_title and pub.title is not None:
+    if ((style.include_title_all or rd['_type'] in style.title_types) and
+        pub.title is not None):
         rd['title'] = unicode_to_latex (pub.title)
 
     if pub.year is not None:

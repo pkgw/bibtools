@@ -34,7 +34,7 @@ def autolearn_arxiv (app, arxiv):
     # seem to have an incremental parser built in.
 
     print ('[Parsing', url, '...]')
-    xmldoc = ''.join (wu.urlopen (url))
+    xmldoc = b''.join (wu.urlopen (url))
     root = ET.fromstring (xmldoc)
     ent = root.find (_atom_ns + 'entry')
 

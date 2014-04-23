@@ -38,7 +38,7 @@ def autolearn_doi (app, doi):
     # seem to have an incremental parser built in.
 
     print ('[Parsing', url, '...]')
-    xmldoc = ''.join (wu.urlopen (url))
+    xmldoc = b''.join (wu.urlopen (url))
     root = ET.fromstring (xmldoc)
 
     jelem = root.find ('doi_record/crossref/journal')

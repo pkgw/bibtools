@@ -61,6 +61,9 @@ def classify_pub_ref (text):
     """Given some text that we believe identifies a publication, try to
     figure out how it does so."""
 
+    if text[0] == '%':
+        return 'lastlisting', text[1:]
+
     if text.startswith ('http'):
         kind, value = sniff_url (text)
         if kind is not None:
@@ -162,6 +165,11 @@ def doi_to_maybe_bibcode (doi):
 def autolearn_pub (app, text):
     kind, text = classify_pub_ref (text)
 
+    if kind == 'lastlisting':
+        # If we got here, it doesn't exist
+        from . import PubLocateError
+        raise PubLocateError ('no such publication "%%%s"', text)
+
     if kind == 'doi':
         # ADS seems to have better data quality.
         bc = doi_to_maybe_bibcode (text)
@@ -202,15 +210,21 @@ def print_generic_listing (db, pub_seq, stream=sys.stdout):
         if isinstance (year, int):
             year = '%04d' % year
 
-        info.append ((nfas, year, title, nick))
+        info.append ((nfas, year, title, nick, pub.id))
         maxnfaslen = max (maxnfaslen, len (nfas))
         maxnicklen = max (maxnicklen, len (nick))
 
-    ofs = maxnfaslen + maxnicklen + 9
+    maxidxlen = len (str (len (info)))
+    ofs = maxidxlen + maxnfaslen + maxnicklen + 11
 
-    for nfas, year, title, nick in info:
-        print ('%*s.%s  %*s  ' % (maxnfaslen, nfas, year, maxnicklen, nick), end='', file=stream)
+    db.execute ('DELETE FROM publists WHERE name == ?', ('last_listing', ))
+
+    for i, (nfas, year, title, nick, id) in enumerate (info):
+        print ('%%%-*d %*s.%s  %*s  ' % (maxidxlen, i + 1, maxnfaslen, nfas, year,
+                                         maxnicklen, nick), end='', file=stream)
         print_truncated (title, ofs, stream=stream)
+        db.execute ('INSERT INTO publists VALUES (?, ?, ?)', ('last_listing',
+                                                              i, id))
 
 
 # Searching

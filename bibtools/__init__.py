@@ -106,6 +106,18 @@ class BibApp (object):
                 q = self.db.pub_fquery ('SELECT p.* FROM pubs AS p, nicknames AS n '
                                   'WHERE p.id == n.pubid AND n.nickname = ?', text)
                 matchtext = 'nickname = ' + text
+            elif kind == 'lastlisting':
+                try:
+                    idx = int (text) - 1
+                    assert idx >= 0
+                except:
+                    raise PubLocateError ('pub names starting with %% should be '
+                                          'followed by positive numbers, but got '
+                                          '"%s"', text)
+                q = self.db.pub_fquery ('SELECT p.* FROM pubs AS p, publists AS l '
+                                        'WHERE p.id == l.pubid AND l.name = ? AND '
+                                        'l.idx = ?', 'last_listing', idx)
+                matchtext = 'lastlisting #' + text
             elif kind == 'nfasy':
                 nfas, year = text.rsplit ('.', 1)
                 if year == '*':
@@ -169,6 +181,7 @@ class BibApp (object):
             print_generic_listing (self.db, self.locate_pubs ((text,), noneok=True), stream=sys.stderr)
             raise SystemExit (1)
         except PubLocateError as e:
+            from .util import die
             die (e)
 
 

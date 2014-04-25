@@ -21,7 +21,7 @@ replace nonletters with periods, so it's a gmail-ish form.
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
-import re
+import re, sys
 
 from .util import *
 
@@ -184,7 +184,8 @@ def autolearn_pub (app, text):
     die ('cannot auto-learn publication "%s"', text)
 
 
-def print_generic_listing (db, pub_seq):
+def print_generic_listing (db, pub_seq, stream=sys.stdout):
+    from .util import print_truncated
     info = []
     maxnfaslen = 0
     maxnicklen = 0
@@ -208,8 +209,8 @@ def print_generic_listing (db, pub_seq):
     ofs = maxnfaslen + maxnicklen + 9
 
     for nfas, year, title, nick in info:
-        print ('%*s.%s  %*s  ' % (maxnfaslen, nfas, year, maxnicklen, nick), end='')
-        print_truncated (title, ofs)
+        print ('%*s.%s  %*s  ' % (maxnfaslen, nfas, year, maxnicklen, nick), end='', file=stream)
+        print_truncated (title, ofs, stream=stream)
 
 
 # Searching

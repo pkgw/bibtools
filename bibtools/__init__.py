@@ -162,9 +162,11 @@ class BibApp (object):
         try:
             return self.locate_pub (text, autolearn=autolearn)
         except MultiplePubsError as e:
+            import sys
             print ('error:', e, file=sys.stderr)
             print (file=sys.stderr)
-            print_generic_listing (self.db, self.locate_pubs ((text,), noneok=True))
+            from .bibcore import print_generic_listing
+            print_generic_listing (self.db, self.locate_pubs ((text,), noneok=True), stream=sys.stderr)
             raise SystemExit (1)
         except PubLocateError as e:
             die (e)

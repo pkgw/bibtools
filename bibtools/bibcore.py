@@ -215,15 +215,15 @@ def print_generic_listing (db, pub_seq, stream=sys.stdout):
         maxnicklen = max (maxnicklen, len (nick))
 
     maxidxlen = len (str (len (info)))
-    ofs = maxidxlen + maxnfaslen + maxnicklen + 11
+    ofs = maxidxlen + maxnfaslen + maxnicklen + 12
 
     info.sort (key=lambda t: t[1]) # ascending sort by year.
 
     db.execute ('DELETE FROM publists WHERE name == ?', ('last_listing', ))
 
     for i, (nfas, year, title, nick, id) in enumerate (info):
-        print ('%%%-*d %*s.%s  %*s  ' % (maxidxlen, i + 1, maxnfaslen, nfas, year,
-                                         maxnicklen, nick), end='', file=stream)
+        print ('%%%-*d  %*s.%s  %*s  ' % (maxidxlen, i + 1, maxnfaslen, nfas, year,
+                                          maxnicklen, nick), end='', file=stream)
         print_truncated (title, ofs, stream=stream)
         db.execute ('INSERT INTO publists VALUES (?, ?, ?)', ('last_listing',
                                                               i, id))

@@ -112,11 +112,6 @@ __bib_complete ()
 
 # bib-specific infrastructure!
 
-_bib_read ()
-{
-    __bib_complete "$(bib _complete pub "$cur")"
-}
-
 __bib_main ()
 {
     local cur words cword prev
@@ -139,6 +134,11 @@ __bib_main ()
 	esac
 	return
     fi
+
+    case "$command" in
+	ads|apage|delete|edit|forgetpdf|info|jpage|read)
+	    __bib_complete "$(bib _complete pub "$cur")" ; return ;;
+    esac
 
     local completion_func="_bib_${command//-/_}"
     declare -f $completion_func >/dev/null && $completion_func

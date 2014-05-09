@@ -81,9 +81,9 @@ def print_bibcodes (app, partial):
 
 def print_nfasys (app, partial):
     if '.' not in partial:
-        for tup in app.db.execute ('SELECT DISTINCT nfas FROM pubs WHERE '
+        for tup in app.db.execute ('SELECT DISTINCT nfas, year FROM pubs WHERE '
                                    'nfas LIKE ?', (partial + '%', )):
-            print (tup[0] + '.')
+            print (tup[0] + '.' + str (tup[1]))
         return
 
     nfas = partial.rsplit ('.', 1)[0]

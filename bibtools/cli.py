@@ -316,6 +316,12 @@ def cmd_info (app, argv):
     print (title)
     print (authstr, '(%s)' % year)
 
+    nicks = [t[0] for t in app.db.execute ('SELECT nickname FROM nicknames '
+                                           'WHERE pubid == ? '
+                                           'ORDER BY nickname', (pub.id, ))]
+    if len (nicks):
+        print ('nicknames:', *nicks)
+
     if pub.arxiv is not None:
         print ('arxiv:', pub.arxiv)
     if pub.bibcode is not None:

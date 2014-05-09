@@ -308,7 +308,9 @@ def cmd_info (app, argv):
     title = pub.title or '(no title)'
 
     authors = list (app.db.get_pub_authors (pub.id))
-    if len (authors):
+    if len (authors) > 10:
+        authstr = ', '.join (a[1] for a in authors[:10]) + ' ...'
+    elif len (authors):
         authstr = ', '.join (a[1] for a in authors)
     else:
         authstr = '(no authors)'

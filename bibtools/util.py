@@ -223,7 +223,7 @@ def get_term_width (tstream):
     return -1
 
 
-def print_linewrapped (text, maxwidth=None, width=None, stream=None):
+def print_linewrapped (text, maxwidth=None, width=None, stream=None, rest_prefix=''):
     """We assume that spaces within `text` are fungible."""
 
     if stream is None:
@@ -260,8 +260,9 @@ def print_linewrapped (text, maxwidth=None, width=None, stream=None):
             if ofs + 1 + n > w:
                 if ofs > 0:
                     write ('\n')
+                    write (rest_prefix)
                 write (word)
-                ofs = n
+                ofs = n + len (rest_prefix)
             elif first:
                 first = False
                 write (word)

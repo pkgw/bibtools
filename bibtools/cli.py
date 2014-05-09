@@ -315,8 +315,8 @@ def cmd_info (app, argv):
     else:
         authstr = '(no authors)'
 
-    print (title)
-    print (authstr, '(%s)' % year)
+    print_linewrapped (title, rest_prefix='   ')
+    print_linewrapped ('%s (%s)' % (authstr, year), rest_prefix='   ')
 
     nicks = [t[0] for t in app.db.execute ('SELECT nickname FROM nicknames '
                                            'WHERE pubid == ? '
@@ -332,14 +332,15 @@ def cmd_info (app, argv):
         print ('DOI:', pub.doi)
     if pub.refdata is not None:
         rd = json.loads (pub.refdata)
-        print ('~BibTeX: @%s {' % rd.pop ('_type'), end='')
+        txt = '~BibTeX: @%s {' % rd.pop ('_type')
         def fmt (t):
             k, v = t
             if ' ' in v:
                 return k + '="' + v + '"'
             return k + '=' + v
         bits = (fmt (t) for t in sorted (rd.iteritems (), key=lambda t: t[0]))
-        print (', '.join (bits), '}')
+        txt += ', '.join (bits) + '}'
+        print_linewrapped (txt, rest_prefix='   ')
 
     if pub.abstract is not None:
         print ()

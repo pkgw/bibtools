@@ -109,6 +109,16 @@ def cmd_canon_journal (app, argv):
                         (json.dumps (rd), pub.id))
 
 
+def cmd__complete (app, argv):
+    if len (argv) < 2:
+        raise UsageError ('expected at least 1 argument')
+
+    subcommand = argv[1]
+
+    from . import completions
+    completions.process (app, subcommand, argv[2:])
+
+
 def cmd_delete (app, argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')

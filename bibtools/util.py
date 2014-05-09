@@ -234,7 +234,7 @@ def print_linewrapped (text, maxwidth=None, width=None, stream=None):
     else:
         w = width
 
-    if w > maxwidth:
+    if maxwidth is not None and w > maxwidth:
         # This intentionally doesn't apply if w < 0.
         w = maxwidth
 

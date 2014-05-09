@@ -103,3 +103,27 @@ def print_nicknames (app, partial):
     for tup in app.db.execute ('SELECT nickname FROM nicknames WHERE '
                                'nickname LIKE ?', (partial + '%', )):
         print (tup[0])
+
+
+def complete_group_subcmds (app, args):
+    from . import cli
+
+    for item in dir (cli):
+        if not item.startswith ('_group_cmd_'):
+            continue
+        print (item[11:])
+
+
+def complete_group (app, args):
+    if not len (args) or not len (args[0]):
+        # No partial to work with.
+        for tup in app.db.execute ('SELECT DISTINCT name FROM publists WHERE '
+                                   'name LIKE "user_%"'):
+            print (tup[0][5:])
+        return
+
+    partial = args[0]
+
+    for tup in app.db.execute ('SELECT DISTINCT name FROM publists WHERE '
+                               'name LIKE ?', ('user_' + partial + '%', )):
+        print (tup[0][5:])

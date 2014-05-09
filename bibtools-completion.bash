@@ -112,6 +112,34 @@ __bib_complete ()
 
 # bib-specific infrastructure!
 
+_bib_group ()
+{
+    local i c=2 command
+    while [ $c -lt $cword ]; do
+	i="${words[c]}"
+	case "$i" in
+	    -*) ;;
+	    *) command="$i" ; break ;;
+	esac
+	((c++))
+    done
+
+    if [ -z "$command" ]; then
+	__bib_complete "$(bib _complete group_subcmds)"
+	return
+    fi
+
+    if [ "$command" = add -o "$command" = rm ]; then
+	if [ $cword -eq 3 ]; then
+	    __bib_complete "$(bib _complete group "$cur")"
+	else
+	    __bib_complete "$(bib _complete pub "$cur")"
+	fi
+    elif [ "$command" = list ]; then
+	__bib_complete "$(bib _complete group "$cur")"
+    fi
+}
+
 __bib_main ()
 {
     local cur words cword prev

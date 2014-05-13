@@ -135,7 +135,10 @@ def search_ads (app, terms, raw=False):
 
     for item in r['results']['docs'][:20]:
         # year isn't important since it's embedded in bibcode.
-        title = item['title'][0] # not sure why this is a list?
+        if 'title' in item:
+            title = item['title'][0] # not sure why this is a list?
+        else:
+            title = '(no title)' # this happens, e.g.: 1991PhDT.......161G
         bibcode = item['bibcode']
         authors = ', '.join (parse_name (_translate_ads_name (n))[1] for n in item['author'])
 

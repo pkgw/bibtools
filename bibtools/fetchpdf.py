@@ -52,6 +52,9 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
     try:
         resp = proxy.open (pdfurl)
     except wu.HTTPError as e:
+        print (e)
+        print ('QQ', e.code, e.url)
+        print (e.read ())
         if e.code == 404 and wu.urlparse (pdfurl)[1] == 'articles.adsabs.harvard.edu':
             warn ('ADS doesn\'t actually have the PDF on file')
             # ADS gave us a URL that turned out to be a lie. Try again,

@@ -193,10 +193,11 @@ def autolearn_pub (app, text):
 
 
 def print_generic_listing (db, pub_seq, stream=sys.stdout):
-    from .util import print_truncated
     info = []
     maxnfaslen = 0
     maxnicklen = 0
+
+    red, reset = get_color_codes (stream, 'red', 'reset')
 
     # TODO: number these, and save the results in a table so one can write
     # "bib read %1" to read the top item of the most recent listing.
@@ -222,9 +223,10 @@ def print_generic_listing (db, pub_seq, stream=sys.stdout):
     db.execute ('DELETE FROM publists WHERE name == ?', ('last_listing', ))
 
     for i, (nfas, year, title, nick, id) in enumerate (info):
-        print ('%%%-*d  %*s.%s  %*s  ' % (maxidxlen, i + 1, maxnfaslen, nfas, year,
-                                          maxnicklen, nick), end='', file=stream)
-        print_truncated (title, ofs, stream=stream)
+        print ('%s%%%-*d%s  %*s.%s  %*s  ' % (red, maxidxlen, i + 1, reset,
+                                              maxnfaslen, nfas, year,
+                                              maxnicklen, nick), end='', file=stream)
+        print_truncated (title, ofs, stream=stream, color='bold')
         db.execute ('INSERT INTO publists VALUES (?, ?, ?)', ('last_listing',
                                                               i, id))
 

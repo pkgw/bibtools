@@ -166,8 +166,65 @@ def run_editor (path):
 
 # Terminal tomfoolery
 
-__all__ += ('set_terminal_echo get_term_width print_linewrapped '
+__all__ += ('get_color_codes set_terminal_echo get_term_width print_linewrapped '
             'print_truncated').split ()
+
+_colors = {
+    'none': '',
+    'reset': '\033[m',
+    'bold': '\033[1m',
+    'red': '\033[31m',
+    'green': '\033[32m',
+    'yellow': '\033[33m',
+    'blue': '\033[34m',
+    'magenta': '\033[35m',
+    'cyan': '\033[36m',
+    'bold-red': '\033[1;31m',
+    'bold-green': '\033[1;32m',
+    'bold-yellow': '\033[1;33m',
+    'bold-blue': '\033[1;34m',
+    'bold-magenta': '\033[1;35m',
+    'bold-cyan': '\033[1;36m',
+    # Could add background colors, etc, but these should hold us for now.
+}
+
+_emit_color_codes = None
+
+def get_color_codes (stream, *colornames):
+    # Right now, if this function is called for various streams, only the one
+    # passed in the first call matters. This is a little busted, but I have
+    # trouble imagining a situation where it will actually matter.
+    global _emit_color_codes
+
+    if _emit_color_codes is None:
+        if stream is None:
+            stream = sys.stdout
+
+        s = stream
+        if hasattr (s, 'stream'):
+            # Transparently handle codec wrappers. Not sure of the best way to
+            # generically check for them, but this'll do for now.
+            s = s.stream
+
+        # XXX: better check, esp. being paged to less.
+        _emit_color_codes = s.isatty ()
+
+    if not _emit_color_codes:
+        return [''] * len (colornames)
+
+    codes = []
+
+    for cn in colornames:
+        if cn is None:
+            codes.append ('')
+        else:
+            cc = _colors.get (cn)
+            if cc is None:
+                raise Exception ('unknown color name "%s"' % cn)
+            codes.append (cc)
+
+    return codes
+
 
 def set_terminal_echo (tstream, enabled):
     import termios
@@ -224,8 +281,12 @@ def get_term_width (tstream):
 
 
 def print_linewrapped (text, maxwidth=None, width=None, stream=None, rest_prefix=''):
-    """We assume that spaces within `text` are fungible."""
+    """We assume that spaces within `text` are fungible.
 
+    We're not aware of terminal escape sequences (e.g., things to set colors),
+    so in some situations we'll wrap over-aggressively.
+
+    """
     if stream is None:
         stream = sys.stdout
 
@@ -276,17 +337,25 @@ def print_linewrapped (text, maxwidth=None, width=None, stream=None, rest_prefix
         write ('\n')
 
 
-def print_truncated (text, curofs, stream=None):
-    """We assume that spaces within `text` are fungible."""
+def print_truncated (text, curofs, stream=None, color=None):
+    """We assume that spaces within `text` are fungible.
 
+    We take a `color` argument because otherwise we might truncate a "reset
+    color" ANSI command!
+
+    """
     if stream is None:
         stream = sys.stdout
 
     w = get_term_width (stream)
     write = stream.write
 
+    cc, reset = get_color_codes (stream, color, 'reset')
+    write (cc)
+
     if w < 0 or curofs + len (text) < w:
         write (text)
+        write (reset)
         write ('\n')
         return
 
@@ -318,4 +387,6 @@ def print_truncated (text, curofs, stream=None):
 
     if not first:
         write (' ')
-    write ('...\n')
+    write ('...')
+    write (reset)
+    write ('\n')

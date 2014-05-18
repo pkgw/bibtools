@@ -146,9 +146,10 @@ def search_ads (app, terms, raw=False):
         info.append ((bibcode, title, authors))
 
     ofs = maxbclen + 2
+    red, reset = get_color_codes (None, 'red', 'reset')
 
     for bc, title, authors in info:
-        print ('%*s  ' % (maxbclen, bc), end='')
-        print_truncated (title, ofs)
+        print ('%s%*s%s  ' % (red, maxbclen, bc, reset), end='')
+        print_truncated (title, ofs, color='bold')
         print ('    ', end='')
         print_truncated (authors, 4)

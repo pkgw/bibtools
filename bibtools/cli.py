@@ -315,24 +315,25 @@ def cmd_info (app, argv):
     else:
         authstr = '(no authors)'
 
-    print_linewrapped (title, rest_prefix='   ')
-    print_linewrapped ('%s (%s)' % (authstr, year), rest_prefix='   ')
+    bold, bred, red, reset = get_color_codes (None, 'bold', 'bold-red', 'red', 'reset')
+    print_linewrapped (bred + title + reset, rest_prefix='   ')
+    print_linewrapped (bold + '%s (%s)' % (authstr, year) + reset, rest_prefix='   ')
 
     nicks = [t[0] for t in app.db.execute ('SELECT nickname FROM nicknames '
                                            'WHERE pubid == ? '
                                            'ORDER BY nickname', (pub.id, ))]
     if len (nicks):
-        print ('nicknames:', *nicks)
+        print (red + 'nicknames:' + reset, *nicks)
 
     if pub.arxiv is not None:
-        print ('arxiv:', pub.arxiv)
+        print (red + 'arxiv:' + reset, pub.arxiv)
     if pub.bibcode is not None:
-        print ('bibcode:', pub.bibcode)
+        print (red + 'bibcode:' + reset, pub.bibcode)
     if pub.doi is not None:
-        print ('DOI:', pub.doi)
+        print (red + 'DOI:' + reset, pub.doi)
     if pub.refdata is not None:
         rd = json.loads (pub.refdata)
-        txt = '~BibTeX: @%s {' % rd.pop ('_type')
+        txt = red + '~BibTeX:' + reset + ' @%s {' % rd.pop ('_type')
         def fmt (t):
             k, v = t
             if ' ' in v:

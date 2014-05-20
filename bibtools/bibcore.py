@@ -192,7 +192,7 @@ def autolearn_pub (app, text):
     die ('cannot auto-learn publication "%s"', text)
 
 
-def print_generic_listing (db, pub_seq, stream=sys.stdout):
+def print_generic_listing (db, pub_seq, sort='year', stream=sys.stdout):
     info = []
     maxnfaslen = 0
     maxnicklen = 0
@@ -218,7 +218,12 @@ def print_generic_listing (db, pub_seq, stream=sys.stdout):
     maxidxlen = len (str (len (info)))
     ofs = maxidxlen + maxnfaslen + maxnicklen + 12
 
-    info.sort (key=lambda t: t[1]) # ascending sort by year.
+    if sort is None:
+        pass
+    elif sort == 'year':
+        info.sort (key=lambda t: t[1])
+    else:
+        raise ValueError ('illegal print_generic_listing sort type "%s"' % sort)
 
     db.execute ('DELETE FROM publists WHERE name == ?', ('last_listing', ))
 

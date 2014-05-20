@@ -407,10 +407,9 @@ def cmd_recent (app, argv):
     if len (argv) != 1:
         raise UsageError ('expected no arguments')
 
-    print_generic_listing (app.db, app.db.pub_fquery ('SELECT DISTINCT p.* '
-                                                      'FROM pubs AS p, history AS h '
-                                                      'WHERE p.id == h.pubid '
-                                                      'ORDER BY date DESC LIMIT 10'))
+    pubs = app.db.pub_fquery ('SELECT DISTINCT p.* FROM pubs AS p, history AS h '
+                              'WHERE p.id == h.pubid ORDER BY date DESC LIMIT 10')
+    print_generic_listing (app.db, pubs, sort=None)
 
 
 def cmd_refgrep (app, argv):

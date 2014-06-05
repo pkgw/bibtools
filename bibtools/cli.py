@@ -383,6 +383,24 @@ def cmd_list (app, argv):
     print_generic_listing (app.db, app.locate_pubs (argv[1:], noneok=True))
 
 
+def cmd_pdfpath (app, argv):
+    if len (argv) != 2:
+        raise UsageError ('expected exactly 1 argument')
+
+    idtext = argv[1]
+    pub = app.locate_or_die (idtext)
+
+    sha1 = app.db.getfirstval ('SELECT sha1 FROM pdfs WHERE pubid = ?', pub.id)
+    if sha1 is None:
+        # XXX: only do this optionally, maybe?
+        sha1 = app.try_get_pdf (pub)
+
+    if sha1 is not None:
+        print (libpath (sha1, 'pdf'))
+
+    # simply print nothing if no PDF available.
+
+
 def cmd_read (app, argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')

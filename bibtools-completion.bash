@@ -164,7 +164,7 @@ __bib_main ()
     fi
 
     case "$command" in
-	ads|apage|delete|edit|forgetpdf|info|jpage|read)
+	ads|apage|delete|edit|forgetpdf|info|jpage|pdfpath|read)
 	    __bib_complete "$(bib _complete pub "$cur")" ; return ;;
     esac
 

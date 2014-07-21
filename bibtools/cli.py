@@ -20,6 +20,31 @@ class UsageError (BibError):
     pass
 
 
+def pop_option (ident, argv=None):
+    """A lame routine for grabbing command-line arguments. Returns a boolean
+    indicating whether the option was present. If it was, it's removed from
+    the argument string. Because of the lame behavior, options can't be
+    combined, and non-boolean options aren't supported. Operates on sys.argv
+    by default.
+
+    Note that this will proceed merrily if argv[0] matches your option.
+
+    """
+    if argv is None:
+        from sys import argv
+
+    if len (ident) == 1:
+        ident = '-' + ident
+    else:
+        ident = '--' + ident
+
+    found = ident in argv
+    if found:
+        argv.remove (ident)
+
+    return found
+
+
 def cmd_ads (app, argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
@@ -196,6 +221,47 @@ def cmd_forgetpdf (app, argv):
         warn ('no PDFs were on file for "%s"', idtext)
 
     app.db.execute ('DELETE FROM pdfs WHERE pubid == ?', (pub.id, ))
+
+
+def cmd_grep (app, argv):
+    import re
+
+    nocase = pop_option ('i', argv)
+    fixed = pop_option ('f', argv)
+
+    if len (argv) != 2:
+        raise UsageError ('expected exactly 1 non-option argument')
+
+    regex = argv[1]
+
+    try:
+        # Could use the Sqlite REGEXP machinery, but it should be somewhat
+        # faster to precompile the regex. Premature optimization FTW.
+
+        if fixed:
+            def rmatch (i):
+                if i is None:
+                    return False
+                return regex in i
+        else:
+            flags = 0
+
+            if nocase:
+                flags |= re.IGNORECASE
+
+            comp = re.compile (regex, flags)
+
+            def rmatch (i):
+                if i is None:
+                    return False
+                return comp.search (i) is not None
+
+        app.db.create_function ('rmatch', 1, rmatch)
+        q = app.db.pub_fquery ('SELECT * FROM pubs '
+                               'WHERE rmatch(title) || rmatch(abstract)')
+        print_generic_listing (app.db, q)
+    except Exception as e:
+        die (e)
 
 
 def _group_cmd_add (app, argv):
@@ -447,13 +513,11 @@ def cmd_refgrep (app, argv):
 def cmd_rq (app, argv):
     from .ads import search_ads
 
+    # XXX need a real option-parsing setup
+    rawmode = pop_option ('raw', argv)
+
     if len (argv) < 2:
         raise UsageError ('expected arguments')
-
-    # XXX need a real option-parsing setup
-    rawmode = '--raw' in argv
-    if rawmode:
-        argv.remove ('--raw')
 
     search_ads (app, parse_search (argv[1:]), raw=rawmode)
 

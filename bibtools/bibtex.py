@@ -275,6 +275,13 @@ class ApjBibtexStyle (BibtexStyleBase):
             # Proc. SPIE: rendered as article, not @inproceedings.
             rd['_type'] = 'article'
 
+        if rd.get ('_type') == '!arxiv':
+            rd['_type'] = 'article'
+            rd['journal'] = rd['note']
+            del rd['note']
+            rd['eprint'] = pub.arxiv
+            rd['archivePrefix'] = 'arxiv'
+
 
 bibtex_styles = {'apj': ApjBibtexStyle}
 

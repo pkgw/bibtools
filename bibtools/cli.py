@@ -228,11 +228,17 @@ def cmd_grep (app, argv):
 
     nocase = pop_option ('i', argv)
     fixed = pop_option ('f', argv)
+    refinfo = pop_option ('r', argv)
 
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 non-option argument')
 
     regex = argv[1]
+
+    if refinfo:
+        fields = ['arxiv', 'bibcode', 'doi', 'refdata']
+    else:
+        fields = ['title', 'abstract']
 
     try:
         # Could use the Sqlite REGEXP machinery, but it should be somewhat
@@ -257,8 +263,8 @@ def cmd_grep (app, argv):
                 return comp.search (i) is not None
 
         app.db.create_function ('rmatch', 1, rmatch)
-        q = app.db.pub_fquery ('SELECT * FROM pubs '
-                               'WHERE rmatch(title) || rmatch(abstract)')
+        q = app.db.pub_fquery ('SELECT * FROM pubs WHERE ' +
+                               '||'.join ('rmatch(%s)' % f for f in fields))
         print_generic_listing (app.db, q)
     except Exception as e:
         die (e)

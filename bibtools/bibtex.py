@@ -283,7 +283,23 @@ class ApjBibtexStyle (BibtexStyleBase):
             rd['archivePrefix'] = 'arxiv'
 
 
-bibtex_styles = {'apj': ApjBibtexStyle}
+class NsfBibtexStyle (BibtexStyleBase):
+    normalize_pages = True
+    include_title_all = True
+
+    def _massage_pub (self, db, pub, rd):
+        if rd.get ('_type') == '!arxiv':
+            rd['_type'] = 'article'
+            rd['journal'] = rd['note']
+            del rd['note']
+            rd['eprint'] = pub.arxiv
+            rd['archivePrefix'] = 'arxiv'
+
+
+bibtex_styles = {
+    'apj': ApjBibtexStyle,
+    'nsf': NsfBibtexStyle,
+}
 
 
 def write_bibtexified (write, btdata):

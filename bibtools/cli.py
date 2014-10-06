@@ -168,14 +168,24 @@ def cmd_dump_crossref (app, argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
+    # Here we have a slight wrinkle from the usual approach. If the argument
+    # is a DOI, just fetch it without trying to autolearn a database entry.
+
     idtext = argv[1]
 
-    pub = app.locate_or_die (idtext, autolearn=True)
-    if pub.doi is None:
-        die ('publication "%s" has no associated DOI, which is necessary', idtext)
+    from .bibcore import classify_pub_ref
+    kind, content = classify_pub_ref (idtext)
+
+    if kind == 'doi':
+        doi = content
+    else:
+        pub = app.locate_or_die (idtext, autolearn=True)
+        if pub.doi is None:
+            die ('publication "%s" has no associated DOI, which is necessary', idtext)
+        doi = pub.doi
 
     from .crossref import stream_doi
-    url, handle = stream_doi (app, pub.doi)
+    url, handle = stream_doi (app, doi)
 
     for data in handle:
         sys.stdout.write (data)

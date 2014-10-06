@@ -164,6 +164,23 @@ def cmd_dump (app, argv):
     app.export_all (sys.stdout, 72)
 
 
+def cmd_dump_crossref (app, argv):
+    if len (argv) != 2:
+        raise UsageError ('expected exactly 1 argument')
+
+    idtext = argv[1]
+
+    pub = app.locate_or_die (idtext, autolearn=True)
+    if pub.doi is None:
+        die ('publication "%s" has no associated DOI, which is necessary', idtext)
+
+    from .crossref import stream_doi
+    url, handle = stream_doi (app, pub.doi)
+
+    for data in handle:
+        sys.stdout.write (data)
+
+
 def cmd_edit (app, argv):
     from . import textfmt
 

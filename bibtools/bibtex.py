@@ -180,15 +180,19 @@ class BibtexStyleBase (object):
     def render_name (self, name):
         given, family = name
 
+        if len (given):
+            givenbit = ', ' + unicode_to_latex (given)
+        else:
+            givenbit = ''
+
         fbits = family.rsplit (',', 1)
 
         if len (fbits) > 1:
-            return '{%s}, %s, %s' % (unicode_to_latex (fbits[0]),
-                                     unicode_to_latex (fbits[1]),
-                                     unicode_to_latex (given))
+            return '{%s}, %s%s' % (unicode_to_latex (fbits[0]),
+                                   unicode_to_latex (fbits[1]),
+                                   givenbit)
 
-        return '{%s}, %s' % (unicode_to_latex (fbits[0]),
-                             unicode_to_latex (given))
+        return '{%s}%s' % (unicode_to_latex (fbits[0]), givenbit)
 
 
     def render_names (self, names):

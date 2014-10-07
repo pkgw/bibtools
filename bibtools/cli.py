@@ -188,7 +188,8 @@ def cmd_dump_crossref (app, argv):
     url, handle = stream_doi (app, doi)
 
     for data in handle:
-        sys.stdout.write (data)
+        # We have raw bytes, so write to the raw stdout stream.
+        sys.stdout.stream.write (data)
 
 
 def cmd_edit (app, argv):

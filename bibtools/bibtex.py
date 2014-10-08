@@ -254,6 +254,25 @@ class BibtexStyleBase (object):
                 # shouldn't need escaping.
                 rd['url'] = unicode_to_latex ('http://arxiv.org/abs/' + pub.arxiv)
 
+        url = rd.get ('url')
+        if url is not None:
+            # This gets hacky. unicode_to_latex renders a tilde in a URL out
+            # to something like ".../\textasciitilde{}user/...". In the final
+            # output, this shows up as "/~{}user/", I think because the URLs
+            # show up in hyperref environments that change the meanings of '{'
+            # and '}'. (I *think*.) However, since URLs shouldn't contain
+            # spaces, we can safely replace the {} with a space to terminate
+            # the control sequence. (Normally this would be risky since if
+            # there was supposed to be a real space after the control
+            # sequence, it would get gobbled.) So we do this:
+
+            if ' ' in url:
+                warn ('spaces in output url "%s"', url)
+                url = url.replace (' ', r'\%20')
+
+            url = url.replace ('{}', ' ')
+            rd['url'] = url
+
         return rd
 
 

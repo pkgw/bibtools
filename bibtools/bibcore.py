@@ -192,10 +192,15 @@ def autolearn_pub (app, text):
     die ('cannot auto-learn publication "%s"', text)
 
 
-def print_generic_listing (db, pub_seq, sort='year', stream=sys.stdout):
+def print_generic_listing (db, pub_seq, sort='year', stream=None):
     info = []
     maxnfaslen = 0
     maxnicklen = 0
+
+    if stream is None:
+        # We have to do the default this way to pick up the encoder-wrapped
+        # version of sys.stdout set up in App.__init__ ().
+        stream = sys.stdout
 
     red, reset = get_color_codes (stream, 'red', 'reset')
 

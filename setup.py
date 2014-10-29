@@ -11,7 +11,13 @@ setup (
     name = 'bibtools',
     version = '0.1',
 
-    zip_safe = True,
+    # This package actually *is* zip-safe, but I've run into issues with
+    # installing it as a Zip: in particular, the install sometimes fails with
+    # "bad local file header", and backtraces don't include source lines.
+    # These are annoying enough and I don't really care so we just install it
+    # as flat files.
+    zip_safe = False,
+
     packages = ['bibtools', 'bibtools.hacked_bibtexparser'],
 
     # install_requires = ['docutils >= 0.3'],

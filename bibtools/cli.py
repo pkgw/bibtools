@@ -49,14 +49,26 @@ def cmd_ads (app, argv):
     if len (argv) != 2:
         raise UsageError ('expected exactly 1 argument')
 
+    # Here we have a slight wrinkle from the usual approach. If the argument
+    # is a bibcode, just fetch it without trying to autolearn a database
+    # entry.
+
     idtext = argv[1]
 
-    pub = app.locate_or_die (idtext)
-    if pub.bibcode is None:
-        die ('cannot open ADS for this publication: no bibcode on record')
+    from .bibcore import classify_pub_ref
+    kind, content = classify_pub_ref (idtext)
 
-    app.db.log_action (pub.id, 'visit')
-    app.open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/' + wu.urlquote (pub.bibcode))
+    if kind == 'bibcode':
+        bibcode = content
+        # XXX: should log a visit if there's a pub, in this case
+    else:
+        pub = app.locate_or_die (idtext)
+        if pub.bibcode is None:
+            die ('cannot open ADS for this publication: no bibcode on record')
+        bibcode = pub.bibcode
+        app.db.log_action (pub.id, 'visit')
+
+    app.open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/' + wu.urlquote (bibcode))
 
 
 def cmd_apage (app, argv):

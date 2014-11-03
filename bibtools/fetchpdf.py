@@ -26,7 +26,12 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
     if doi is not None:
         jurl = doi_to_journal_url (doi)
         print ('[Attempting to scrape', jurl, '...]')
-        pdfurl = proxy.unmangle (scrape_pdf_url (proxy.open (jurl)))
+        try:
+            pdfurl = proxy.unmangle (scrape_pdf_url (proxy.open (jurl)))
+        except wu.HTTPError as e:
+            warn ('got HTTP error %s (%s) when trying to fetch %s', e.code,
+                  e.reason, e.url)
+            return None
 
     if pdfurl is None and bibcode is not None:
         # This never returns None: ADS will always give a URL, but it may just
@@ -58,7 +63,10 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
             # ignoring it.
             return try_fetch_pdf (proxy, destpath, arxiv=arxiv, bibcode=None,
                                   doi=doi)
-        raise
+
+        warn ('got HTTP error %s (%s) when trying to fetch %s', e.code,
+              e.reason, e.url)
+        return None
 
     first = True
 

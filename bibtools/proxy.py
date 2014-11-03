@@ -79,16 +79,16 @@ class HarvardProxy (object):
 
     def open (self, url):
         scheme, loc, path, params, query, frag = urlparse (url)
+        proxyurl = urlunparse ((scheme, loc + self.suffix, path,
+                                params, query, frag))
 
-        if loc.endswith ('arxiv.org'):
-            # For whatever reason, the proxy server doesn't work
-            # if we try to access Arxiv with it.
-            proxyurl = url
-        else:
-            loc += self.suffix
-            proxyurl = urlunparse ((scheme, loc, path, params, query, frag))
-
-        resp = self.opener.open (proxyurl)
+        try:
+            resp = self.opener.open (proxyurl)
+        except urllib2.HTTPError as e:
+            if e.code == 404:
+                # The proxy doesn't feel like proxying this URL. Try just
+                # accessing it directly.
+                return self.opener.open (url)
 
         if resp.url.startswith (self.loginurl):
             resp = self.login (resp)

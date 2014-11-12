@@ -166,6 +166,8 @@ __bib_main ()
     case "$command" in
 	ads|apage|delete|edit|forgetpdf|info|jpage|pdfpath|read)
 	    __bib_complete "$(bib _complete pub "$cur")" ; return ;;
+	list)
+	    __bib_complete "$(bib _complete multipub "$cur")" ; return ;;
     esac
 
     local completion_func="_bib_${command//-/_}"

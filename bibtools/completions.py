@@ -39,7 +39,7 @@ def complete_commands (app, args):
         print (item[4:])
 
 
-def complete_pub (app, args):
+def _complete_pub_common (app, args, is_multi):
     import string
 
     if not len (args) or not len (args[0]):
@@ -60,11 +60,18 @@ def complete_pub (app, args):
         print_bibcodes (app, partial)
 
     if partial[0] in string.letters:
-        print_nfasys (app, partial)
+        print_nfasys (app, partial, is_multi)
 
     print_arxivs (app, partial)
     print_nicknames (app, partial)
     # TODO: percent IDs; "doi:...", "arxiv:..."
+
+
+def complete_pub (app, args):
+    _complete_pub_common (app, args, False)
+
+def complete_multipub (app, args):
+    _complete_pub_common (app, args, True)
 
 
 def print_dois (app, partial):
@@ -79,18 +86,28 @@ def print_bibcodes (app, partial):
         print (tup[0])
 
 
-def print_nfasys (app, partial):
-    if '.' not in partial:
-        for tup in app.db.execute ('SELECT DISTINCT nfas, year FROM pubs WHERE '
+def print_nfasys (app, partial, is_multi):
+    # Case where the year hasn't yet been provided
+    if is_multi:
+        for tup in app.db.execute ('SELECT DISTINCT nfas FROM pubs WHERE '
                                    'nfas LIKE ?', (partial + '%', )):
-            print (tup[0] + '.' + str (tup[1]))
-        return
+            print (tup[0] + '.*')
 
-    nfas = partial.rsplit ('.', 1)[0]
+    for tup in app.db.execute ('SELECT DISTINCT nfas, year FROM pubs WHERE '
+                               'nfas LIKE ?', (partial + '%', )):
+        print (tup[0] + '.' + str (tup[1]))
 
-    for tup in app.db.execute ('SELECT DISTINCT year FROM pubs WHERE '
-                               'nfas == ?', (nfas, )):
-        print (nfas + '.' + str (tup[0]))
+    if '.' in partial:
+        # Maybe a partial year has been provided?
+        nfas = partial.rsplit ('.', 1)[0]
+        need_print_star = is_multi
+
+        for tup in app.db.execute ('SELECT DISTINCT year FROM pubs WHERE '
+                                   'nfas == ?', (nfas, )):
+            if need_print_star:
+                print (nfas + '.*')
+                need_print_star = False
+            print (nfas + '.' + str (tup[0]))
 
 
 def print_arxivs (app, partial):

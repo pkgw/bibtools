@@ -89,6 +89,7 @@ class HarvardProxy (object):
                 # The proxy doesn't feel like proxying this URL. Try just
                 # accessing it directly.
                 return self.opener.open (url)
+            raise e
 
         if resp.url.startswith (self.loginurl):
             resp = self.login (resp)

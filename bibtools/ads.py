@@ -124,7 +124,10 @@ def search_ads (app, terms, raw=False):
         else:
             die ('don\'t know how to express search term %r to ADS', info)
 
-    r = _run_ads_search (app, adsterms, ['database:astronomy']) # XXX more hardcoding
+    try:
+        r = _run_ads_search (app, adsterms, ['database:astronomy']) # XXX more hardcoding
+    except Exception as e:
+        die ('could not perform ADS search: %s', e)
 
     if raw:
         json.dump (r, sys.stdout, ensure_ascii=False, indent=2, separators=(',', ': '))

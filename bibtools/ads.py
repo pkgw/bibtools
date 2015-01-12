@@ -106,7 +106,7 @@ def _run_ads_search (app, searchterms, filterterms):
     for ft in filterterms:
         q.append (('filter', ft))
 
-    url = 'http://adslabs.org/adsabs/api/search?' + wu.urlencode (q)
+    url = 'http://adslabs.org/adsabs/api/search/?' + wu.urlencode (q)
     return json.load (wu.urlopen (url))
 
 

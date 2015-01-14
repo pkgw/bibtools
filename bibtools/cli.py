@@ -68,7 +68,7 @@ def cmd_ads (app, argv):
         bibcode = pub.bibcode
         app.db.log_action (pub.id, 'visit')
 
-    app.open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/' + wu.urlquote (bibcode))
+    app.open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/%s/' % wu.urlquote (bibcode))
 
 
 def cmd_apage (app, argv):

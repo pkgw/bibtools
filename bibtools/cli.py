@@ -124,6 +124,26 @@ def cmd_btexport (app, argv):
     export_to_bibtex (app, style, citednicks)
 
 
+def cmd_btprint (app, argv):
+    from .bibtex import bibtex_styles, export_to_bibtex
+
+    if len (argv) < 3:
+        raise UsageError ('expected at least 2 arguments')
+
+    outstyle = argv[1]
+    nicks = argv[2:]
+
+    # Load/check style
+    factory = bibtex_styles.get (outstyle)
+    if factory is None:
+        die ('unrecognized BibTeX output style "%s"', outstyle)
+
+    style = factory ()
+
+    # That's all there is to it.
+    export_to_bibtex (app, style, nicks)
+
+
 def cmd_canon_journal (app, argv):
     if len (argv) not in (3, 4):
         raise UsageError ('expected 2 or 3 arguments')

@@ -25,7 +25,7 @@ class Ads (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) != 1:
-            raise UsageError ('expected exactly 1 argument')
+            raise multitool.UsageError ('expected exactly 1 argument')
 
         # Here we have a slight wrinkle from the usual approach. If the argument
         # is a bibcode, just fetch it without trying to autolearn a database
@@ -56,7 +56,7 @@ class Apage (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) != 1:
-            raise UsageError ('expected exactly 1 argument')
+            raise multitool.UsageError ('expected exactly 1 argument')
 
         idtext = args[0]
 
@@ -77,7 +77,7 @@ class Btexport (multitool.Command):
         from .bibtex import bibtex_styles, export_to_bibtex
 
         if len (args) != 2:
-            raise UsageError ('expected exactly 2 arguments')
+            raise multitool.UsageError ('expected exactly 2 arguments')
 
         outstyle = args[0]
         auxfile = args[1]
@@ -121,7 +121,7 @@ class Btprint (multitool.Command):
         from .bibtex import bibtex_styles, export_to_bibtex
 
         if len (args) < 2:
-            raise UsageError ('expected at least 2 arguments')
+            raise multitool.UsageError ('expected at least 2 arguments')
 
         outstyle = args[0]
         nicks = args[1:]
@@ -144,7 +144,7 @@ class CanonJournal (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) not in (2, 3):
-            raise UsageError ('expected 2 or 3 arguments')
+            raise multitool.UsageError ('expected 2 or 3 arguments')
 
         oldjournal = args[0]
         newjournal = args[1]
@@ -171,7 +171,7 @@ class _Complete (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) < 1:
-            raise UsageError ('expected at least 1 argument')
+            raise multitool.UsageError ('expected at least 1 argument')
 
         subcommand = args[0]
 
@@ -186,7 +186,7 @@ class Delete (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) != 1:
-            raise UsageError ('expected exactly 1 argument')
+            raise multitool.UsageError ('expected exactly 1 argument')
 
         idtext = args[0]
 
@@ -205,7 +205,7 @@ class Dump (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) != 1:
-            raise UsageError ('expected no arguments')
+            raise multitool.UsageError ('expected no arguments')
 
         app.export_all (sys.stdout, 72)
 
@@ -217,7 +217,7 @@ class DumpCrossref (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) != 1:
-            raise UsageError ('expected exactly 1 argument')
+            raise multitool.UsageError ('expected exactly 1 argument')
 
         # Here we have a slight wrinkle from the usual approach. If the argument
         # is a DOI, just fetch it without trying to autolearn a database entry.
@@ -254,7 +254,7 @@ class Edit (multitool.Command):
         from tempfile import NamedTemporaryFile
 
         if len (args) != 1:
-            raise UsageError ('expected exactly 1 argument')
+            raise multitool.UsageError ('expected exactly 1 argument')
 
         idtext = args[0]
 
@@ -291,7 +291,7 @@ class ForgetPDF (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) != 1:
-            raise UsageError ('expected exactly 1 argument')
+            raise multitool.UsageError ('expected exactly 1 argument')
 
         idtext = args[0]
         pub = app.locate_or_die (idtext)
@@ -325,7 +325,7 @@ class Grep (multitool.Command):
         refinfo = pop_option ('r', [''] + args)
 
         if len (args) != 1:
-            raise UsageError ('expected exactly 1 non-option argument')
+            raise multitool.UsageError ('expected exactly 1 non-option argument')
 
         regex = args[0]
 
@@ -377,7 +377,7 @@ rm   - Remove a publication from a group.
 
     def cmd_add (self, app, args):
         if len (args) < 2:
-            raise UsageError ('expected at least 2 arguments')
+            raise multitool.UsageError ('expected at least 2 arguments')
 
         groupname = args[0]
         # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
@@ -394,7 +394,7 @@ rm   - Remove a publication from a group.
 
     def cmd_list (self, app, args):
         if len (args) not in (0, 1):
-            raise UsageError ('expected 0 or 1 arguments')
+            raise multitool.UsageError ('expected 0 or 1 arguments')
 
         try:
             if len (args) == 0:
@@ -419,7 +419,7 @@ rm   - Remove a publication from a group.
 
     def cmd_rm (self, app, args):
         if len (args) < 2:
-            raise UsageError ('expected at least 2 arguments')
+            raise multitool.UsageError ('expected at least 2 arguments')
 
         groupname = args[0]
         # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
@@ -449,7 +449,7 @@ rm   - Remove a publication from a group.
 
     def invoke (self, app, args):
         if len (args) < 1:
-            raise UsageError ('"group" requires a subcommand')
+            raise multitool.UsageError ('"group" requires a subcommand')
 
         subcmd = args[0]
         subfunc = getattr (self, 'cmd_' + subcmd.replace ('-', '_'), None)
@@ -471,7 +471,7 @@ class Init (multitool.Command):
         from .db import init
 
         if len (args) != 0:
-            raise UsageError ('expected no arguments')
+            raise multitool.UsageError ('expected no arguments')
 
         init (app)
 
@@ -483,7 +483,7 @@ class Info (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) != 1:
-            raise UsageError ('expected exactly 1 argument')
+            raise multitool.UsageError ('expected exactly 1 argument')
 
         idtext = args[0]
 
@@ -547,7 +547,7 @@ class Ingest (multitool.Command):
         from .bibtex import import_stream
 
         if len (args) != 1:
-            raise UsageError ('expected exactly 1 argument')
+            raise multitool.UsageError ('expected exactly 1 argument')
 
         bibpath = args[0]
 
@@ -562,7 +562,7 @@ class Jpage (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) != 1:
-            raise UsageError ('expected exactly 1 argument')
+            raise multitool.UsageError ('expected exactly 1 argument')
 
         idtext = args[0]
 
@@ -581,7 +581,7 @@ class List (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) < 1:
-            raise UsageError ('expected arguments')
+            raise multitool.UsageError ('expected arguments')
 
         print_generic_listing (app.db, app.locate_pubs (args, noneok=True))
 
@@ -593,7 +593,7 @@ class Pdfpath (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) != 1:
-            raise UsageError ('expected exactly 1 argument')
+            raise multitool.UsageError ('expected exactly 1 argument')
 
         idtext = args[0]
         pub = app.locate_or_die (idtext)
@@ -616,7 +616,7 @@ class Read (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) != 1:
-            raise UsageError ('expected exactly 1 argument')
+            raise multitool.UsageError ('expected exactly 1 argument')
 
         idtext = args[0]
 
@@ -642,7 +642,7 @@ class Recent (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) != 0:
-            raise UsageError ('expected no arguments')
+            raise multitool.UsageError ('expected no arguments')
 
         pubs = app.db.pub_fquery ('SELECT DISTINCT p.* FROM pubs AS p, history AS h '
                                   'WHERE p.id == h.pubid ORDER BY date DESC LIMIT 10')
@@ -661,7 +661,7 @@ class Rq (multitool.Command):
         rawmode = pop_option ('raw', [''] + args)
 
         if len (args) < 1:
-            raise UsageError ('expected arguments')
+            raise multitool.UsageError ('expected arguments')
 
         search_ads (app, parse_search (args), raw=rawmode)
 
@@ -674,7 +674,7 @@ class Rsbackup (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) != 0:
-            raise UsageError ('expected no arguments')
+            raise multitool.UsageError ('expected no arguments')
 
         app.rsync_backup ()
 
@@ -686,7 +686,7 @@ class Setpdf (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) != 2:
-            raise UsageError ('expected exactly 2 arguments')
+            raise multitool.UsageError ('expected exactly 2 arguments')
 
         idtext = args[0]
         pdfpath = args[1]
@@ -727,7 +727,7 @@ class Setsecret (multitool.Command):
 
     def invoke (self, app, args):
         if len (args) != 0:
-            raise UsageError ('expected no arguments')
+            raise multitool.UsageError ('expected no arguments')
 
         # Note that we've wrapped sys.stdin inside a UTF-8 decoder, so we have to
         # check the true underlying stream.

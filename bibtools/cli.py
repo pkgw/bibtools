@@ -23,7 +23,7 @@ class Ads (multitool.Command):
     argspec = '<pub>'
     summary = 'Open the publication\'s ADS abstract page.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) != 1:
             raise multitool.UsageError ('expected exactly 1 argument')
 
@@ -54,7 +54,7 @@ class Apage (multitool.Command):
     argspec = '<pub>'
     summary = 'Open the publication\'s arXiV abstract page.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) != 1:
             raise multitool.UsageError ('expected exactly 1 argument')
 
@@ -73,7 +73,7 @@ class Btexport (multitool.Command):
     argspec = '<output-style> <aux-file>'
     summary = 'Dump BibTeX entries needed for an .aux file.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         from .bibtex import bibtex_styles, export_to_bibtex
 
         if len (args) != 2:
@@ -117,7 +117,7 @@ class Btprint (multitool.Command):
     argspec = '<outstyle> <pub-nicknames...>'
     summary = 'Print BibTeX entries for named publications.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         from .bibtex import bibtex_styles, export_to_bibtex
 
         if len (args) < 2:
@@ -142,7 +142,7 @@ class CanonJournal (multitool.Command):
     argspec = '<old-journal-name> <new-journal-name> [new-journal-ISSN]'
     summary = 'Canonicalize a journal name in the reference data.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) not in (2, 3):
             raise multitool.UsageError ('expected 2 or 3 arguments')
 
@@ -169,7 +169,7 @@ class _Complete (multitool.Command):
     argspec = '{miscellaneous}'
     summary = 'Print completion information for shell integration.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) < 1:
             raise multitool.UsageError ('expected at least 1 argument')
 
@@ -184,7 +184,7 @@ class Delete (multitool.Command):
     argspec = '<pub>'
     summary = 'Delete the record for a publication.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) != 1:
             raise multitool.UsageError ('expected exactly 1 argument')
 
@@ -203,7 +203,7 @@ class Dump (multitool.Command):
     summary = 'Dump the database in a textual backup format.'
     help_if_no_args = False
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) != 1:
             raise multitool.UsageError ('expected no arguments')
 
@@ -215,7 +215,7 @@ class DumpCrossref (multitool.Command):
     argspec = '<pub>'
     summary = 'Dump the Crossref XML record for a publication.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) != 1:
             raise multitool.UsageError ('expected exactly 1 argument')
 
@@ -248,7 +248,7 @@ class Edit (multitool.Command):
     argspec = '<pub>'
     summary = 'Edit a publication\'s record.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         from . import textfmt
 
         from tempfile import NamedTemporaryFile
@@ -289,7 +289,7 @@ class ForgetPDF (multitool.Command):
     argspec = '<pub>'
     summary = 'Discard information about the publication\'s fulltext PDF.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) != 1:
             raise multitool.UsageError ('expected exactly 1 argument')
 
@@ -317,7 +317,7 @@ class Grep (multitool.Command):
     argspec = '[-i][-f][-r] <pattern>'
     summary = 'Search for text in the bibliographic database.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         import re
 
         nocase = pop_option ('i', [''] + args)
@@ -364,101 +364,96 @@ class Grep (multitool.Command):
             die (e)
 
 
-class Group (multitool.Command):
+class Group (multitool.DelegatingCommand):
     name = 'group'
-    argspec = '{add|list|rm} [options...]'
     summary = 'Operate on groups of publications.'
-    more_help = """Sub-commands are:
 
-add  - Add a publication to a group.
-list - List all groups, or list the publications in the named group.
-rm   - Remove a publication from a group.
-"""
+    class Add (multitool.Command):
+        name = 'add'
+        argspec = '<group> <pubs...>'
+        summary = 'Add publications to a group.'
 
-    def cmd_add (self, app, args):
-        if len (args) < 2:
-            raise multitool.UsageError ('expected at least 2 arguments')
+        def invoke (self, args, app=None, **kwargs):
+            if len (args) < 2:
+                raise multitool.UsageError ('expected at least 2 arguments')
 
-        groupname = args[0]
-        # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
-        dbgroupname = 'user_' + groupname
+            groupname = args[0]
+            # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
+            dbgroupname = 'user_' + groupname
 
-        try:
-            for pub in app.locate_pubs (args[1:], autolearn=True):
-                app.db.execute ('INSERT OR IGNORE INTO publists VALUES (?, '
-                                '  (SELECT ifnull(max(idx)+1,0) FROM publists WHERE name == ?), '
-                                '?)', (dbgroupname, dbgroupname, pub.id))
-        except Exception as e:
-            die (e)
-
-
-    def cmd_list (self, app, args):
-        if len (args) not in (0, 1):
-            raise multitool.UsageError ('expected 0 or 1 arguments')
-
-        try:
-            if len (args) == 0:
-                # List the groups.
-                q = app.db.execute ('SELECT DISTINCT name FROM publists WHERE '
-                                    'name LIKE ? ORDER BY name ASC', ('user_%', ))
-                for (name, ) in q:
-                    print (name[5:])
-            else:
-                # List the items in a group.
-                groupname = args[0]
-                # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
-                dbgroupname = 'user_' + groupname
-
-                q = app.db.pub_fquery ('SELECT p.* FROM pubs AS p, publists AS pl '
-                                       'WHERE p.id == pl.pubid AND pl.name == ? '
-                                       'ORDER BY pl.idx', dbgroupname)
-                print_generic_listing (app.db, q)
-        except Exception as e:
-            die (e)
+            try:
+                for pub in app.locate_pubs (args[1:], autolearn=True):
+                    app.db.execute ('INSERT OR IGNORE INTO publists VALUES (?, '
+                                    '  (SELECT ifnull(max(idx)+1,0) FROM publists WHERE name == ?), '
+                                    '?)', (dbgroupname, dbgroupname, pub.id))
+            except Exception as e:
+                die (e)
 
 
-    def cmd_rm (self, app, args):
-        if len (args) < 2:
-            raise multitool.UsageError ('expected at least 2 arguments')
+    class List (multitool.Command):
+        name = 'list'
+        argspec = '[group]'
+        summary = 'List all of the groups, or the publications in a group.'
+        help_if_no_args = False
 
-        groupname = args[0]
-        # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
-        dbgroupname = 'user_' + groupname
+        def invoke (self, args, app=None, **kwargs):
+            if len (args) not in (0, 1):
+                raise multitool.UsageError ('expected 0 or 1 arguments')
 
-        # We want to complain if an individual term doesn't match anything in the
-        # group, but if the user specifies "williams.*" and we get a bunch of hits
-        # only one of which is in the group, that's OK. So we need to process terms
-        # individually.
+            try:
+                if len (args) == 0:
+                    # List the groups.
+                    q = app.db.execute ('SELECT DISTINCT name FROM publists WHERE '
+                                        'name LIKE ? ORDER BY name ASC', ('user_%', ))
+                    for (name, ) in q:
+                        print (name[5:])
+                else:
+                    # List the items in a group.
+                    groupname = args[0]
+                    # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
+                    dbgroupname = 'user_' + groupname
 
-        c = app.db.cursor ()
-
-        try:
-            for idtext in args[1:]:
-                ndeleted = 0
-
-                for pub in app.locate_pubs ((idtext,)):
-                    c.execute ('DELETE FROM publists WHERE name == ? AND pubid == ?',
-                               (dbgroupname, pub.id))
-                    ndeleted += c.rowcount
-
-                if not ndeleted:
-                    warn ('no entries in "%s" matched "%s"', groupname, idtext)
-        except Exception as e:
-            die (e)
+                    q = app.db.pub_fquery ('SELECT p.* FROM pubs AS p, publists AS pl '
+                                           'WHERE p.id == pl.pubid AND pl.name == ? '
+                                           'ORDER BY pl.idx', dbgroupname)
+                    print_generic_listing (app.db, q)
+            except Exception as e:
+                die (e)
 
 
-    def invoke (self, app, args):
-        if len (args) < 1:
-            raise multitool.UsageError ('"group" requires a subcommand')
+    class Rm (multitool.Command):
+        name = 'rm'
+        argspec = '<group> <pubs...>'
+        summary = 'Remove publications from a group.'
 
-        subcmd = args[0]
-        subfunc = getattr (self, 'cmd_' + subcmd.replace ('-', '_'), None)
+        def invoke (self, args, app=None, **kwargs):
+            if len (args) < 2:
+                raise multitool.UsageError ('expected at least 2 arguments')
 
-        if not callable (subfunc):
-            die ('"%s" is not a recognized subcommand of "group"; run me without '
-                 'arguments for usage help', subcmd)
+            groupname = args[0]
+            # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
+            dbgroupname = 'user_' + groupname
 
-        subfunc (app, args[1:])
+            # We want to complain if an individual term doesn't match anything in the
+            # group, but if the user specifies "williams.*" and we get a bunch of hits
+            # only one of which is in the group, that's OK. So we need to process terms
+            # individually.
+
+            c = app.db.cursor ()
+
+            try:
+                for idtext in args[1:]:
+                    ndeleted = 0
+
+                    for pub in app.locate_pubs ((idtext,)):
+                        c.execute ('DELETE FROM publists WHERE name == ? AND pubid == ?',
+                                   (dbgroupname, pub.id))
+                        ndeleted += c.rowcount
+
+                    if not ndeleted:
+                        warn ('no entries in "%s" matched "%s"', groupname, idtext)
+            except Exception as e:
+                die (e)
 
 
 class Init (multitool.Command):
@@ -467,7 +462,7 @@ class Init (multitool.Command):
     summary = 'Initialize the publication database.'
     help_if_no_args = False
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         from .db import init
 
         if len (args) != 0:
@@ -481,7 +476,7 @@ class Info (multitool.Command):
     argspec = '<pub>'
     summary = 'Print information about a publication.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) != 1:
             raise multitool.UsageError ('expected exactly 1 argument')
 
@@ -543,7 +538,7 @@ class Ingest (multitool.Command):
     argspec = '<bibtex-file>'
     summary = 'Ingest information from a BibTeX file.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         from .bibtex import import_stream
 
         if len (args) != 1:
@@ -560,7 +555,7 @@ class Jpage (multitool.Command):
     argspec = '<pub>'
     summary = 'Open the journal\'s page for the publication.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) != 1:
             raise multitool.UsageError ('expected exactly 1 argument')
 
@@ -579,7 +574,7 @@ class List (multitool.Command):
     argspec = '<pubs...>'
     summary = 'List publications in the database.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) < 1:
             raise multitool.UsageError ('expected arguments')
 
@@ -591,7 +586,7 @@ class Pdfpath (multitool.Command):
     argspec = '<pub>'
     summary = 'Print the path to a publication\'s saved full-text PDF.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) != 1:
             raise multitool.UsageError ('expected exactly 1 argument')
 
@@ -614,7 +609,7 @@ class Read (multitool.Command):
     argspec = '<pub>'
     summary = 'Open a publication\'s PDF.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) != 1:
             raise multitool.UsageError ('expected exactly 1 argument')
 
@@ -640,7 +635,7 @@ class Recent (multitool.Command):
     summary = 'List recently-accessed publications.'
     help_if_no_args = False
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) != 0:
             raise multitool.UsageError ('expected no arguments')
 
@@ -654,7 +649,7 @@ class Rq (multitool.Command):
     argspec = '<search terms...>'
     summary = 'Query a remote bibliographic database.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         from .ads import search_ads
 
         # XXX need a real option-parsing setup
@@ -672,7 +667,7 @@ class Rsbackup (multitool.Command):
     summary = 'Back up the database via rsync.'
     help_if_no_args = False
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) != 0:
             raise multitool.UsageError ('expected no arguments')
 
@@ -684,7 +679,7 @@ class Setpdf (multitool.Command):
     argspec = '<pub> <pdf-path>'
     summary = 'Manually specify the full-text PDF file for a publication.'
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) != 2:
             raise multitool.UsageError ('expected exactly 2 arguments')
 
@@ -725,7 +720,7 @@ class Setsecret (multitool.Command):
     summary = 'Set the secret used to gain access to full-text articles.'
     help_if_no_args = False
 
-    def invoke (self, app, args):
+    def invoke (self, args, app=None, **kwargs):
         if len (args) != 0:
             raise multitool.UsageError ('expected no arguments')
 
@@ -742,13 +737,13 @@ class Setsecret (multitool.Command):
 
 class Bibtool (multitool.Multitool):
     cli_name = 'bib'
-    help_summary = 'Manage your bibliography.'
+    summary = 'Manage your bibliography.'
 
-    def invoke_command (self, cmd, args):
+    def invoke_command (self, cmd, args, **kwargs):
         from . import BibApp
 
         with BibApp () as app:
-            cmd.invoke (app, args)
+            super (Bibtool, self).invoke_command (cmd, args, app=app, **kwargs)
 
 def commandline ():
     multitool.invoke_tool (globals ())

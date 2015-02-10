@@ -10,12 +10,12 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from .util import *
 
 
-def process (app, subcommand, args):
+def process (app, tool, subcommand, args):
     func = globals ().get ('complete_' + subcommand)
     if not callable (func):
         die ('unrecognized completion subcommand "%s"', subcommand)
 
-    func (app, args)
+    func (app, tool, args)
 
 
 def stem_compatible (stem, partial):
@@ -30,13 +30,9 @@ def stem_compatible (stem, partial):
     return True
 
 
-def complete_commands (app, args):
-    from . import cli
-
-    for item in dir (cli):
-        if not item.startswith ('cmd_'):
-            continue
-        print (item[4:])
+def complete_commands (app, tool, args):
+    for cname in tool.commands.iterkeys ():
+        print (cname)
 
 
 def _complete_pub_common (app, args, is_multi):
@@ -67,10 +63,10 @@ def _complete_pub_common (app, args, is_multi):
     # TODO: percent IDs; "doi:...", "arxiv:..."
 
 
-def complete_pub (app, args):
+def complete_pub (app, tool, args):
     _complete_pub_common (app, args, False)
 
-def complete_multipub (app, args):
+def complete_multipub (app, tool, args):
     _complete_pub_common (app, args, True)
 
 
@@ -122,16 +118,13 @@ def print_nicknames (app, partial):
         print (tup[0])
 
 
-def complete_group_subcmds (app, args):
-    from . import cli
-
-    for item in dir (cli):
-        if not item.startswith ('_group_cmd_'):
-            continue
-        print (item[11:])
+def complete_group_subcmds (app, tool, args):
+    # Hmmmm could genericize this ...
+    for cname in tool.commands['group'].commands:
+        print (cname)
 
 
-def complete_group (app, args):
+def complete_group (app, tool, args):
     if not len (args) or not len (args[0]):
         # No partial to work with.
         for tup in app.db.execute ('SELECT DISTINCT name FROM publists WHERE '

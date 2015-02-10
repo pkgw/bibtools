@@ -169,14 +169,14 @@ class _Complete (multitool.Command):
     argspec = '{miscellaneous}'
     summary = 'Print completion information for shell integration.'
 
-    def invoke (self, args, app=None, **kwargs):
+    def invoke (self, args, app=None, tool=None, **kwargs):
         if len (args) < 1:
             raise multitool.UsageError ('expected at least 1 argument')
 
         subcommand = args[0]
 
         from . import completions
-        completions.process (app, subcommand, args[1:])
+        completions.process (app, tool, subcommand, args[1:])
 
 
 class Delete (multitool.Command):

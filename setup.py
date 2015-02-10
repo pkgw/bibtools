@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Copyright 2014 Peter Williams <peter@newton.cx>
+# Copyright 2014-2015 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License version 3 or higher
 
 # I don't use the ez_setup module because it causes us to automatically build
@@ -20,14 +20,16 @@ setup (
 
     packages = ['bibtools', 'bibtools.hacked_bibtexparser'],
 
-    # install_requires = ['docutils >= 0.3'],
+    install_requires = [
+        'pwkit >= 0.4.0',
+    ],
 
     package_data = {
         'bibtools': ['*.sql', 'apj-issnmap.txt', 'defaults.cfg'],
     },
 
     entry_points = {
-        'console_scripts': ['bib = bibtools.cli:driver'],
+        'console_scripts': ['bib = bibtools.cli:commandline'],
     },
 
     author = 'Peter Williams',

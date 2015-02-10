@@ -37,19 +37,6 @@ class BibApp (object):
     _thecfg = None
     _theproxy = None
 
-    def __init__ (self):
-        # Clean up encoding of streams so that we can have UTF-8 in
-        # exceptions and everything will be OK.
-        import codecs, sys
-
-        enc = sys.stdin.encoding or 'utf-8'
-        sys.stdin = codecs.getreader (enc) (sys.stdin)
-        enc = sys.stdout.encoding or enc
-        sys.stdout = codecs.getwriter (enc) (sys.stdout)
-        enc = sys.stderr.encoding or enc
-        sys.stderr = codecs.getwriter (enc) (sys.stderr)
-
-
     @property
     def db (self):
         if self._thedb is None:

@@ -364,89 +364,95 @@ class Grep (multitool.Command):
             die (e)
 
 
-def _group_cmd_add (app, args):
-    if len (args) < 2:
-        raise UsageError ('expected at least 2 arguments')
-
-    groupname = args[0]
-    # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
-    dbgroupname = 'user_' + groupname
-
-    try:
-        for pub in app.locate_pubs (args[1:], autolearn=True):
-            app.db.execute ('INSERT OR IGNORE INTO publists VALUES (?, '
-                            '  (SELECT ifnull(max(idx)+1,0) FROM publists WHERE name == ?), '
-                            '?)', (dbgroupname, dbgroupname, pub.id))
-    except Exception as e:
-        die (e)
-
-
-def _group_cmd_list (app, args):
-    if len (args) not in (0, 1):
-        raise UsageError ('expected 0 or 1 arguments')
-
-    try:
-        if len (args) == 0:
-            # List the groups.
-            q = app.db.execute ('SELECT DISTINCT name FROM publists WHERE '
-                                'name LIKE ? ORDER BY name ASC', ('user_%', ))
-            for (name, ) in q:
-                print (name[5:])
-        else:
-            # List the items in a group.
-            groupname = args[0]
-            # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
-            dbgroupname = 'user_' + groupname
-
-            q = app.db.pub_fquery ('SELECT p.* FROM pubs AS p, publists AS pl '
-                                   'WHERE p.id == pl.pubid AND pl.name == ? '
-                                   'ORDER BY pl.idx', dbgroupname)
-            print_generic_listing (app.db, q)
-    except Exception as e:
-        die (e)
-
-
-def _group_cmd_rm (app, args):
-    if len (args) < 2:
-        raise UsageError ('expected at least 2 arguments')
-
-    groupname = args[0]
-    # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
-    dbgroupname = 'user_' + groupname
-
-    # We want to complain if an individual term doesn't match anything in the
-    # group, but if the user specifies "williams.*" and we get a bunch of hits
-    # only one of which is in the group, that's OK. So we need to process terms
-    # individually.
-
-    c = app.db.cursor ()
-
-    try:
-        for idtext in args[1:]:
-            ndeleted = 0
-
-            for pub in app.locate_pubs ((idtext,)):
-                c.execute ('DELETE FROM publists WHERE name == ? AND pubid == ?',
-                           (dbgroupname, pub.id))
-                ndeleted += c.rowcount
-
-            if not ndeleted:
-                warn ('no entries in "%s" matched "%s"', groupname, idtext)
-    except Exception as e:
-        die (e)
-
-
 class Group (multitool.Command):
     name = 'group'
-    argspec = '<subcommand> [options...]'
+    argspec = '{add|list|rm} [options...]'
     summary = 'Operate on groups of publications.'
+    more_help = """Sub-commands are:
+
+add  - Add a publication to a group.
+list - List all groups, or list the publications in the named group.
+rm   - Remove a publication from a group.
+"""
+
+    def cmd_add (self, app, args):
+        if len (args) < 2:
+            raise UsageError ('expected at least 2 arguments')
+
+        groupname = args[0]
+        # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
+        dbgroupname = 'user_' + groupname
+
+        try:
+            for pub in app.locate_pubs (args[1:], autolearn=True):
+                app.db.execute ('INSERT OR IGNORE INTO publists VALUES (?, '
+                                '  (SELECT ifnull(max(idx)+1,0) FROM publists WHERE name == ?), '
+                                '?)', (dbgroupname, dbgroupname, pub.id))
+        except Exception as e:
+            die (e)
+
+
+    def cmd_list (self, app, args):
+        if len (args) not in (0, 1):
+            raise UsageError ('expected 0 or 1 arguments')
+
+        try:
+            if len (args) == 0:
+                # List the groups.
+                q = app.db.execute ('SELECT DISTINCT name FROM publists WHERE '
+                                    'name LIKE ? ORDER BY name ASC', ('user_%', ))
+                for (name, ) in q:
+                    print (name[5:])
+            else:
+                # List the items in a group.
+                groupname = args[0]
+                # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
+                dbgroupname = 'user_' + groupname
+
+                q = app.db.pub_fquery ('SELECT p.* FROM pubs AS p, publists AS pl '
+                                       'WHERE p.id == pl.pubid AND pl.name == ? '
+                                       'ORDER BY pl.idx', dbgroupname)
+                print_generic_listing (app.db, q)
+        except Exception as e:
+            die (e)
+
+
+    def cmd_rm (self, app, args):
+        if len (args) < 2:
+            raise UsageError ('expected at least 2 arguments')
+
+        groupname = args[0]
+        # FIXME: check groupname to avoid "bib group add abc+12 xyz+10" mistake
+        dbgroupname = 'user_' + groupname
+
+        # We want to complain if an individual term doesn't match anything in the
+        # group, but if the user specifies "williams.*" and we get a bunch of hits
+        # only one of which is in the group, that's OK. So we need to process terms
+        # individually.
+
+        c = app.db.cursor ()
+
+        try:
+            for idtext in args[1:]:
+                ndeleted = 0
+
+                for pub in app.locate_pubs ((idtext,)):
+                    c.execute ('DELETE FROM publists WHERE name == ? AND pubid == ?',
+                               (dbgroupname, pub.id))
+                    ndeleted += c.rowcount
+
+                if not ndeleted:
+                    warn ('no entries in "%s" matched "%s"', groupname, idtext)
+        except Exception as e:
+            die (e)
+
 
     def invoke (self, app, args):
         if len (args) < 1:
             raise UsageError ('"group" requires a subcommand')
 
         subcmd = args[0]
-        subfunc = globals ().get ('_group_cmd_' + subcmd.replace ('-', '_'))
+        subfunc = getattr (self, 'cmd_' + subcmd.replace ('-', '_'), None)
 
         if not callable (subfunc):
             die ('"%s" is not a recognized subcommand of "group"; run me without '

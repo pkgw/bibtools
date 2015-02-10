@@ -735,11 +735,13 @@ class Setsecret (multitool.Command):
 
 # Toplevel driver infrastructure
 
+HelpCommand = multitool.HelpCommand
+
 class Bibtool (multitool.Multitool):
     cli_name = 'bib'
     summary = 'Manage your bibliography.'
 
-    def invoke_command (self, cmd, args, **kwargs):
+    def invoke_command (self, cmd, args, app=None, **kwargs):
         from . import BibApp
 
         with BibApp () as app:

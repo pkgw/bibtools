@@ -320,9 +320,9 @@ class Grep (multitool.Command):
     def invoke (self, args, app=None, **kwargs):
         import re
 
-        nocase = pop_option ('i', [''] + args)
-        fixed = pop_option ('f', [''] + args)
-        refinfo = pop_option ('r', [''] + args)
+        nocase = pop_option ('i', args)
+        fixed = pop_option ('f', args)
+        refinfo = pop_option ('r', args)
 
         if len (args) != 1:
             raise multitool.UsageError ('expected exactly 1 non-option argument')
@@ -653,7 +653,7 @@ class Rq (multitool.Command):
         from .ads import search_ads
 
         # XXX need a real option-parsing setup
-        rawmode = pop_option ('raw', [''] + args)
+        rawmode = pop_option ('raw', args)
 
         if len (args) < 1:
             raise multitool.UsageError ('expected arguments')

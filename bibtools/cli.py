@@ -204,7 +204,7 @@ class Dump (multitool.Command):
     help_if_no_args = False
 
     def invoke (self, args, app=None, **kwargs):
-        if len (args) != 1:
+        if len (args) != 0:
             raise multitool.UsageError ('expected no arguments')
 
         app.export_all (sys.stdout, 72)

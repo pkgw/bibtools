@@ -16,7 +16,7 @@ from . import webutil as wu
 __all__ = ('try_fetch_pdf').split ()
 
 
-def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
+def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None, max_attempts=5):
     """Given reference information, download a PDF to a specified path. Returns
     the SHA1 sum of the PDF as a hexadecimal string, or None if we couldn't
     figure out how to download it."""
@@ -47,27 +47,48 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None):
     if pdfurl is None:
         return None
 
-    # OK, we can now download and register the PDF. TODO: progress reporting,
-    # etc.
+    # OK, we can now download and register the PDF, though we might have to
+    # scrape through a few layers. TODO: progress reporting, etc.
 
-    s = sha1 ()
+    attempts = 0
+    resp = None
 
-    print ('[Trying', pdfurl, '...]')
+    while attempts < max_attempts:
+        attempts += 1
+        print ('[Trying', pdfurl, '...]')
 
-    try:
-        resp = proxy.open (pdfurl)
-    except wu.HTTPError as e:
-        if e.code == 404 and wu.urlparse (pdfurl)[1] == 'articles.adsabs.harvard.edu':
-            warn ('ADS doesn\'t actually have the PDF on file')
-            # ADS gave us a URL that turned out to be a lie. Try again,
-            # ignoring it.
-            return try_fetch_pdf (proxy, destpath, arxiv=arxiv, bibcode=None,
-                                  doi=doi)
+        try:
+            resp = proxy.open (pdfurl)
+        except wu.HTTPError as e:
+            if e.code == 404 and wu.urlparse (pdfurl)[1] == 'articles.adsabs.harvard.edu':
+                warn ('ADS doesn\'t actually have the PDF on file')
+                # ADS gave us a URL that turned out to be a lie. Try again,
+                # ignoring it.
+                return try_fetch_pdf (proxy, destpath, arxiv=arxiv, bibcode=None,
+                                      doi=doi)
 
-        warn ('got HTTP error %s (%s) when trying to fetch %s', e.code,
-              e.reason, e.url)
+            warn ('got HTTP error %s (%s) when trying to fetch %s', e.code,
+                  e.reason, e.url)
+            return None
+
+        if resp.info ().type == 'text/html':
+            # A lot of journals wrap their "PDF" links in an HTML shim. We just
+            # recurse our HTML scraping.
+            pdfurl = proxy.unmangle (scrape_pdf_url (resp))
+            resp = None
+            if pdfurl is None:
+                warn ('couldn\'t find PDF link in %s', pdfurl)
+                return None
+            continue
+
+        # OK, we're happy with what we got.
+        break
+
+    if resp is None:
+        warn ('too many links when trying to find actual PDF')
         return None
 
+    s = sha1 ()
     first = True
 
     with io.open (destpath, 'wb') as f:
@@ -100,11 +121,23 @@ class PDFUrlScraper (wu.HTMLParser):
     <a> tag with class=download-pdf -- Nature (older)
     <a> tag with class=pdf -- AIP
     <a> tag with id=pdfLink -- ScienceDirect
+    <iframe id="pdfDocument" src="..."> -- Wiley Online Library, inner PDF wrapper
     """
 
-    def __init__ (self):
+    def __init__ (self, cururl):
         wu.HTMLParser.__init__ (self)
+        self.cururl = cururl
         self.pdfurl = None
+
+
+    def maybe_set_pdfurl (self, url):
+        # Sometimes we recurse because the "PDF" link really gives you a link
+        # to a thin wrapper page, and at least in the case of Wiley the wrapper
+        # than has links that point to itself. So we don't accept the potential
+        # URL if it's the same thing as what we're currently reading.
+        url = wu.urljoin (self.cururl, url)
+        if url != self.cururl:
+            self.pdfurl = url
 
 
     def handle_starttag (self, tag, attrs):
@@ -114,25 +147,25 @@ class PDFUrlScraper (wu.HTMLParser):
         if tag == 'meta':
             attrs = dict (attrs)
             if attrs.get ('name') == 'citation_pdf_url':
-                self.pdfurl = attrs['content']
+                self.maybe_set_pdfurl (attrs['content'])
         elif tag == 'a':
             attrs = dict (attrs)
             if attrs.get ('id') == 'download-pdf':
-                self.pdfurl = attrs['href']
+                self.maybe_set_pdfurl (attrs['href'])
             elif attrs.get ('id') == 'pdfLink':
-                self.pdfurl = attrs['href']
+                self.maybe_set_pdfurl (attrs['href'])
             elif attrs.get ('class') == 'download-pdf':
-                self.pdfurl = attrs['href']
+                self.maybe_set_pdfurl (attrs['href'])
             elif attrs.get ('class') == 'pdf':
-                self.pdfurl = attrs['href']
+                self.maybe_set_pdfurl (attrs['href'])
+        elif tag == 'iframe':
+            attrs = dict (attrs)
+            if attrs.get ('id') == 'pdfDocument':
+                self.maybe_set_pdfurl (attrs['src'])
 
 
 def scrape_pdf_url (resp):
-    parser = wu.parse_http_html (resp, PDFUrlScraper ())
-    if parser.pdfurl is None:
-        return None
-
-    return wu.urljoin (resp.url, parser.pdfurl)
+    return wu.parse_http_html (resp, PDFUrlScraper (resp.url)).pdfurl
 
 
 def doi_to_journal_url (doi):

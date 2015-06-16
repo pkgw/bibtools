@@ -164,7 +164,7 @@ __bib_main ()
     fi
 
     case "$command" in
-	ads|apage|delete|edit|forgetpdf|info|jpage|pdfpath|read)
+        delete|edit|forgetpdf|go-ads|go-arxiv|go-journal|info|pdfpath|read)
 	    __bib_complete "$(bib _complete pub "$cur")" ; return ;;
 	list)
 	    __bib_complete "$(bib _complete multipub "$cur")" ; return ;;

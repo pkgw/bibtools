@@ -18,8 +18,8 @@ from .bibcore import print_generic_listing, parse_search
 __all__ = ['driver']
 
 
-class Ads (multitool.Command):
-    name = 'ads'
+class GoAds (multitool.Command):
+    name = 'go-ads'
     argspec = '<pub>'
     summary = 'Open the publication\'s ADS abstract page.'
 
@@ -49,8 +49,8 @@ class Ads (multitool.Command):
         app.open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/%s/' % wu.urlquote (bibcode))
 
 
-class Apage (multitool.Command):
-    name = 'apage'
+class GoArxiv (multitool.Command):
+    name = 'go-arxiv'
     argspec = '<pub>'
     summary = 'Open the publication\'s arXiV abstract page.'
 
@@ -550,8 +550,8 @@ class Ingest (multitool.Command):
             import_stream (app, f)
 
 
-class Jpage (multitool.Command):
-    name = 'jpage'
+class GoJournal (multitool.Command):
+    name = 'go-journal'
     argspec = '<pub>'
     summary = 'Open the journal\'s page for the publication.'
 

@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2014 Peter Williams <peter@newton.cx>
+# Copyright 2014-2015 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License, version 3 or higher.
 
 """
@@ -16,56 +16,6 @@ from .util import *
 from .bibcore import print_generic_listing, parse_search
 
 __all__ = ['driver']
-
-
-class GoAds (multitool.Command):
-    name = 'go-ads'
-    argspec = '<pub>'
-    summary = 'Open the publication\'s ADS abstract page.'
-
-    def invoke (self, args, app=None, **kwargs):
-        if len (args) != 1:
-            raise multitool.UsageError ('expected exactly 1 argument')
-
-        # Here we have a slight wrinkle from the usual approach. If the argument
-        # is a bibcode, just fetch it without trying to autolearn a database
-        # entry.
-
-        idtext = args[0]
-
-        from .bibcore import classify_pub_ref
-        kind, content = classify_pub_ref (idtext)
-
-        if kind == 'bibcode':
-            bibcode = content
-            # XXX: should log a visit if there's a pub, in this case
-        else:
-            pub = app.locate_or_die (idtext)
-            if pub.bibcode is None:
-                die ('cannot open ADS for this publication: no bibcode on record')
-            bibcode = pub.bibcode
-            app.db.log_action (pub.id, 'visit')
-
-        app.open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/%s/' % wu.urlquote (bibcode))
-
-
-class GoArxiv (multitool.Command):
-    name = 'go-arxiv'
-    argspec = '<pub>'
-    summary = 'Open the publication\'s arXiV abstract page.'
-
-    def invoke (self, args, app=None, **kwargs):
-        if len (args) != 1:
-            raise multitool.UsageError ('expected exactly 1 argument')
-
-        idtext = args[0]
-
-        pub = app.locate_or_die (idtext)
-        if pub.arxiv is None:
-            die ('cannot open arxiv website: no identifier for record')
-
-        app.db.log_action (pub.id, 'visit')
-        app.open_url ('http://arxiv.org/abs/' + wu.urlquote (pub.arxiv))
 
 
 class Btexport (multitool.Command):
@@ -312,6 +262,75 @@ class ForgetPDF (multitool.Command):
         app.db.execute ('DELETE FROM pdfs WHERE pubid == ?', (pub.id, ))
 
 
+class GoAds (multitool.Command):
+    name = 'go-ads'
+    argspec = '<pub>'
+    summary = 'Open the publication\'s ADS abstract page.'
+
+    def invoke (self, args, app=None, **kwargs):
+        if len (args) != 1:
+            raise multitool.UsageError ('expected exactly 1 argument')
+
+        # Here we have a slight wrinkle from the usual approach. If the argument
+        # is a bibcode, just fetch it without trying to autolearn a database
+        # entry.
+
+        idtext = args[0]
+
+        from .bibcore import classify_pub_ref
+        kind, content = classify_pub_ref (idtext)
+
+        if kind == 'bibcode':
+            bibcode = content
+            # XXX: should log a visit if there's a pub, in this case
+        else:
+            pub = app.locate_or_die (idtext)
+            if pub.bibcode is None:
+                die ('cannot open ADS for this publication: no bibcode on record')
+            bibcode = pub.bibcode
+            app.db.log_action (pub.id, 'visit')
+
+        app.open_url ('http://labs.adsabs.harvard.edu/adsabs/abs/%s/' % wu.urlquote (bibcode))
+
+
+class GoArxiv (multitool.Command):
+    name = 'go-arxiv'
+    argspec = '<pub>'
+    summary = 'Open the publication\'s arXiV abstract page.'
+
+    def invoke (self, args, app=None, **kwargs):
+        if len (args) != 1:
+            raise multitool.UsageError ('expected exactly 1 argument')
+
+        idtext = args[0]
+
+        pub = app.locate_or_die (idtext)
+        if pub.arxiv is None:
+            die ('cannot open arxiv website: no identifier for record')
+
+        app.db.log_action (pub.id, 'visit')
+        app.open_url ('http://arxiv.org/abs/' + wu.urlquote (pub.arxiv))
+
+
+class GoJournal (multitool.Command):
+    name = 'go-journal'
+    argspec = '<pub>'
+    summary = 'Open the journal\'s page for the publication.'
+
+    def invoke (self, args, app=None, **kwargs):
+        if len (args) != 1:
+            raise multitool.UsageError ('expected exactly 1 argument')
+
+        idtext = args[0]
+
+        pub = app.locate_or_die (idtext)
+        if pub.doi is None:
+            die ('cannot open journal website: no DOI for record')
+
+        app.db.log_action (pub.id, 'visit')
+        app.open_url ('http://dx.doi.org/' + wu.urlquote (pub.doi))
+
+
 class Grep (multitool.Command):
     name = 'grep'
     argspec = '[-i][-f][-r] <pattern>'
@@ -548,25 +567,6 @@ class Ingest (multitool.Command):
 
         with io.open (bibpath, 'rt') as f:
             import_stream (app, f)
-
-
-class GoJournal (multitool.Command):
-    name = 'go-journal'
-    argspec = '<pub>'
-    summary = 'Open the journal\'s page for the publication.'
-
-    def invoke (self, args, app=None, **kwargs):
-        if len (args) != 1:
-            raise multitool.UsageError ('expected exactly 1 argument')
-
-        idtext = args[0]
-
-        pub = app.locate_or_die (idtext)
-        if pub.doi is None:
-            die ('cannot open journal website: no DOI for record')
-
-        app.db.log_action (pub.id, 'visit')
-        app.open_url ('http://dx.doi.org/' + wu.urlquote (pub.doi))
 
 
 class List (multitool.Command):

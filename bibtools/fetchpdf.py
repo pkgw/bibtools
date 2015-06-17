@@ -158,6 +158,11 @@ class PDFUrlScraper (wu.HTMLParser):
                 self.maybe_set_pdfurl (attrs['href'])
             elif attrs.get ('class') == 'pdf':
                 self.maybe_set_pdfurl (attrs['href'])
+            elif attrs.get ('href').endswith ('?acceptTC=true'):
+                # JSTOR makes you click through to indicate acceptance of
+                # their terms and conditions. Your use of this code indicates
+                # that you accept their terms.
+                self.maybe_set_pdfurl (attrs['href'])
         elif tag == 'iframe':
             attrs = dict (attrs)
             if attrs.get ('id') == 'pdfDocument':

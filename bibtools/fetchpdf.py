@@ -77,7 +77,7 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None, max_atte
             pdfurl = proxy.unmangle (scrape_pdf_url (resp))
             resp = None
             if pdfurl is None:
-                warn ('couldn\'t find PDF link in %s', pdfurl)
+                warn ('couldn\'t find PDF link')
                 return None
             continue
 

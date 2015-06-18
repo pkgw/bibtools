@@ -304,6 +304,11 @@ class ApjBibtexStyle (BibtexStyleBase):
             del rd['note']
             rd['eprint'] = pub.arxiv
             rd['archivePrefix'] = 'arxiv'
+        elif rd.get ('_type') == '!preprint':
+            # for when we don't have any arxiv info ...
+            rd['_type'] = 'article'
+            rd['journal'] = rd['note']
+            del rd['note']
 
 
 class NsfBibtexStyle (BibtexStyleBase):
@@ -317,6 +322,11 @@ class NsfBibtexStyle (BibtexStyleBase):
             del rd['note']
             rd['eprint'] = pub.arxiv
             rd['archivePrefix'] = 'arxiv'
+        elif rd.get ('_type') == '!preprint':
+            # for when we don't have any arxiv info ...
+            rd['_type'] = 'article'
+            rd['journal'] = rd['note']
+            del rd['note']
 
 
 bibtex_styles = {

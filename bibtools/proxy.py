@@ -46,7 +46,12 @@ class HarvardProxy (object):
 
     def __init__ (self, user_agent, username, password):
         self.cj = cookielib.CookieJar ()
-        self.opener = urllib2.build_opener (urllib2.HTTPRedirectHandler (),
+
+        # Older articles in Wiley's Online Library hit the default limit of 10
+        # redirections.
+        rh = urllib2.HTTPRedirectHandler ()
+        rh.max_redirections = 20
+        self.opener = urllib2.build_opener (rh,
                                             urllib2.HTTPCookieProcessor (self.cj))
         self.opener.addheaders = [('User-Agent', user_agent)]
 

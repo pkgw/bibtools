@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2014 Peter Williams <peter@newton.cx>
+# Copyright 2014-2015 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License, version 3 or higher.
 
 """
@@ -7,7 +7,7 @@ Downloading PDFs automagically.
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
-import io, os
+import io, os, re
 from hashlib import sha1
 
 from .util import *
@@ -120,9 +120,12 @@ class PDFUrlScraper (wu.HTMLParser):
     <a> tag with id=download-pdf -- Nature (non-mobile site, newer)
     <a> tag with class=download-pdf -- Nature (older)
     <a> tag with class=pdf -- AIP
+    <a> tag with 'pdf-button-main' in class -- IOP through Harvard proxy
     <a> tag with id=pdfLink -- ScienceDirect
     <iframe id="pdfDocument" src="..."> -- Wiley Online Library, inner PDF wrapper
     """
+
+    _bad_iop_cpu = re.compile (r'.*iopscience\.iop\.org.*/pdf.*pdf$')
 
     def __init__ (self, cururl):
         wu.HTMLParser.__init__ (self)
@@ -133,7 +136,7 @@ class PDFUrlScraper (wu.HTMLParser):
     def maybe_set_pdfurl (self, url):
         # Sometimes we recurse because the "PDF" link really gives you a link
         # to a thin wrapper page, and at least in the case of Wiley the wrapper
-        # than has links that point to itself. So we don't accept the potential
+        # then has links that point to itself. So we don't accept the potential
         # URL if it's the same thing as what we're currently reading.
         url = wu.urljoin (self.cururl, url)
         if url != self.cururl:
@@ -147,7 +150,12 @@ class PDFUrlScraper (wu.HTMLParser):
         if tag == 'meta':
             attrs = dict (attrs)
             if attrs.get ('name') == 'citation_pdf_url':
-                self.maybe_set_pdfurl (attrs['content'])
+                url = attrs['content']
+                # Gross hack for busted IOP links. Should probably just
+                # remember multiple PDF links and cascade through if various
+                # ones give errors.
+                if not self._bad_iop_cpu.match (url):
+                    self.maybe_set_pdfurl (url)
         elif tag == 'a':
             attrs = dict (attrs)
             if attrs.get ('id') == 'download-pdf':
@@ -157,6 +165,8 @@ class PDFUrlScraper (wu.HTMLParser):
             elif attrs.get ('class') == 'download-pdf':
                 self.maybe_set_pdfurl (attrs['href'])
             elif attrs.get ('class') == 'pdf':
+                self.maybe_set_pdfurl (attrs['href'])
+            elif 'pdf-button-main' in attrs.get ('class', ''):
                 self.maybe_set_pdfurl (attrs['href'])
             elif attrs.get ('href', '').endswith ('?acceptTC=true'):
                 # JSTOR makes you click through to indicate acceptance of

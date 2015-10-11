@@ -14,7 +14,9 @@ Installation
 The most recent stable version is available on the `Python package index`_, so
 you should be able to install this package simply by running ``pip install
 bibtools``. The package is also available in the `conda`_ package manager by
-installing it from `binstar.org`_.
+installing it from `anaconda.org`_::
+
+  conda install -c pkgw bibtools
 
 If you want to download the source code and install ``bibtools`` manually, the
 package uses the standard Python `setuptools`_, so running ``python setup.py
@@ -22,7 +24,7 @@ install`` will do the trick.
 
 .. _Python package index: https://pypi.python.org/pypi/bibtools/
 .. _conda: http://conda.pydata.org/docs/
-.. _binstar.org: https://binstar.org/pkgw/bibtools
+.. _anaconda.org: https://anaconda.org/pkgw/bibtools
 .. _setuptools: https://pypi.python.org/pypi/setuptools
 
 

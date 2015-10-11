@@ -9,4 +9,4 @@ Making releases
      curl -s https://pypi.python.org/pypi/bibtools/ |grep md5= |grep -v linux |sed -e 's/.*md5=//'
 
 4. Build for ``conda``: ``conda build conda``.
-5. Upload to ``binstar``: execute line at end of the ``conda build`` output.
+5. Upload to ``anaconda.org``: execute line at end of the ``conda build`` output.

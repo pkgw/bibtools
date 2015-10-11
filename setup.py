@@ -9,7 +9,7 @@ from setuptools import setup
 
 setup (
     name = 'bibtools',
-    version = '0.1',
+    version = '0.2',
 
     # This package actually *is* zip-safe, but I've run into issues with
     # installing it as a Zip: in particular, the install sometimes fails with
@@ -21,7 +21,7 @@ setup (
     packages = ['bibtools', 'bibtools.hacked_bibtexparser'],
 
     install_requires = [
-        'pwkit >= 0.4.0',
+        'pwkit >= 0.6.0',
     ],
 
     package_data = {

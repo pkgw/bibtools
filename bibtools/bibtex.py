@@ -347,6 +347,11 @@ def write_bibtexified (write, btdata):
     write (btid)
 
     for k in sorted (btdata.iterkeys ()):
+        if btdata[k] is None:
+            warn ('expected to see BibTeX field "%s" in "%s", but it is empty',
+                  k, btid)
+            continue
+
         write (',\n  ')
         write (k)
         write (' = {')

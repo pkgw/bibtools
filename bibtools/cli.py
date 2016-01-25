@@ -62,6 +62,51 @@ class Btexport (multitool.Command):
         export_to_bibtex (app, style, citednicks)
 
 
+class Btmerge (multitool.Command):
+    name = 'btmerge'
+    argspec = '<output-style> <bib-file> <aux-file>'
+    summary = 'Make BibTeX entries needed for an .aux file, based on an existing BibTeX file.'
+
+    def invoke (self, args, app=None, **kwargs):
+        from .bibtex import bibtex_styles, merge_with_bibtex
+
+        if len (args) != 3:
+            raise multitool.UsageError ('expected exactly 3 arguments')
+
+        outstyle = args[0]
+        bibfile = args[1]
+        auxfile = args[2]
+
+        # Load/check style
+        factory = bibtex_styles.get (outstyle)
+        if factory is None:
+            die ('unrecognized BibTeX output style "%s"', outstyle)
+
+        style = factory ()
+
+        # Load cited nicknames
+        citednicks = set ()
+
+        for line in io.open (auxfile, 'rt'):
+            if not line.startswith (r'\citation{'):
+                continue
+
+            line = line.rstrip ()
+
+            if line[-1] != '}':
+                warn ('unexpected cite line in LaTeX aux file: "%s"', line)
+                continue
+
+            entries = line[10:-1]
+
+            # We provide a mechanism for ignoring raw bibtex entries
+            citednicks.update ([e for e in entries.split (',')
+                                if not e.startswith ('r.')])
+
+        # Ready to write
+        merge_with_bibtex (app, bibfile, style, citednicks)
+
+
 class Btprint (multitool.Command):
     name = 'btprint'
     argspec = '<outstyle> <pub-nicknames...>'

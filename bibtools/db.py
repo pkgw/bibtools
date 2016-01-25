@@ -239,6 +239,29 @@ class BibDB (sqlite3.Connection):
         # I don't think we should worry about that here.
 
 
+    def jsonify_pub (self, pubid):
+        """The data structure here should be, to the best of our effort, compatible
+        with the one accepted by learn_pub().
+
+        """
+        pub = self.pub_query ('id == ?', pubid).fetchone ()
+
+        info = {}
+        info['authors'] = [encode_name (*n) for n in self.get_pub_authors (pubid, 'author')]
+        info['editors'] = [encode_name (*n) for n in self.get_pub_authors (pubid, 'editor')]
+        info['abstract'] = pub.abstract
+        info['title'] = pub.title
+        info['arxiv'] = pub.arxiv
+        info['bibcode'] = pub.bibcode
+        info['doi'] = pub.doi
+        info['year'] = pub.year
+        info['nicknames'] = list (self.execute ('SELECT nickname FROM nicknames '
+                                                'WHERE pubid == ?', (pubid, )))
+        info['refdata'] = json.loads (pub.refdata)
+
+        return info
+
+
     def log_action (self, pubid, actionid):
         import time
         actionid = histactions[actionid]

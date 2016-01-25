@@ -76,7 +76,7 @@ def _translate_bibtex_name (name):
     return first + ' ' + surname
 
 
-def _import_one (app, rec):
+def _convert_bibtex_record (rec):
     abstract = rec.get ('abstract')
     arxiv = rec.get ('eprint')
     bibcode = rec.get ('bibcode')
@@ -110,8 +110,13 @@ def _import_one (app, rec):
     if 'url' in rec:
         urlinfo.append (sniff_url (rec['url']))
 
+    if 'adsurl' in rec:
+        urlinfo.append (sniff_url (rec['adsurl']))
+
     for k, v in rec.iteritems ():
         if k.startswith ('citeulike-linkout-'):
+            urlinfo.append (sniff_url (v))
+        if k.startswith ('bdsk-url-'):
             urlinfo.append (sniff_url (v))
 
     for kind, info in urlinfo:
@@ -127,14 +132,8 @@ def _import_one (app, rec):
         if kind == 'arxiv' and arxiv is None:
             arxiv = info
 
-    # Shape up missing bibcodes
-    # XXX: deactivated since I've embedded everything I can in the original file
-    #if bibcode is None and doi is not None:
-    #    bibcode = doi_to_maybe_bibcode (doi)
-    #    print ('mapped', doi, 'to', bibcode or '(lookup failed)')
-
-    # Gather reference information
-    # TO DO: normalize journal name, pages...
+    # Gather reference information. TODO: infer ISSN, normalize journal name,
+    # pages...
 
     refdata = {'_type': rec['type']}
 
@@ -148,15 +147,14 @@ def _import_one (app, rec):
             continue
         refdata[k] = v
 
-    # Ready to insert.
+    # All done.
 
-    info = dict (abstract=abstract, arxiv=arxiv, authors=authors,
+    return dict (abstract=abstract, arxiv=arxiv, authors=authors,
                  bibcode=bibcode, doi=doi, editors=editors,
                  nicknames=[nickname], refdata=refdata, title=title, year=year)
-    app.db.learn_pub (info)
 
 
-def import_stream (app, bibstream):
+def _convert_bibtex_stream (bibstream):
     from .hacked_bibtexparser.bparser import BibTexParser
     from .hacked_bibtexparser.customization import author, editor, type, convert_to_unicode
 
@@ -164,7 +162,12 @@ def import_stream (app, bibstream):
     bp = BibTexParser (bibstream, customization=custom)
 
     for rec in bp.get_entry_list ():
-        _import_one (app, rec)
+        yield _convert_bibtex_record (rec)
+
+
+def import_stream (app, bibstream):
+    for info in _convert_bibtex_stream (bibstream):
+        app.db.learn_pub (info)
 
 
 # Export
@@ -178,7 +181,7 @@ class BibtexStyleBase (object):
     title_types = set (('book',))
 
     def render_name (self, name):
-        given, family = name
+        given, family = parse_name (name)
 
         if len (given):
             givenbit = ', ' + unicode_to_latex (given)
@@ -199,30 +202,32 @@ class BibtexStyleBase (object):
         return ' and '.join (self.render_name (n) for n in names)
 
 
-    def _massage_pub (self, db, pub, rd):
+    def _massage_info (self, info, rd):
         pass
 
-    def render_pub (self, db, pub):
-        """Returns a dict in which the values are already latex-encoded.
-        '_type' is the bibtex type, '_ident' is the bibtex identifier."""
+    def render_info (self, info):
+        """Returns a dict in which the values are already latex-encoded. '_type' is
+        the bibtex type, '_ident' is the bibtex identifier.
 
-        rd = json.loads (pub.refdata)
+        We process an 'info' dictionary so that we can process BibTeX records that
+        haven't actually been ingested into the database.
+
+        """
+        rd = dict (info['refdata'])
 
         for k in rd.keys ():
             rd[k] = unicode_to_latex (rd[k])
 
-        self._massage_pub (db, pub, rd)
+        self._massage_info (info, rd)
 
-        names = list (db.get_pub_authors (pub.id, 'author'))
-        if len (names):
-            rd['author'] = self.render_names (names)
+        if len (info.get ('authors') or []):
+            rd['author'] = self.render_names (info['authors'])
 
-        names = list (db.get_pub_authors (pub.id, 'editor'))
-        if len (names):
-            rd['editor'] = self.render_names (names)
+        if len (info.get ('editors') or []):
+            rd['editor'] = self.render_names (info['editors'])
 
-        if self.include_doi and pub.doi is not None:
-            rd['doi'] = unicode_to_latex (pub.doi)
+        if self.include_doi and info.get ('doi') is not None:
+            rd['doi'] = unicode_to_latex (info['doi'])
 
         if self.issn_name_map is not None and 'issn' in rd:
             ltxjname = self.issn_name_map.get (rd['issn'])
@@ -236,23 +241,23 @@ class BibtexStyleBase (object):
             rd['pages'] = p
 
         if ((self.include_title_all or rd['_type'] in self.title_types) and
-            pub.title is not None):
-            rd['title'] = unicode_to_latex (pub.title)
+            info.get ('title') is not None):
+            rd['title'] = unicode_to_latex (info['title'])
 
-        if pub.year is not None:
-            rd['year'] = unicode (pub.year)
+        if info.get ('year') is not None:
+            rd['year'] = unicode (info['year'])
 
         if self.aggressive_url:
             # TODO: better place for best-URL logic.
-            if pub.doi is not None:
-                rd['url'] = unicode_to_latex ('http://dx.doi.org/' + wu.urlquote (pub.doi))
-            elif pub.bibcode is not None:
+            if info.get ('doi') is not None:
+                rd['url'] = unicode_to_latex ('http://dx.doi.org/' + wu.urlquote (info['doi']))
+            elif info.get ('bibcode') is not None:
                 rd['url'] = unicode_to_latex ('http://adsabs.harvard.edu/abs/' +
-                                              wu.urlquote (pub.bibcode))
-            elif pub.arxiv is not None:
+                                              wu.urlquote (info['bibcode']))
+            elif info.get ('arxiv') is not None:
                 # old-style arxiv IDs have /'s that shouldn't be escaped; and arxiv IDs
                 # shouldn't need escaping.
-                rd['url'] = unicode_to_latex ('http://arxiv.org/abs/' + pub.arxiv)
+                rd['url'] = unicode_to_latex ('http://arxiv.org/abs/' + info['arxiv'])
 
         url = rd.get ('url')
         if url is not None:
@@ -293,7 +298,7 @@ class ApjBibtexStyle (BibtexStyleBase):
         self.issn_name_map = inm
 
 
-    def _massage_pub (self, db, pub, rd):
+    def _massage_info (self, info, rd):
         if rd.get ('issn') == '1996-756X':
             # Proc. SPIE: rendered as article, not @inproceedings.
             rd['_type'] = 'article'
@@ -302,7 +307,7 @@ class ApjBibtexStyle (BibtexStyleBase):
             rd['_type'] = 'article'
             rd['journal'] = rd['note']
             del rd['note']
-            rd['eprint'] = pub.arxiv
+            rd['eprint'] = info['arxiv']
             rd['archivePrefix'] = 'arxiv'
         elif rd.get ('_type') == '!preprint':
             # for when we don't have any arxiv info ...
@@ -315,12 +320,12 @@ class NsfBibtexStyle (BibtexStyleBase):
     normalize_pages = True
     include_title_all = True
 
-    def _massage_pub (self, db, pub, rd):
+    def _massage_info (self, info, rd):
         if rd.get ('_type') == '!arxiv':
             rd['_type'] = 'article'
             rd['journal'] = rd['note']
             del rd['note']
-            rd['eprint'] = pub.arxiv
+            rd['eprint'] = info['arxiv']
             rd['archivePrefix'] = 'arxiv'
         elif rd.get ('_type') == '!preprint':
             # for when we don't have any arxiv info ...
@@ -394,6 +399,74 @@ def export_to_bibtex (app, style, citednicks, write=None):
         else:
             write ('\n')
 
-        bt = style.render_pub (app.db, pub)
+        bt = style.render_info (app.db.jsonify_pub (pub.id))
+        bt['_ident'] = nick
+        write_bibtexified (write, bt)
+
+
+# Merging
+
+def merge_with_bibtex (app, bibpath, style, citednicks, write=None):
+    if write is None:
+        write = sys.stdout.write
+
+    # First, load up all of the existing records.
+
+    existing = {}
+
+    with open (bibpath, 'r') as f:
+        for info in _convert_bibtex_stream (f):
+            existing[info['nicknames'][0]] = info
+
+    # Now see which cited nicknames are ones we know about.
+
+    seenids = {}
+    recognized = {}
+    first = True
+    sorted_cited = sorted (citednicks)
+
+    for nick in sorted_cited:
+        curs = app.db.pub_fquery ('SELECT p.* FROM pubs AS p, nicknames AS n '
+                                  'WHERE p.id == n.pubid AND n.nickname == ?', nick)
+        res = list (curs)
+
+        if not len (res):
+            #if nick not in existing:
+            #    die ('citation to unrecognized nickname "%s"', nick)
+            continue
+
+        if len (res) != 1:
+            die ('cant-happen multiple matches for nickname "%s"', nick)
+
+        pub = res[0]
+
+        if pub.id in seenids:
+            die ('"%s" and "%s" refer to the same publication; this will '
+                 'cause duplicate entries', nick, seenids[pub.id])
+
+        if pub.refdata is None:
+            die ('no reference data for "%s"', nick)
+
+        seenids[pub.id] = nick
+        recognized[nick] = pub.id
+
+    # Now we can output the merged collection.
+
+    for nick in sorted_cited:
+        if nick in recognized:
+            info = app.db.jsonify_pub (recognized[nick])
+        else:
+            info = existing.get (nick)
+
+        if info is None:
+            warn ('skipping "%s"', nick)
+            continue
+
+        if first:
+            first = False
+        else:
+            write ('\n')
+
+        bt = style.render_info (info)
         bt['_ident'] = nick
         write_bibtexified (write, bt)

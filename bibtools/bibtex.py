@@ -366,7 +366,7 @@ def write_bibtexified (write, btdata):
     write ('\n}\n')
 
 
-def export_to_bibtex (app, style, citednicks, write=None):
+def export_to_bibtex (app, style, citednicks, write=None, ignore_missing=False):
     if write is None:
         write = sys.stdout.write
 
@@ -379,7 +379,10 @@ def export_to_bibtex (app, style, citednicks, write=None):
         res = list (curs)
 
         if not len (res):
-            die ('citation to unrecognized nickname "%s"', nick)
+            if ignore_missing:
+                continue
+            else:
+                die ('citation to unrecognized nickname "%s"', nick)
         if len (res) != 1:
             die ('cant-happen multiple matches for nickname "%s"', nick)
 

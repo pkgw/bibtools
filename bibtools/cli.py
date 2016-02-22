@@ -20,11 +20,15 @@ __all__ = ['driver']
 
 class Btexport (multitool.Command):
     name = 'btexport'
-    argspec = '<output-style> <aux-file>'
+    argspec = '[-i] <output-style> <aux-file>'
     summary = 'Dump BibTeX entries needed for an .aux file.'
+    more_help = '''If the "-i" option is provided, missing entries are ignored; if not, the
+program exits with an error if any are encountered.'''
 
     def invoke (self, args, app=None, **kwargs):
         from .bibtex import bibtex_styles, export_to_bibtex
+
+        ignore_missing = pop_option ('i', args)
 
         if len (args) != 2:
             raise multitool.UsageError ('expected exactly 2 arguments')
@@ -59,7 +63,7 @@ class Btexport (multitool.Command):
                                 if not e.startswith ('r.')])
 
         # Ready to write
-        export_to_bibtex (app, style, citednicks)
+        export_to_bibtex (app, style, citednicks, ignore_missing=ignore_missing)
 
 
 class Btmerge (multitool.Command):

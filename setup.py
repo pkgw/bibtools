@@ -22,6 +22,7 @@ setup (
 
     install_requires = [
         'pwkit >= 0.6.0',
+        'six >= 1.9',
     ],
 
     package_data = {

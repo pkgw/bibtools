@@ -7,8 +7,9 @@ The command-line interface.
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
-import codecs, io, json, os.path, sys
 
+import codecs, io, json, os.path, sys
+import six
 from pwkit.cli import multitool, pop_option
 
 from . import BibError, webutil as wu
@@ -522,6 +523,36 @@ class Group (multitool.DelegatingCommand):
                         warn ('no entries in "%s" matched "%s"', groupname, idtext)
             except Exception as e:
                 die (e)
+
+
+class Igrep (multitool.Command):
+    name = 'igrep'
+    argspec = '<output-style> <pattern>'
+    summary = 'Search for ISSNs in journal-name/ISSN tables.'
+
+    def invoke (self, args, app=None, **kwargs):
+        import re
+        from .bibtex import get_style_or_die
+
+        if len (args) != 2:
+            raise multitool.UsageError ('expected exactly 2 non-option arguments')
+
+        stylename = args[0]
+        regex = args[1]
+
+        style = get_style_or_die (stylename)
+        comp = re.compile (regex, re.IGNORECASE)
+
+        inm = getattr (style, 'issn_name_map', None)
+        if inm is None:
+            die ('style "%s" does not provide an ISSN/journal-name map', stylename)
+
+        # t = (issn, jname):
+        matches = (t for t in six.viewitems (inm)
+                   if comp.search (t[1]) is not None)
+
+        for issn, jname in sorted (matches, key=lambda t: t[0]):
+            print ('%s %s' % (issn, jname))
 
 
 class Init (multitool.Command):

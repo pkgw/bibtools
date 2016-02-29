@@ -17,7 +17,13 @@ from . import webutil as wu
 from .bibcore import *
 from .unicode_to_latex import unicode_to_latex
 
-__all__ = ('import_stream bibtexify_one export_to_bibtex write_bibtexified').split ()
+__all__ = str('''
+import_stream
+bibtexify_one
+get_style_or_die
+export_to_bibtex
+write_bibtexified
+''').split ()
 
 
 # Import
@@ -338,6 +344,14 @@ bibtex_styles = {
     'apj': ApjBibtexStyle,
     'nsf': NsfBibtexStyle,
 }
+
+
+def get_style_or_die (name):
+    factory = bibtex_styles.get (name)
+    if factory is None:
+        die ('unrecognized BibTeX output style "%s"', name)
+
+    return factory ()
 
 
 def write_bibtexified (write, btdata):

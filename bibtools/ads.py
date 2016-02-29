@@ -96,18 +96,23 @@ def autolearn_bibcode (app, bibcode):
 
 # Searching
 
-def _run_ads_search (app, searchterms, filterterms):
+def _run_ads_search (app, searchterms, filterterms, nrows=50):
     # TODO: access to more API args
     apikey = app.cfg.get_or_die ('api-keys', 'ads')
 
-    q = [('q', ' '.join (searchterms)),
-         ('dev_key', apikey)]
+    q = [('q', ' '.join (searchterms))]
 
     for ft in filterterms:
         q.append (('filter', ft))
 
-    url = 'http://adslabs.org/adsabs/api/search/?' + wu.urlencode (q)
-    return json.load (wu.urlopen (url))
+    q.append (('fl', 'author,bibcode,title')) # fields list
+    q.append (('rows', nrows))
+
+    url = 'http://api.adsabs.harvard.edu/v1/search/query?' + wu.urlencode (q)
+
+    opener = wu.build_opener ()
+    opener.addheaders = [('Authorization', 'Bearer:' + apikey)]
+    return json.load (opener.open (url))
 
 
 def search_ads (app, terms, raw=False):
@@ -130,13 +135,24 @@ def search_ads (app, terms, raw=False):
         die ('could not perform ADS search: %s', e)
 
     if raw:
+        import sys
         json.dump (r, sys.stdout, ensure_ascii=False, indent=2, separators=(',', ': '))
         return
 
+    query_row_limit = r.get ('responseHeader', {}).get ('params', {}).get ('rows')
+    if query_row_limit is not None:
+        query_row_limit = int (query_row_limit)
+    else:
+        # default specified by ADS API docs:
+        # https://github.com/adsabs/adsabs-dev-api/blob/master/search.md
+        query_row_limit = 10
+
     maxbclen = 0
     info = []
+    ntrunc = 20
+    nresults = len (r['response']['docs'])
 
-    for item in r['results']['docs'][:20]:
+    for item in r['response']['docs'][:ntrunc]:
         # year isn't important since it's embedded in bibcode.
         if 'title' in item:
             title = item['title'][0] # not sure why this is a list?
@@ -156,3 +172,10 @@ def search_ads (app, terms, raw=False):
         print_truncated (title, ofs, color='bold')
         print ('    ', end='')
         print_truncated (authors, 4)
+
+    if nresults >= ntrunc:
+        print ('')
+        if nresults < query_row_limit:
+            print ('(showing %d of %d results)' % (ntrunc, nresults))
+        else:
+            print ('(showing %d of at least %d results)' % (ntrunc, query_row_limit))

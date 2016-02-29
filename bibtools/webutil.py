@@ -11,10 +11,23 @@ import codecs, cookielib, urllib, urllib2
 
 from .util import *
 
-__all__ = ('HTMLParser HTTPError get_url_from_redirection parse_http_html '
-           'urlencode urljoin urlopen urlparse urlquote urlunparse urlunquote').split ()
+__all__ = str('''
+HTMLParser
+HTTPError
+build_opener
+get_url_from_redirection
+parse_http_html
+urlencode
+urljoin
+urlopen
+urlparse
+urlquote
+urlunparse
+urlunquote
+''').split ()
 
 
+build_opener = urllib2.build_opener
 urlencode = urllib.urlencode
 HTTPError = urllib2.HTTPError
 urlquote = urllib2.quote

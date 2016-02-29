@@ -27,22 +27,17 @@ class Btexport (multitool.Command):
 program exits with an error if any are encountered.'''
 
     def invoke (self, args, app=None, **kwargs):
-        from .bibtex import bibtex_styles, export_to_bibtex
+        from .bibtex import get_style_or_die, export_to_bibtex
 
         ignore_missing = pop_option ('i', args)
 
         if len (args) != 2:
             raise multitool.UsageError ('expected exactly 2 arguments')
 
-        outstyle = args[0]
+        stylename = args[0]
         auxfile = args[1]
 
-        # Load/check style
-        factory = bibtex_styles.get (outstyle)
-        if factory is None:
-            die ('unrecognized BibTeX output style "%s"', outstyle)
-
-        style = factory ()
+        style = get_style_or_die (stylename)
 
         # Load cited nicknames
         citednicks = set ()
@@ -73,21 +68,16 @@ class Btmerge (multitool.Command):
     summary = 'Make BibTeX entries needed for an .aux file, based on an existing BibTeX file.'
 
     def invoke (self, args, app=None, **kwargs):
-        from .bibtex import bibtex_styles, merge_with_bibtex
+        from .bibtex import get_style_or_die, merge_with_bibtex
 
         if len (args) != 3:
             raise multitool.UsageError ('expected exactly 3 arguments')
 
-        outstyle = args[0]
+        stylename = args[0]
         bibfile = args[1]
         auxfile = args[2]
 
-        # Load/check style
-        factory = bibtex_styles.get (outstyle)
-        if factory is None:
-            die ('unrecognized BibTeX output style "%s"', outstyle)
-
-        style = factory ()
+        style = get_style_or_die (stylename)
 
         # Load cited nicknames
         citednicks = set ()
@@ -118,20 +108,15 @@ class Btprint (multitool.Command):
     summary = 'Print BibTeX entries for named publications.'
 
     def invoke (self, args, app=None, **kwargs):
-        from .bibtex import bibtex_styles, export_to_bibtex
+        from .bibtex import get_style_or_die, export_to_bibtex
 
         if len (args) < 2:
             raise multitool.UsageError ('expected at least 2 arguments')
 
-        outstyle = args[0]
+        stylename = args[0]
         nicks = args[1:]
 
-        # Load/check style
-        factory = bibtex_styles.get (outstyle)
-        if factory is None:
-            die ('unrecognized BibTeX output style "%s"', outstyle)
-
-        style = factory ()
+        style = get_style_or_die (stylename)
 
         # That's all there is to it.
         export_to_bibtex (app, style, nicks)

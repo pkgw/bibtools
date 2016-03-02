@@ -115,7 +115,7 @@ def _run_ads_search (app, searchterms, filterterms, nrows=50):
     return json.load (opener.open (url))
 
 
-def search_ads (app, terms, raw=False):
+def search_ads (app, terms, raw=False, large=False):
     if len (terms) < 2:
         die ('require at least two search terms for ADS')
 
@@ -129,8 +129,13 @@ def search_ads (app, terms, raw=False):
         else:
             die ('don\'t know how to express search term %r to ADS', info)
 
+    if large:
+        nrows = 1000
+    else:
+        nrows = 50
+
     try:
-        r = _run_ads_search (app, adsterms, ['database:astronomy']) # XXX more hardcoding
+        r = _run_ads_search (app, adsterms, ['database:astronomy'], nrows=nrows) # XXX more hardcoding
     except Exception as e:
         die ('could not perform ADS search: %s', e)
 
@@ -149,7 +154,10 @@ def search_ads (app, terms, raw=False):
 
     maxbclen = 0
     info = []
-    ntrunc = 20
+    if large:
+        ntrunc = 2147483647 # 2**31-1, probably big enough
+    else:
+        ntrunc = 20
     nresults = len (r['response']['docs'])
 
     for item in r['response']['docs'][:ntrunc]:

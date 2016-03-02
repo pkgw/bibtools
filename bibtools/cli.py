@@ -711,19 +711,34 @@ class Recent (multitool.Command):
 
 class Rq (multitool.Command):
     name = 'rq'
-    argspec = '<search terms...>'
+    argspec = '[-l] <search terms...>'
     summary = 'Query a remote bibliographic database.'
+    more_help = '''Currently only supports two terms: author surname and publication year. A
+leading caret (^) searches for first author only. Years less than 100 are
+handled intelligently. For example:
+
+   bib rq ^williams 14
+
+Will search for papers with first author surname "williams"
+(case-insensitively) from the year 2014.
+
+The "-l" option causes a longer listing to be generated in case there are many
+matches.
+
+There is also a "--raw" option for debugging the output of the ADS search API.
+'''
 
     def invoke (self, args, app=None, **kwargs):
         from .ads import search_ads
 
         # XXX need a real option-parsing setup
         rawmode = pop_option ('raw', args)
+        large = pop_option ('l', args)
 
         if len (args) < 1:
             raise multitool.UsageError ('expected arguments')
 
-        search_ads (app, parse_search (args), raw=rawmode)
+        search_ads (app, parse_search (args), raw=rawmode, large=large)
 
 
 class Rsbackup (multitool.Command):

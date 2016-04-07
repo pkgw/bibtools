@@ -9,6 +9,7 @@
 0018-9219 IEEE Proc.
 0018-926X ITAP
 0019-1035 Icarus
+0022-2852 J. Molec. Spectr.
 0028-0836 Natur
 0031-9007 Phys. Rev. Lett.
 0031-9201 PEPI

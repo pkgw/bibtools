@@ -50,6 +50,15 @@ class NonRedirectingProcessor (urllib2.HTTPErrorProcessor):
     https_response = http_response
 
 
+class DebugRedirectHandler (urllib2.HTTPRedirectHandler):
+    """Shouldn't be used in production code, but useful for proxy debugging."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        import sys
+        print ('REDIRECT:', req.get_method (), code, newurl, file=sys.stderr)
+        return urllib2.HTTPRedirectHandler.redirect_request (self, req, fp, code, msg, headers, newurl)
+
+
 def get_url_from_redirection (url):
     """Note that we don't go through the proxy class here for convenience, under
     the assumption that all of these redirections involve public information

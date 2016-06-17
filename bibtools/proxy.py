@@ -35,6 +35,42 @@ class HarvardProxyLoginParser (HTMLParser):
             self.inputs.append ((attrs['name'], attrs['value']))
 
 
+class HarvardTwoFactorParser (HarvardProxyLoginParser):
+    def __init__ (self):
+        HarvardProxyLoginParser.__init__ (self)
+        self.duo_info = None
+        self.in_script = False
+
+
+    def handle_starttag (self, tag, attrs):
+        if tag == 'script':
+            self.in_script = True
+        return HarvardProxyLoginParser.handle_starttag (self, tag, attrs)
+
+
+    def handle_endtag (self, tag):
+        if tag == 'script':
+            self.in_script = False
+
+
+    def handle_data (self, data):
+        if not self.in_script:
+            return
+
+        if 'Duo.init' not in data:
+            return
+
+        import json
+        try:
+            i0 = data.index ('{')
+            i1 = data.rindex ('}')
+            span = data[i0:i1+1]
+            filtered = span.replace ("'", '"') # Python needs this
+            self.duo_info = json.loads (filtered)
+        except Exception as e:
+            pass
+
+
 class HarvardProxy (object):
     suffix = '.ezp-prod1.hul.harvard.edu'
     loginurl = 'https://www.pin1.harvard.edu/cas/login'
@@ -51,9 +87,10 @@ class HarvardProxy (object):
         # redirections.
         rh = urllib2.HTTPRedirectHandler ()
         rh.max_redirections = 20
-        self.opener = urllib2.build_opener (rh,
-                                            urllib2.HTTPCookieProcessor (self.cj))
+        self.opener = urllib2.build_opener (rh, urllib2.HTTPCookieProcessor (self.cj))
         self.opener.addheaders = [('User-Agent', user_agent)]
+        ###self.opener.process_request['http'][0].set_http_debuglevel (1)
+        ###self.opener.process_request['https'][0].set_http_debuglevel (1)
 
         self.inputs = list (self.default_inputs)
         self.inputs.append (('username', username))
@@ -78,7 +115,113 @@ class HarvardProxy (object):
             values[name] = value
 
         req = urllib2.Request (posturl, urlencode (values))
-        # The response will redirect to the original target page.
+        resp = self.opener.open (req)
+
+        if not resp.url.startswith (self.loginurl):
+            # No two-factor: we should be heading to the target page.
+            return resp
+
+        curloginurl = resp.url
+
+        # If we're here, two-factor auth seems to be in effect. We need to
+        # trigger a Duo request using information slurped from the webpage.
+        # First we need to POST to a magic URL looking something like
+        # http://api-XYZ.duosecurity.com/frame/web/v1/auth, constructed from
+        # the info in the Harvard page ...
+
+        parser = parse_http_html (resp, HarvardTwoFactorParser ())
+        if parser.duo_info is None:
+            die ('malformed two-factor authentication page response?')
+
+        tx_signature, app_signature = parser.duo_info['sig_request'].split (':')
+
+        query = urlencode ([
+            ('parent', resp.url),
+            ('tx', tx_signature),
+        ])
+
+        url1 = urlunparse (('https', parser.duo_info['host'],
+                            '/frame/web/v1/auth', '', query, ''))
+
+        postdata = urlencode ([
+            ('parent', resp.url),
+        ])
+        req = urllib2.Request (url1, postdata)
+        resp = self.opener.open (req)
+
+        # Now we get redirected to
+        # http://api-XYZ.duosecurity.com/frame/prompt/new. We then need to
+        # issue a POST to the same path. The response is JSON containing
+        # a transaction ID.
+
+        scheme, loc, path, params, query, frag = urlparse (resp.url)
+        from urlparse import parse_qs
+        sid = parse_qs (query)['sid'][0]
+
+        url2 = urlunparse ((scheme, loc, path, '', '', ''))
+        postdata = urlencode ([
+            ('sid', sid),
+            ('device', 'phone1'), # XXX: does this vary?
+            ('factor', 'Duo Push'),
+            ('out_of_date', 'False'),
+        ])
+        req = urllib2.Request (url2, postdata)
+        resp = self.opener.open (req)
+
+        import json
+
+        try:
+            data = json.load (resp)
+            assert data['stat'] == 'OK', 'unexpected Duo response: ' + repr (data)
+            txid = data['response']['txid']
+        except Exception as e:
+            die ('failed to parse Duo push response: %s', e)
+
+        # Now we can issue another POST to /frame/status, which finally
+        # actually pushes the notification.
+
+        url3 = urlunparse ((scheme, loc, '/frame/status', '', '', ''))
+        postdata = urlencode ([
+            ('sid', sid),
+            ('txid', txid),
+        ])
+        req = urllib2.Request (url3, postdata)
+        resp = self.opener.open (req)
+
+        try:
+            data = json.load (resp)
+            assert data['stat'] == 'OK', 'unexpected Duo response: ' + repr (data)
+        except Exception as e:
+            die ('failed to parse Duo push response: %s', e)
+
+        # Now we POST again. This time the response doesn't finish until the
+        # human has approved or denied the request.
+
+        print ('[Waiting for two-factor approval ...]')
+        req = urllib2.Request (url3, postdata)
+        resp = self.opener.open (req)
+
+        try:
+            data = json.load (resp)
+            assert data['stat'] == 'OK', 'unexpected Duo response: ' + repr (data)
+        except Exception as e:
+            die ('failed to parse Duo push response: %s', e)
+
+        if data['response'].get ('status_code', 'undef') == 'allow':
+            cookie = data['response']['cookie']
+            print ('[Success! Continuing ...]')
+        else:
+            die ('Duo two-factor approval never came through?')
+
+        # Finally we can go back to the Harvard login page and submit our
+        # authentication. Note that the list of inputs that we have to send
+        # back is not identical to the ones that we got from the very first
+        # page request (the "LT" variable changes).
+
+        postdata = urlencode (parser.inputs + [
+            ('signedDuoResponse', cookie + ':' + app_signature),
+        ])
+        req = urllib2.Request (curloginurl, postdata)
         return self.opener.open (req)
 
 

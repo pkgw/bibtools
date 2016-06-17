@@ -103,7 +103,7 @@ def _run_ads_search (app, searchterms, filterterms, nrows=50):
     q = [('q', ' '.join (searchterms))]
 
     for ft in filterterms:
-        q.append (('filter', ft))
+        q.append (('fq', ft))
 
     q.append (('fl', 'author,bibcode,title')) # fields list
     q.append (('rows', nrows))

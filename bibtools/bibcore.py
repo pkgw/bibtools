@@ -125,13 +125,10 @@ def sniff_url (url):
             url = url[:-1]
         return 'bibcode', urlunquote (url[len (p):])
 
-    p = 'http://arxiv.org/abs/'
-    if url.startswith (p):
-        return 'arxiv', urlunquote (url[len (p):])
-
-    p = 'http://arxiv.org/pdf/'
-    if url.startswith (p):
-        return 'arxiv', urlunquote (url[len (p):])
+    for p in ('http://arxiv.org/abs/', 'https://arxiv.org/abs/',
+              'http://arxiv.org/pdf/', 'https://arxiv.org/pdf/'):
+        if url.startswith (p):
+            return 'arxiv', urlunquote (url[len (p):])
 
     return None, None
 

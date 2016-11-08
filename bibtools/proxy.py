@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2014 Peter Williams <peter@newton.cx>
+# Copyright 2014-2016 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License, version 3 or higher.
 
 """
@@ -227,7 +227,16 @@ class HarvardProxy (object):
 
     def open (self, url):
         scheme, loc, path, params, query, frag = urlparse (url)
-        proxyurl = urlunparse ((scheme, loc + self.suffix, path,
+
+        if scheme == 'https':
+            # Because of how wildcard SSL certificates work, if we're trying
+            # to proxy an HTTPS URL, the dots in the target domain get
+            # replaced with dashes.
+            proxydomain = loc.replace ('.', '-') + self.suffix
+        else:
+            proxydomain = loc + self.suffix
+
+        proxyurl = urlunparse ((scheme, proxydomain, path,
                                 params, query, frag))
 
         try:
@@ -259,6 +268,13 @@ class HarvardProxy (object):
             return url
 
         loc = loc[:-len (self.suffix)]
+
+        if scheme == 'https':
+            # We'll break for domains with hyphens in them, but there's
+            # no avoiding that as far as I can tell. This is probably the
+            # more robust way to go.
+            loc = loc.replace ('-', '.')
+
         return urlunparse ((scheme, loc, path, params, query, frag))
 
 

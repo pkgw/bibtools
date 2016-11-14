@@ -65,6 +65,6 @@ def autolearn_arxiv (app, arxiv):
         pass
 
     if 'doi' in info:
-        info['bibcode'] = doi_to_maybe_bibcode (info['doi'])
+        info['bibcode'] = doi_to_maybe_bibcode (app, info['doi'])
 
     return info

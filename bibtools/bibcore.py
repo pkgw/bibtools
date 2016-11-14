@@ -133,30 +133,36 @@ def sniff_url (url):
     return None, None
 
 
-def doi_to_maybe_bibcode (doi):
-    from .webutil import urlquote, urlopen
+def doi_to_maybe_bibcode (app, doi):
+    from .ads import _run_ads_search
 
-    bibcode = None
+    terms = ['doi:' + doi]
 
-    # XXX could convert this to an ADS 2.0 record search, something like
-    # http://adslabs.org/adsabs/api/record/{doi}/?dev_key=...
-
-    url = ('http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?'
-           'data_type=Custom&format=%25R&nocookieset=1&doi=' +
-           urlquote (doi))
-    lastnonempty = None
-
-    for line in urlopen (url):
-        line = line.strip ()
-        if len (line):
-            lastnonempty = line
-
-    if lastnonempty is None:
-        return None
-    if lastnonempty.startswith ('Retrieved 0 abstracts'):
+    try:
+        r = _run_ads_search (app, terms, [])
+    except Exception as e:
+        warn ('could not perform ADS search: %s', e)
         return None
 
-    return lastnonempty
+    if 'response' in r and 'docs' in r['response']:
+        docs = r['response']['docs']
+    else:
+        warn ('malformed response from ADS for DOI-to-bibcode search (1)')
+        return None
+
+    nhits = 0
+    bibcodes = set ()
+
+    for doc in docs:
+        if 'bibcode' in doc:
+            bibcodes.add (doc['bibcode'])
+
+    if not len (bibcodes):
+        return None
+    elif len (bibcodes) > 1:
+        warn ('multiple bibcodes matched the same DOI: %s', ', '.join (bibcodes))
+
+    return list (bibcodes)[0]
 
 
 def autolearn_pub (app, text):
@@ -169,7 +175,7 @@ def autolearn_pub (app, text):
 
     if kind == 'doi':
         # ADS seems to have better data quality.
-        bc = doi_to_maybe_bibcode (text)
+        bc = doi_to_maybe_bibcode (app, text)
         if bc is not None:
             print ('[Associated', text, 'to', bc + ']')
             kind, text = 'bibcode', bc

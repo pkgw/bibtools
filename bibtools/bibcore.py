@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2014 Peter Williams <peter@newton.cx>
+# Copyright 2014, 2016 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License, version 3 or higher.
 
 """Core bibliographic routines.
@@ -254,8 +254,14 @@ def parse_search (interms):
        if this year is 2014, 16--99 are treated as 19NN,
        and 00--15 is treated as 20NN (for "2015 in prep" papers)
        Otherwise, treated as a full year.
-    """
 
+    "+ref"
+       Limit to refereed publications
+
+    (any other single word)
+       Treated as author surname.
+
+    """
     outterms = []
     bareword = None
 
@@ -276,6 +282,10 @@ def parse_search (interms):
                     outterms.append (('year', asint + (thisyear // 100) * 100))
             else:
                 outterms.append (('year', asint))
+            continue
+
+        if interm == '+ref':
+            outterms.append (('refereed', True))
             continue
 
         # It must be the bareword

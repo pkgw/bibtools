@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2014 Peter Williams <peter@newton.cx>
+# Copyright 2014, 2016 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License, version 3 or higher.
 
 """
@@ -126,6 +126,11 @@ def search_ads (app, terms, raw=False, large=False):
             adsterms.append ('year:%d' % info[1])
         elif info[0] == 'surname':
             adsterms.append ('author:"%s"' % info[1])
+        elif info[0] == 'refereed':
+            if info[1]:
+                adsterms.append ('property:refereed')
+            else:
+                adsterms.append ('property:notrefereed')
         else:
             die ('don\'t know how to express search term %r to ADS', info)
 

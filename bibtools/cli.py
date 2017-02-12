@@ -325,7 +325,7 @@ class GoAds (multitool.Command):
             bibcode = pub.bibcode
             app.db.log_action (pub.id, 'visit')
 
-        app.open_url ('http://ui.adsabs.harvard.edu/#abs/%s/abstract' % wu.urlquote (bibcode))
+        app.open_url ('http://ui.adsabs.harvard.edu/#abs/%s' % wu.urlquote (bibcode))
 
 
 class GoArxiv (multitool.Command):

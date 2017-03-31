@@ -7,6 +7,8 @@ Various utilities, mostly generic.
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
+from six import text_type
+
 import errno, io, os.path, re, sys
 
 
@@ -17,7 +19,7 @@ __all__ = ('die warn reraise_context squish_spaces mkdir_p').split ()
 
 def die (fmt, *args):
     if not len (args):
-        raise SystemExit ('error: ' + unicode (fmt))
+        raise SystemExit ('error: ' + text_type (fmt))
     raise SystemExit ('error: ' + fmt % args)
 
 
@@ -32,7 +34,7 @@ def reraise_context (fmt, *args):
     if len (args):
         cstr = fmt % args
     else:
-        cstr = unicode (fmt)
+        cstr = text_type (fmt)
 
     ex = sys.exc_info ()[1]
     if len (ex.args):

@@ -7,7 +7,19 @@ Various utilities for HTTP-related activities.
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
-import codecs, cookielib, urllib, urllib2
+import codecs, urllib
+
+try:
+    from http import cookiejar
+except ImportError:
+    import cookielib as cookiejar
+
+try:
+    from urllib import error, parse, request
+except ImportError:
+    import urrlib2 as error
+    import urrlib2 as parse
+    import urrlib2 as request
 
 from .util import *
 
@@ -27,13 +39,17 @@ urlunquote
 ''').split ()
 
 
-build_opener = urllib2.build_opener
-urlencode = urllib.urlencode
-HTTPError = urllib2.HTTPError
-urlquote = urllib2.quote
-urlunquote = urllib2.unquote
-urlopen = urllib2.urlopen
-from urlparse import urljoin, urlparse, urlunparse
+build_opener = request.build_opener
+urlencode = parse.urlencode
+HTTPError = error.HTTPError
+urlquote = parse.quote
+urlunquote = parse.unquote
+urlopen = request.urlopen
+
+try:
+    from urllib.parse import urljoin, urlparse, urlunparse
+except ImportError:
+    from urlparse import urljoin, urlparse, urlunparse
 
 try:
     # renamed in Python 3.
@@ -42,7 +58,7 @@ except ImportError:
     from HTMLParser import HTMLParser
 
 
-class NonRedirectingProcessor (urllib2.HTTPErrorProcessor):
+class NonRedirectingProcessor (request.HTTPErrorProcessor):
     # Copied from StackOverflow q 554446.
     def http_response (self, request, response):
         return response
@@ -50,13 +66,13 @@ class NonRedirectingProcessor (urllib2.HTTPErrorProcessor):
     https_response = http_response
 
 
-class DebugRedirectHandler (urllib2.HTTPRedirectHandler):
+class DebugRedirectHandler (request.HTTPRedirectHandler):
     """Shouldn't be used in production code, but useful for proxy debugging."""
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         import sys
         print ('REDIRECT:', req.get_method (), code, newurl, file=sys.stderr)
-        return urllib2.HTTPRedirectHandler.redirect_request (self, req, fp, code, msg, headers, newurl)
+        return request.HTTPRedirectHandler.redirect_request (self, req, fp, code, msg, headers, newurl)
 
 
 def get_url_from_redirection (url):
@@ -64,7 +80,7 @@ def get_url_from_redirection (url):
     the assumption that all of these redirections involve public information
     that won't require privileged access."""
 
-    opener = urllib2.build_opener (NonRedirectingProcessor ())
+    opener = request.build_opener (NonRedirectingProcessor ())
     resp = opener.open (url)
 
     if resp.code not in (301, 302, 303, 307) or 'Location' not in resp.headers:

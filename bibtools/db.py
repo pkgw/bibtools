@@ -7,6 +7,7 @@ The main database.
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
+
 import collections, json, sqlite3, sys
 
 from . import PubLocateError, MultiplePubsError
@@ -62,7 +63,7 @@ histactions = {'read': 1, 'visit': 2}
 
 
 def nt_augment (ntclass, **vals):
-    for k in vals.iterkeys ():
+    for k in vals.keys ():
         if k not in ntclass._fields:
             raise ValueError ('illegal field "%s" for creating %s instance'
                               % (k, ntclass.__name__))

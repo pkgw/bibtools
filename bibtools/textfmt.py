@@ -7,6 +7,8 @@ Import/export from our text format.
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
+from six import text_type
+
 import json
 
 from .util import *
@@ -26,7 +28,7 @@ def export_one (app, pub, stream, width):
     if pub.year is None:
         write ('--no year--\n')
     else:
-        write (unicode (pub.year))
+        write (text_type (pub.year))
         write ('\n')
     write ('\n')
 
@@ -75,7 +77,7 @@ def export_one (app, pub, stream, width):
         write (btype)
         write ('\n')
 
-        for k in sorted (rd.iterkeys ()):
+        for k in sorted (rd.keys ()):
             write (k)
             write (' = ')
             write (rd[k])

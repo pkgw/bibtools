@@ -7,6 +7,8 @@ Configuration subsystem
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
+
+import codecs
 try:
     # module renamed to this in Python 3.
     import configparser
@@ -26,7 +28,7 @@ class BibConfig (RCP):
     def __init__ (self):
         # stupid old-style classes can't use super()
         RCP.__init__ (self)
-        self.readfp (datastream ('defaults.cfg'))
+        self.readfp (codecs.getreader('utf-8')(datastream('defaults.cfg')))
         self.read (bibpath ('bib.cfg'))
 
 

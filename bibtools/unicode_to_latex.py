@@ -24,7 +24,7 @@ unicode_to_latex_string returns a Unicode string rather than bytes. That is,
 # experience so far, the source table is far from perfect.
 
 from __future__ import absolute_import, division, print_function, unicode_literals
-
+from six import text_type
 
 unicode_to_latex_table_base = {
     u"\u0023": r"\#",
@@ -2391,7 +2391,7 @@ unicode_to_latex_table_base = {
 #    u"\u2AC6\u0338": r"\nsupseteqq",
 #    u"\u2AFD\u20E5": r"{\rlap{\textbackslash}{{/}\!\!{/}}}",
 
-unicode_to_latex_table = dict ((ord (k), unicode (v))
+unicode_to_latex_table = dict ((ord (k), text_type (v))
                                for k, v in unicode_to_latex_table_base.iteritems ())
 unicode_to_latex_string = lambda u: u.translate (unicode_to_latex_table)
 unicode_to_latex = lambda u: u.translate (unicode_to_latex_table).encode ('ascii')

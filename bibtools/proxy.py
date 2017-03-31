@@ -7,7 +7,18 @@ Proxies.
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
-import cookielib, urllib2
+
+try:
+    from http import cookiejar
+except ImportError:
+    import cookielib as cookiejar
+
+try:
+    from urllib import error, request
+except ImportError:
+    import urrlib2 as error
+    import urrlib2 as request
+
 
 from .util import *
 from .webutil import *
@@ -81,13 +92,13 @@ class HarvardProxy (object):
     ]
 
     def __init__ (self, user_agent, username, password):
-        self.cj = cookielib.CookieJar ()
+        self.cj = cookiejar.CookieJar ()
 
         # Older articles in Wiley's Online Library hit the default limit of 10
         # redirections.
-        rh = urllib2.HTTPRedirectHandler ()
+        rh = request.HTTPRedirectHandler ()
         rh.max_redirections = 20
-        self.opener = urllib2.build_opener (rh, urllib2.HTTPCookieProcessor (self.cj))
+        self.opener = request.build_opener (rh, request.HTTPCookieProcessor (self.cj))
         self.opener.addheaders = [('User-Agent', user_agent)]
         ###self.opener.process_request['http'][0].set_http_debuglevel (1)
         ###self.opener.process_request['https'][0].set_http_debuglevel (1)
@@ -114,7 +125,7 @@ class HarvardProxy (object):
         for name, value in self.inputs:
             values[name] = value
 
-        req = urllib2.Request (posturl, urlencode (values))
+        req = request.Request (posturl, urlencode (values))
         resp = self.opener.open (req)
 
         if not resp.url.startswith (self.loginurl):
@@ -146,7 +157,7 @@ class HarvardProxy (object):
         postdata = urlencode ([
             ('parent', resp.url),
         ])
-        req = urllib2.Request (url1, postdata)
+        req = request.Request (url1, postdata)
         resp = self.opener.open (req)
 
         # Now we get redirected to
@@ -165,7 +176,7 @@ class HarvardProxy (object):
             ('factor', 'Duo Push'),
             ('out_of_date', 'False'),
         ])
-        req = urllib2.Request (url2, postdata)
+        req = request.Request (url2, postdata)
         resp = self.opener.open (req)
 
         import json
@@ -185,7 +196,7 @@ class HarvardProxy (object):
             ('sid', sid),
             ('txid', txid),
         ])
-        req = urllib2.Request (url3, postdata)
+        req = request.Request (url3, postdata)
         resp = self.opener.open (req)
 
         try:
@@ -198,7 +209,7 @@ class HarvardProxy (object):
         # human has approved or denied the request.
 
         print ('[Waiting for two-factor approval ...]')
-        req = urllib2.Request (url3, postdata)
+        req = request.Request (url3, postdata)
         resp = self.opener.open (req)
 
         try:
@@ -221,7 +232,7 @@ class HarvardProxy (object):
         postdata = urlencode (parser.inputs + [
             ('signedDuoResponse', cookie + ':' + app_signature),
         ])
-        req = urllib2.Request (curloginurl, postdata)
+        req = request.Request (curloginurl, postdata)
         return self.opener.open (req)
 
 
@@ -241,7 +252,7 @@ class HarvardProxy (object):
 
         try:
             resp = self.opener.open (proxyurl)
-        except urllib2.HTTPError as e:
+        except error.HTTPError as e:
             if e.code == 404:
                 # The proxy doesn't feel like proxying this URL. Try just
                 # accessing it directly.

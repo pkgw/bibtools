@@ -7,6 +7,7 @@ Global structure for the bibliography tool.
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
+from six import text_type
 
 __all__ = ('BibApp BibError PubLocateError MultiplePubsError').split ()
 
@@ -14,9 +15,9 @@ __all__ = ('BibApp BibError PubLocateError MultiplePubsError').split ()
 class BibError (Exception):
     def __init__ (self, fmt, *args):
         if not len (args):
-            self.bibmsg = unicode (fmt)
+            self.bibmsg = text_type (fmt)
         else:
-            self.bibmsg = unicode (fmt) % args
+            self.bibmsg = text_type (fmt) % args
 
     def __unicode__ (self):
         return self.bibmsg

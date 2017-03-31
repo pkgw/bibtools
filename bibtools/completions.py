@@ -7,6 +7,7 @@ Tab-completion helpers. Because we're classy.
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
+
 from .util import *
 
 
@@ -31,7 +32,7 @@ def stem_compatible (stem, partial):
 
 
 def complete_commands (app, tool, args):
-    for cname in tool.commands.iterkeys ():
+    for cname in tool.commands.keys ():
         print (cname)
 
 

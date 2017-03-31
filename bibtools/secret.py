@@ -25,6 +25,7 @@ things like keeping the decrypted secret in memory for too long, etc.
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
+
 import io, os, random, string, subprocess
 
 from .util import bibpath, set_terminal_echo
@@ -59,7 +60,7 @@ def store_user_secret (cfg):
 
     sysrand = random.SystemRandom ()
     pool = string.digits + string.letters + string.punctuation
-    keypass = ''.join (sysrand.choice (pool) for _ in xrange (64))
+    keypass = ''.join (sysrand.choice (pool) for _ in range (64))
 
     # Generate the static keys
 

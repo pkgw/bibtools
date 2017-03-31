@@ -10,6 +10,7 @@ TODO: styles defined in a support file or something.
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
+
 import json, sys
 
 from .util import *
@@ -58,9 +59,9 @@ def _fix_bibtex (text):
     if text is None:
         return None
 
-    text = unicode (text)
+    text = text_type(text)
 
-    for i in xrange (0, len (_bibtex_replacements), 2):
+    for i in range (0, len (_bibtex_replacements), 2):
         text = text.replace (_bibtex_replacements[i], _bibtex_replacements[i+1])
     return text
 
@@ -119,7 +120,7 @@ def _convert_bibtex_record (rec):
     if 'adsurl' in rec:
         urlinfo.append (sniff_url (rec['adsurl']))
 
-    for k, v in rec.iteritems ():
+    for k, v in rec.items ():
         if k.startswith ('citeulike-linkout-'):
             urlinfo.append (sniff_url (v))
         if k.startswith ('bdsk-url-'):
@@ -143,7 +144,7 @@ def _convert_bibtex_record (rec):
 
     refdata = {'_type': rec['type']}
 
-    for k, v in rec.iteritems ():
+    for k, v in rec.items ():
         if k in ('type', 'id', 'abstract', 'archiveprefix', 'author',
                  'bibcode', 'day', 'doi', 'editor', 'eprint', 'keyword',
                  'keywords', 'link', 'month', 'posted-at', 'pmid',
@@ -221,7 +222,7 @@ class BibtexStyleBase (object):
         """
         rd = dict (info['refdata'])
 
-        for k in rd.keys ():
+        for k in list(rd.keys ()):
             rd[k] = unicode_to_latex (rd[k])
 
         self._massage_info (info, rd)
@@ -251,7 +252,7 @@ class BibtexStyleBase (object):
             rd['title'] = unicode_to_latex (info['title'])
 
         if info.get ('year') is not None:
-            rd['year'] = unicode (info['year'])
+            rd['year'] = text_type(info['year'])
 
         if self.aggressive_url:
             # TODO: better place for best-URL logic.
@@ -365,7 +366,7 @@ def write_bibtexified (write, btdata):
     write ('{')
     write (btid)
 
-    for k in sorted (btdata.iterkeys ()):
+    for k in sorted (btdata.keys ()):
         if btdata[k] is None:
             warn ('expected to see BibTeX field "%s" in "%s", but it is empty',
                   k, btid)

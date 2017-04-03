@@ -606,7 +606,7 @@ class Info (multitool.Command):
                 if ' ' in v:
                     return k + '="' + v + '"'
                 return k + '=' + v
-            bits = (fmt (t) for t in sorted (rd.iteritems (), key=lambda t: t[0]))
+            bits = (fmt (t) for t in sorted (rd.items (), key=lambda t: t[0]))
             txt += ', '.join (bits) + '}'
             print_linewrapped (txt, rest_prefix='   ')
 

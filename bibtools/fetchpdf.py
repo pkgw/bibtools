@@ -71,7 +71,7 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None, max_atte
                   e.reason, e.url)
             return None
 
-        if resp.info ().type == 'text/html':
+        if resp.getheader('Content-Type', 'undefined') == 'text/html':
             # A lot of journals wrap their "PDF" links in an HTML shim. We just
             # recurse our HTML scraping.
             pdfurl = proxy.unmangle (scrape_pdf_url (resp))
@@ -96,7 +96,7 @@ def try_fetch_pdf (proxy, destpath, arxiv=None, bibcode=None, doi=None, max_atte
             b = resp.read (4096)
 
             if first:
-                if len (b) < 4 or b[:4] != '%PDF':
+                if len (b) < 4 or b[:4] != b'%PDF':
                     warn ('response does not seem to be a PDF')
                     resp.close ()
                     f.close ()

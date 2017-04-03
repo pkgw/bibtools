@@ -125,7 +125,7 @@ class HarvardProxy (object):
         for name, value in self.inputs:
             values[name] = value
 
-        req = request.Request (posturl, urlencode (values))
+        req = request.Request (posturl, urlencode (values).encode('utf8'))
         resp = self.opener.open (req)
 
         if not resp.url.startswith (self.loginurl):
@@ -157,7 +157,7 @@ class HarvardProxy (object):
         postdata = urlencode ([
             ('parent', resp.url),
         ])
-        req = request.Request (url1, postdata)
+        req = request.Request (url1, postdata.encode('utf8'))
         resp = self.opener.open (req)
 
         # Now we get redirected to
@@ -166,7 +166,10 @@ class HarvardProxy (object):
         # a transaction ID.
 
         scheme, loc, path, params, query, frag = urlparse (resp.url)
-        from urlparse import parse_qs
+        try:
+            from urllib.parse import parse_qs
+        except ImportError:
+            from urlparse import parse_qs
         sid = parse_qs (query)['sid'][0]
 
         url2 = urlunparse ((scheme, loc, path, '', '', ''))
@@ -176,7 +179,7 @@ class HarvardProxy (object):
             ('factor', 'Duo Push'),
             ('out_of_date', 'False'),
         ])
-        req = request.Request (url2, postdata)
+        req = request.Request (url2, postdata.encode('utf8'))
         resp = self.opener.open (req)
 
         import json
@@ -196,7 +199,7 @@ class HarvardProxy (object):
             ('sid', sid),
             ('txid', txid),
         ])
-        req = request.Request (url3, postdata)
+        req = request.Request (url3, postdata.encode('utf8'))
         resp = self.opener.open (req)
 
         try:
@@ -209,7 +212,7 @@ class HarvardProxy (object):
         # human has approved or denied the request.
 
         print ('[Waiting for two-factor approval ...]')
-        req = request.Request (url3, postdata)
+        req = request.Request (url3, postdata.encode('utf8'))
         resp = self.opener.open (req)
 
         try:
@@ -232,7 +235,7 @@ class HarvardProxy (object):
         postdata = urlencode (parser.inputs + [
             ('signedDuoResponse', cookie + ':' + app_signature),
         ])
-        req = request.Request (curloginurl, postdata)
+        req = request.Request (curloginurl, postdata.encode('utf8'))
         return self.opener.open (req)
 
 

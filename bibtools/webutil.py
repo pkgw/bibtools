@@ -7,7 +7,8 @@ Various utilities for HTTP-related activities.
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
-import codecs, urllib
+import codecs
+import six
 
 try:
     from http import cookiejar
@@ -95,7 +96,11 @@ def parse_http_html (resp, parser):
 
     debug = False # XXX hack
 
-    charset = resp.headers.getparam ('charset')
+    if six.PY2:
+        charset = resp.headers.getparam ('charset')
+    else:
+        charset = resp.headers.get_content_charset('ISO-8859-1')
+
     if charset is None:
         charset = 'ISO-8859-1'
 
@@ -107,7 +112,7 @@ def parse_http_html (resp, parser):
     while True:
         d = resp.read (4096)
         if not len (d):
-            text = dec.decode ('', final=True)
+            text = dec.decode (b'', final=True)
             parser.feed (text)
             break
 

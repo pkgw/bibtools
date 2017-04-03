@@ -47,9 +47,9 @@ def encode_name (given, family):
 def normalize_surname (name):
     from unicodedata import normalize
     # this strips accents:
-    name = normalize ('NFKD', text_type (name)).encode ('ascii', 'ignore')
+    name = normalize ('NFKD', text_type (name)).encode ('ascii', 'ignore').decode('ascii')
     # now strip non-letters and condense everything:
-    return re.sub (rb'\.\.+', '.', re.sub (rb'[^a-z]+', '.', name.lower ()))
+    return re.sub (r'\.\.+', '.', re.sub (r'[^a-z]+', '.', name.lower ()))
 
 
 _arxiv_re_1 = re.compile (r'^\d\d[01]\d\.\d+')

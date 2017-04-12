@@ -11,6 +11,12 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from .util import *
 
 
+try:
+    from string import ascii_lowercase as string_letters
+except ImportError:
+    from string import letters as string_letters
+
+
 def process (app, tool, subcommand, args):
     func = globals ().get ('complete_' + subcommand)
     if not callable (func):
@@ -41,7 +47,7 @@ def _complete_pub_common (app, args, is_multi):
 
     if not len (args) or not len (args[0]):
         # No partial; let's not try to yield every possible thing
-        for c in string.letters:
+        for c in string_letters:
             print (c)
         for c in string.digits:
             print (c)
@@ -56,7 +62,7 @@ def _complete_pub_common (app, args, is_multi):
     if stem_compatible ('1', partial) or stem_compatible ('20', partial):
         print_bibcodes (app, partial)
 
-    if partial[0] in string.letters:
+    if partial[0] in string_letters:
         print_nfasys (app, partial, is_multi)
 
     print_arxivs (app, partial)

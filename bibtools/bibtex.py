@@ -238,7 +238,7 @@ class BibtexStyleBase (object):
             rd['doi'] = unicode_to_latex (info['doi'])
 
         if self.issn_name_map is not None and 'issn' in rd:
-            ltxjname = self.issn_name_map.get (rd['issn'])
+            ltxjname = self.issn_name_map.get (rd['issn'].decode('utf8'))
             if ltxjname is not None:
                 rd['journal'] = ltxjname
 

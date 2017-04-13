@@ -11,7 +11,8 @@ TODO: styles defined in a support file or something.
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import json, sys
+import json
+from six import text_type
 
 from .util import *
 from . import webutil as wu
@@ -191,22 +192,22 @@ class BibtexStyleBase (object):
         given, family = parse_name (name)
 
         if len (given):
-            givenbit = ', ' + unicode_to_latex (given)
+            givenbit = b', ' + unicode_to_latex (given)
         else:
-            givenbit = ''
+            givenbit = b''
 
-        fbits = family.rsplit (',', 1)
+        fbits = family.rsplit (u',', 1)
 
         if len (fbits) > 1:
-            return '{%s}, %s%s' % (unicode_to_latex (fbits[0]),
+            return b'{%s}, %s%s' % (unicode_to_latex (fbits[0]),
                                    unicode_to_latex (fbits[1]),
                                    givenbit)
 
-        return '{%s}%s' % (unicode_to_latex (fbits[0]), givenbit)
+        return b'{%s}%s' % (unicode_to_latex (fbits[0]), givenbit)
 
 
     def render_names (self, names):
-        return ' and '.join (self.render_name (n) for n in names)
+        return b' and '.join (self.render_name (n) for n in names)
 
 
     def _massage_info (self, info, rd):
@@ -242,8 +243,8 @@ class BibtexStyleBase (object):
                 rd['journal'] = ltxjname
 
         if self.normalize_pages and 'pages' in rd:
-            p = rd['pages'].split ('--')[0]
-            if p[-1] == '+':
+            p = rd['pages'].split (b'--')[0]
+            if p[-1] == b'+':
                 p = p[:-1]
             rd['pages'] = p
 
@@ -252,7 +253,7 @@ class BibtexStyleBase (object):
             rd['title'] = unicode_to_latex (info['title'])
 
         if info.get ('year') is not None:
-            rd['year'] = text_type(info['year'])
+            rd['year'] = b'%d' % info['year']
 
         if self.aggressive_url:
             # TODO: better place for best-URL logic.
@@ -278,11 +279,11 @@ class BibtexStyleBase (object):
             # there was supposed to be a real space after the control
             # sequence, it would get gobbled.) So we do this:
 
-            if ' ' in url:
+            if b' ' in url:
                 warn ('spaces in output url "%s"', url)
-                url = url.replace (' ', r'\%20')
+                url = url.replace (b' ', rb'\%20')
 
-            url = url.replace ('{}', ' ')
+            url = url.replace (b'{}', b' ')
             rd['url'] = url
 
         return rd
@@ -295,7 +296,7 @@ class ApjBibtexStyle (BibtexStyleBase):
         inm = {}
 
         for line in datastream ('apj-issnmap.txt'):
-            line = line.split ('#')[0].strip ().decode ('utf-8')
+            line = line.split (b'#')[0].strip ().decode ('utf-8')
             if not len (line):
                 continue
 
@@ -361,9 +362,9 @@ def write_bibtexified (write, btdata):
     bttype = btdata.pop ('_type')
     btid = btdata.pop ('_ident')
 
-    write ('@')
+    write (b'@')
     write (bttype)
-    write ('{')
+    write (b'{')
     write (btid)
 
     for k in sorted (btdata.keys ()):
@@ -372,18 +373,19 @@ def write_bibtexified (write, btdata):
                   k, btid)
             continue
 
-        write (',\n  ')
-        write (k)
-        write (' = {')
+        write (b',\n  ')
+        write (k.encode('utf8'))
+        write (b' = {')
         write (btdata[k])
-        write ('}')
+        write (b'}')
 
-    write ('\n}\n')
+    write (b'\n}\n')
 
 
 def export_to_bibtex (app, style, citednicks, write=None, ignore_missing=False):
     if write is None:
-        write = sys.stdout.write
+        from pwkit.io import get_stdout_bytes
+        write = get_stdout_bytes().write
 
     seenids = {}
     first = True
@@ -415,10 +417,10 @@ def export_to_bibtex (app, style, citednicks, write=None, ignore_missing=False):
         if first:
             first = False
         else:
-            write ('\n')
+            write (b'\n')
 
         bt = style.render_info (app.db.jsonify_pub (pub.id))
-        bt['_ident'] = nick
+        bt['_ident'] = nick.encode('utf8')
         write_bibtexified (write, bt)
 
 
@@ -426,7 +428,8 @@ def export_to_bibtex (app, style, citednicks, write=None, ignore_missing=False):
 
 def merge_with_bibtex (app, bibpath, style, citednicks, write=None):
     if write is None:
-        write = sys.stdout.write
+        from pwkit.io import get_stdout_bytes
+        write = get_stdout_bytes().write
 
     # First, load up all of the existing records.
 
@@ -486,5 +489,5 @@ def merge_with_bibtex (app, bibpath, style, citednicks, write=None):
             write ('\n')
 
         bt = style.render_info (info)
-        bt['_ident'] = nick
+        bt['_ident'] = nick.encode('utf8')
         write_bibtexified (write, bt)

@@ -523,7 +523,7 @@ class Igrep (multitool.Command):
             raise multitool.UsageError ('expected exactly 2 non-option arguments')
 
         stylename = args[0]
-        regex = args[1]
+        regex = args[1].encode('utf8')
 
         style = get_style_or_die (stylename)
         comp = re.compile (regex, re.IGNORECASE)
@@ -537,7 +537,7 @@ class Igrep (multitool.Command):
                    if comp.search (t[1]) is not None)
 
         for issn, jname in sorted (matches, key=lambda t: t[0]):
-            print ('%s %s' % (issn, jname))
+            print ('%s %s' % (issn, jname.decode('utf8')))
 
 
 class Init (multitool.Command):

@@ -201,6 +201,8 @@ class DumpCrossref (multitool.Command):
     summary = 'Dump the Crossref XML record for a publication.'
 
     def invoke (self, args, app=None, **kwargs):
+        from pwkit.io import get_stdout_bytes
+
         if len (args) != 1:
             raise multitool.UsageError ('expected exactly 1 argument')
 
@@ -222,10 +224,10 @@ class DumpCrossref (multitool.Command):
 
         from .crossref import stream_doi
         url, handle = stream_doi (app, doi)
+        bout = get_stdout_bytes()
 
         for data in handle:
-            # We have raw bytes, so write to the raw stdout stream.
-            sys.stdout.stream.write (data)
+            bout.write (data)
 
 
 class Edit (multitool.Command):

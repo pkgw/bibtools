@@ -88,7 +88,7 @@ class HarvardProxy (object):
     forwardurl = 'http://ezp-prod1.hul.harvard.edu/connect'
 
     default_inputs = [
-        ('compositeAuthenticationSourceType', 'HarvardKey'),
+        ('authenticationSourceType', 'HarvardKey'),
     ]
 
     def __init__ (self, user_agent, username, password):

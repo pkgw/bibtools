@@ -186,7 +186,7 @@ class BibtexStyleBase (object):
     issn_name_map = None
     normalize_pages = False
     aggressive_url = True
-    title_types = set (('book',))
+    title_types = set ((b'book',))
 
     def render_name (self, name):
         given, family = parse_name (name)

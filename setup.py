@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Copyright 2014-2015 Peter Williams <peter@newton.cx>
+# Copyright 2014-2017 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License version 3 or higher
 
 # I don't use the ez_setup module because it causes us to automatically build
@@ -9,7 +9,7 @@ from setuptools import setup
 
 setup (
     name = 'bibtools',
-    version = '0.2.99',
+    version = '0.3',
 
     # This package actually *is* zip-safe, but I've run into issues with
     # installing it as a Zip: in particular, the install sometimes fails with
@@ -21,8 +21,8 @@ setup (
     packages = ['bibtools', 'bibtools.hacked_bibtexparser'],
 
     install_requires = [
-        'pwkit >= 0.6.0',
-        'six >= 1.9',
+        'pwkit >= 0.8.0',
+        'six >= 1.10',
     ],
 
     package_data = {

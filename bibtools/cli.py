@@ -698,17 +698,24 @@ class Read (multitool.Command):
 
 class Recent (multitool.Command):
     name = 'recent'
-    argspec = ''
+    argspec = '[-l]'
     summary = 'List recently-accessed publications.'
     help_if_no_args = False
 
-    def invoke (self, args, app=None, **kwargs):
-        if len (args) != 0:
-            raise multitool.UsageError ('expected no arguments')
+    def invoke(self, args, app=None, **kwargs):
+        long_listing = pop_option('l', args)
 
-        pubs = app.db.pub_fquery ('SELECT DISTINCT p.* FROM pubs AS p, history AS h '
-                                  'WHERE p.id == h.pubid ORDER BY date DESC LIMIT 10')
-        print_generic_listing (app.db, pubs, sort=None)
+        if len (args) != 0:
+            raise multitool.UsageError('expected no non-option arguments')
+
+        if long_listing:
+            n = 100
+        else:
+            n = 10
+
+        pubs = app.db.pub_fquery('SELECT DISTINCT p.* FROM pubs AS p, history AS h '
+                                 'WHERE p.id == h.pubid ORDER BY date DESC LIMIT ?', n)
+        print_generic_listing(app.db, pubs, sort=None)
 
 
 class Rq (multitool.Command):

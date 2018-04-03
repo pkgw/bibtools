@@ -104,21 +104,23 @@ def sniff_url (url):
 
     from .webutil import urlunquote
 
-    p = 'http://dx.doi.org/'
-    if url.startswith (p):
-        return 'doi', urlunquote (url[len (p):])
+    for p in ('http://dx.doi.org/10.', 'https://dx.doi.org/10.',
+              'http://doi.org/10.', 'https://doi.org/10.'):
+        if url.startswith(p):
+            return 'doi', urlunquote(url[len(p) - 3:])
 
-    p = 'http://adsabs.harvard.edu/abs/'
-    if url.startswith (p):
-        return 'bibcode', urlunquote (url[len (p):])
+    for p in ('http://adsabs.harvard.edu/abs/', 'https://adsabs.harvard.edu/abs/'):
+        if url.startswith(p):
+            return 'bibcode', urlunquote(url[len(p):])
 
     p = 'http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode='
     if url.startswith (p):
         return 'bibcode', urlunquote (url[len (p):])
 
-    p = 'http://labs.adsabs.harvard.edu/ui/abs/'
-    if url.startswith (p):
-        return 'bibcode', urlunquote (url[len (p):])
+    for p in ('http://labs.adsabs.harvard.edu/ui/abs/',
+              'https://labs.adsabs.harvard.edu/ui/abs/'):
+        if url.startswith(p):
+            return 'bibcode', urlunquote(url[len(p):])
 
     p = 'http://labs.adsabs.harvard.edu/adsabs/abs/'
     if url.startswith (p):

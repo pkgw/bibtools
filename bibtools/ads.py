@@ -115,24 +115,32 @@ def _run_ads_search (app, searchterms, filterterms, nrows=50):
     return json.load (opener.open (url))
 
 
-def search_ads (app, terms, raw=False, large=False):
-    if len (terms) < 2:
-        die ('require at least two search terms for ADS')
+def search_ads(app, terms, raw=False, large=False):
+    if len(terms) < 2:
+        die('require at least two search terms for ADS')
 
     adsterms = []
+    astro_specific = True # default to this for this service
 
     for info in terms:
         if info[0] == 'year':
-            adsterms.append ('year:%d' % info[1])
+            adsterms.append('year:%d' % info[1])
         elif info[0] == 'surname':
-            adsterms.append ('author:"%s"' % info[1])
+            adsterms.append('author:"%s"' % info[1])
         elif info[0] == 'refereed':
             if info[1]:
-                adsterms.append ('property:refereed')
+                adsterms.append('property:refereed')
             else:
-                adsterms.append ('property:notrefereed')
+                adsterms.append('property:notrefereed')
+        elif info[0] == 'astro_specific':
+            astro_specific = info[1]
         else:
-            die ('don\'t know how to express search term %r to ADS', info)
+            die('don\'t know how to express search term %r to ADS', info)
+
+    if astro_specific:
+        filter_terms = ['database:astronomy']
+    else:
+        filter_terms = []
 
     if large:
         nrows = 1000
@@ -140,18 +148,18 @@ def search_ads (app, terms, raw=False, large=False):
         nrows = 50
 
     try:
-        r = _run_ads_search (app, adsterms, ['database:astronomy'], nrows=nrows) # XXX more hardcoding
+        r = _run_ads_search(app, adsterms, filter_terms, nrows=nrows) # XXX more hardcoding
     except Exception as e:
-        die ('could not perform ADS search: %s', e)
+        die('could not perform ADS search: %s', e)
 
     if raw:
         import sys
-        json.dump (r, sys.stdout, ensure_ascii=False, indent=2, separators=(',', ': '))
+        json.dump(r, sys.stdout, ensure_ascii=False, indent=2, separators=(',', ': '))
         return
 
-    query_row_limit = r.get ('responseHeader', {}).get ('params', {}).get ('rows')
+    query_row_limit = r.get('responseHeader', {}).get('params', {}).get('rows')
     if query_row_limit is not None:
-        query_row_limit = int (query_row_limit)
+        query_row_limit = int(query_row_limit)
     else:
         # default specified by ADS API docs:
         # https://github.com/adsabs/adsabs-dev-api/blob/master/search.md
@@ -163,7 +171,7 @@ def search_ads (app, terms, raw=False, large=False):
         ntrunc = 2147483647 # 2**31-1, probably big enough
     else:
         ntrunc = 20
-    nresults = len (r['response']['docs'])
+    nresults = len(r['response']['docs'])
 
     for item in r['response']['docs'][:ntrunc]:
         # year isn't important since it's embedded in bibcode.
@@ -172,23 +180,23 @@ def search_ads (app, terms, raw=False, large=False):
         else:
             title = '(no title)' # this happens, e.g.: 1991PhDT.......161G
         bibcode = item['bibcode']
-        authors = ', '.join (parse_name (_translate_ads_name (n))[1] for n in item['author'])
+        authors = ', '.join(parse_name(_translate_ads_name(n))[1] for n in item['author'])
 
-        maxbclen = max (maxbclen, len (bibcode))
-        info.append ((bibcode, title, authors))
+        maxbclen = max(maxbclen, len(bibcode))
+        info.append((bibcode, title, authors))
 
     ofs = maxbclen + 2
-    red, reset = get_color_codes (None, 'red', 'reset')
+    red, reset = get_color_codes(None, 'red', 'reset')
 
     for bc, title, authors in info:
-        print ('%s%*s%s  ' % (red, maxbclen, bc, reset), end='')
-        print_truncated (title, ofs, color='bold')
-        print ('    ', end='')
-        print_truncated (authors, 4)
+        print('%s%*s%s  ' % (red, maxbclen, bc, reset), end='')
+        print_truncated(title, ofs, color='bold')
+        print('    ', end='')
+        print_truncated(authors, 4)
 
     if nresults >= ntrunc:
-        print ('')
+        print('')
         if nresults < query_row_limit:
-            print ('(showing %d of %d results)' % (ntrunc, nresults))
+            print('(showing %d of %d results)' % (ntrunc, nresults))
         else:
-            print ('(showing %d of at least %d results)' % (ntrunc, query_row_limit))
+            print('(showing %d of at least %d results)' % (ntrunc, query_row_limit))

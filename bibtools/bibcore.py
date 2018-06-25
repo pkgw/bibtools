@@ -249,7 +249,7 @@ def print_generic_listing (db, pub_seq, sort='year', stream=None):
 
 # Searching
 
-def parse_search (interms):
+def parse_search(interms):
     """We go to the trouble of parsing searches ourselves because ADS's syntax
     is quite verbose. Terms we support:
 
@@ -261,6 +261,9 @@ def parse_search (interms):
     "+ref"
        Limit to refereed publications
 
+    "-ast"
+       Do *not* limit to astronomy-specific publications.
+
     (any other single word)
        Treated as author surname.
 
@@ -269,26 +272,30 @@ def parse_search (interms):
     bareword = None
 
     from time import localtime
-    thisyear = localtime ()[0]
+    thisyear = localtime()[0]
     next_twodigit_year = (thisyear + 1) % 100
 
     for interm in interms:
         try:
-            asint = int (interm)
+            asint = int(interm)
         except ValueError:
             pass
         else:
             if asint < 100:
                 if asint > next_twodigit_year:
-                    outterms.append (('year', asint + (thisyear // 100 - 1) * 100))
+                    outterms.append(('year', asint + (thisyear // 100 - 1) * 100))
                 else:
-                    outterms.append (('year', asint + (thisyear // 100) * 100))
+                    outterms.append(('year', asint + (thisyear // 100) * 100))
             else:
-                outterms.append (('year', asint))
+                outterms.append(('year', asint))
             continue
 
         if interm == '+ref':
-            outterms.append (('refereed', True))
+            outterms.append(('refereed', True))
+            continue
+
+        if interm == '-ast':
+            outterms.append(('astro_specific', False))
             continue
 
         # It must be the bareword
@@ -296,9 +303,9 @@ def parse_search (interms):
             bareword = interm
             continue
 
-        die ('searches only support a single "bare word" right now')
+        die('searches only support a single "bare word" right now')
 
     if bareword is not None:
-        outterms.append (('surname', bareword)) # note the assumption here
+        outterms.append(('surname', bareword)) # note the assumption here
 
     return outterms

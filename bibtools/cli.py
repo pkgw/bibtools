@@ -722,14 +722,18 @@ class Rq (multitool.Command):
     name = 'rq'
     argspec = '[-l] <search terms...>'
     summary = 'Query a remote bibliographic database.'
-    more_help = '''Currently only supports two terms: author surname and publication year. A
-leading caret (^) searches for first author only. Years less than 100 are
-handled intelligently. For example:
+    more_help = '''Currently only supports two primary terms: author surname and publication
+year. A leading caret (^) searches for first author only. Years less than 100
+are handled intelligently. For example:
 
    bib rq ^williams 14
 
 Will search for papers with first author surname "williams"
 (case-insensitively) from the year 2014.
+
+Adding a "+ref" keyword restricts the search to refereed publications. Adding
+a "-ast" keyword does *not* limit the search to publications that are
+classified as astronomy-related.
 
 The "-l" option causes a longer listing to be generated in case there are many
 matches.

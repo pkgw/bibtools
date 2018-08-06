@@ -75,3 +75,5 @@
 2041-8213 ApJL
 2156-2202 JGR
 2169-9402 J. Geophys. Res. Space Physics
+2470-0010 Phys. Rev. D
+2470-0029 Phys. Rev. D

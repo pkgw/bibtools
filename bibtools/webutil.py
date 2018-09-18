@@ -28,6 +28,7 @@ __all__ = str('''
 HTMLParser
 HTTPError
 build_opener
+get_persistent_cookiejar
 get_url_from_redirection
 parse_http_html
 urlencode
@@ -128,3 +129,18 @@ def parse_http_html(resp, parser):
     resp.close()
     parser.close()
     return parser
+
+
+def get_persistent_cookiejar():
+    import errno
+
+    cookie_path = bibpath('cookies.txt')
+    cj = cookiejar.LWPCookieJar(filename=cookie_path)
+
+    try:
+        cj.load()
+    except IOError as e:
+        if e.errno != errno.ENOENT:
+            raise
+
+    return cj

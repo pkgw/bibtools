@@ -9,11 +9,6 @@ Proxies.
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 try:
-    from http import cookiejar
-except ImportError:
-    import cookielib as cookiejar
-
-try:
     from urllib import error, request
 except ImportError:
     import urrlib2 as error
@@ -92,7 +87,7 @@ class HarvardProxy(object):
     ]
 
     def __init__(self, user_agent, username, password):
-        self.cj = cookiejar.CookieJar()
+        self.cj = get_persistent_cookiejar()
 
         # Older articles in Wiley's Online Library hit the default limit of 10
         # redirections.
@@ -130,6 +125,7 @@ class HarvardProxy(object):
 
         if not resp.url.startswith(self.loginurl):
             # No two-factor: we should be heading to the target page.
+            self.cj.save()
             return resp
 
         curloginurl = resp.url
@@ -253,6 +249,7 @@ class HarvardProxy(object):
             ('signedDuoResponse', cookie + ':' + app_signature),
         ])
         req = request.Request(curloginurl, postdata.encode('utf8'))
+        self.cj.save()
         return self.opener.open(req)
 
 
@@ -287,6 +284,7 @@ class HarvardProxy(object):
             # that requires us to re-request the original URL.
             resp = self.opener.open(proxyurl)
 
+        self.cj.save()
         return resp
 
 

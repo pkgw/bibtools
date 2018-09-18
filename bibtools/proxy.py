@@ -222,10 +222,27 @@ class HarvardProxy (object):
             die ('failed to parse Duo push response: %s', e)
 
         if data['response'].get ('status_code', 'undef') == 'allow':
-            cookie = data['response']['cookie']
+            cookie = data['response'].get('cookie')
             print ('[Success! Continuing ...]')
         else:
             die ('Duo two-factor approval never came through?')
+
+        # Duo used to work where we got the cookie above. At the moment (Sep
+        # 2018) it instead gives us yet another URL that we need to POST to.
+
+        if cookie is None:
+            newbase = data['response']['result_url']
+            url4 = urlunparse((scheme, loc, newbase, '', '', ''))
+            req = request.Request(url4, postdata.encode('utf8'))
+            resp = self.opener.open(req)
+
+            try:
+                data = json.load(resp)
+                assert data['stat'] == 'OK', 'unexpected Duo response: ' + repr(data)
+            except Exception as e:
+                die('failed to parse Duo push response: %s', e)
+
+            cookie = data['response']['cookie']
 
         # Finally we can go back to the Harvard login page and submit our
         # authentication. Note that the list of inputs that we have to send

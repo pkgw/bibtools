@@ -64,7 +64,7 @@ def mkdir_p(path):
 
 # More app-specific
 
-__all__ += ('datastream bibpath libpath ensure_libpath_exists').split()
+__all__ += ('datastream bibpath libpath ensure_libpath_exists make_temp_nicename').split()
 
 def datastream(name):
     from pkg_resources import Requirement, resource_stream
@@ -90,6 +90,53 @@ def libpath(sha1, ext):
 
 def ensure_libpath_exists(sha1):
     mkdir_p(bibpath('lib', sha1[:2]))
+
+
+class TemporaryNiceFilenameManager(object):
+    def __init__(self, db, pub, sha1, max_title_len=60, ext='pdf'):
+        self.pub = pub
+        self.sha1 = sha1
+
+        self.src = libpath(self.sha1, ext)
+
+        fas = db.get_pub_fas(pub.id) or 'No-Author'
+        year = pub.year or 'NoYr'
+        title = pub.title or 'Untitled'
+
+        if len(title) > max_title_len:
+            words = title.split()
+            tlen = 0
+
+            for i, word in enumerate(words):
+                tlen += len(word) + 1
+                if tlen > max_title_len:
+                    break
+
+            if i == 0:
+                # Seriously? First word of the title is too long
+                title = title[:max_title_len - 4].strip() + ' ...'
+            else:
+                title = ' '.join(words[:i]) + ' ...'
+
+        self.nicename = '%s %s - %s.%s' % (fas, year, title, ext)
+
+
+    def __enter__(self):
+        from tempfile import TemporaryDirectory
+
+        self.tempdir_obj = TemporaryDirectory(dir=bibpath(), prefix='nicefn')
+        tempdir_path = self.tempdir_obj.__enter__()
+        dest = os.path.join(tempdir_path, self.nicename)
+        os.link(self.src, dest)
+        return dest
+
+
+    def __exit__(self, etype, evalue, etb):
+        return self.tempdir_obj.__exit__(etype, evalue, etb)
+
+
+def make_temp_nicename(db, pub, sha1, max_title_len=60, ext='pdf'):
+    return TemporaryNiceFilenameManager(db, pub, sha1, max_title_len=max_title_len, ext=ext)
 
 
 # Running programs

@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2014-2015 Peter Williams <peter@newton.cx>
+# Copyright 2014-2018 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License, version 3 or higher.
 
 """
@@ -716,6 +716,39 @@ class Recent(multitool.Command):
         pubs = app.db.pub_fquery('SELECT DISTINCT p.* FROM pubs AS p, history AS h '
                                  'WHERE p.id == h.pubid ORDER BY date DESC LIMIT ?', n)
         print_generic_listing(app.db, pubs, sort=None)
+
+
+class Rmpush(multitool.Command):
+    name = 'rmpush'
+    argspec = '<pub-nicknames ...>'
+    summary = 'Push publications to the reMarkable Cloud.'
+
+    def invoke(self, args, app=None, **kwargs):
+        import subprocess
+
+        if len(args) < 1:
+            raise multitool.UsageError('expected at least 1 argument')
+
+        for idtext in args:
+            pub = app.locate_or_die(idtext, autolearn=True)
+
+            sha1 = app.db.getfirstval('SELECT sha1 FROM pdfs WHERE pubid = ?', pub.id)
+            if sha1 is None:
+                sha1 = app.try_get_pdf(pub)
+
+            if sha1 is None:
+                die('no saved PDF for %s, and cannot figure out how to download it', idtext)
+
+            with make_temp_nicename(app.db, pub, sha1) as nicepath:
+                # TODO: config
+                subprocess.check_call(
+                    ['rmapi', 'put', nicepath],
+                    shell = False,
+                    stdout = open(os.devnull, 'wb')
+                )
+
+            # We'll count this as a read
+            app.db.log_action(pub.id, 'read')
 
 
 class Rq(multitool.Command):

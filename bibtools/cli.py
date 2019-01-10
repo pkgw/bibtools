@@ -742,7 +742,7 @@ class Rmpush(multitool.Command):
             with make_temp_nicename(app.db, pub, sha1) as nicepath:
                 # TODO: config
                 subprocess.check_call(
-                    ['rmapi', 'put', nicepath],
+                    ['rmapi', 'put', nicepath, 'Papers'],
                     shell = False,
                     stdout = open(os.devnull, 'wb')
                 )

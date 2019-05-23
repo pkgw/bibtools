@@ -36,45 +36,24 @@ class HarvardProxyLoginParser(HTMLParser):
                 die('unexpected form method')
         elif tag == 'input':
             attrs = dict(attrs)
-            if 'name' not in attrs or 'value' not in attrs:
+            if 'name' not in attrs:
                 die('missing form input information')
-            self.inputs.append((attrs['name'], attrs['value']))
+            self.inputs.append((attrs['name'], attrs.get('value', '')))
 
 
 class HarvardTwoFactorParser(HarvardProxyLoginParser):
     def __init__(self):
         HarvardProxyLoginParser.__init__(self)
         self.duo_info = None
-        self.in_script = False
 
 
     def handle_starttag(self, tag, attrs):
-        if tag == 'script':
-            self.in_script = True
+        if tag == 'iframe':
+            attrs_dict = dict(attrs)
+            if attrs_dict.get('id') == 'duo_iframe':
+                self.duo_info = attrs_dict
+
         return HarvardProxyLoginParser.handle_starttag(self, tag, attrs)
-
-
-    def handle_endtag(self, tag):
-        if tag == 'script':
-            self.in_script = False
-
-
-    def handle_data(self, data):
-        if not self.in_script:
-            return
-
-        if 'Duo.init' not in data:
-            return
-
-        import json
-        try:
-            i0 = data.index('{')
-            i1 = data.rindex('}')
-            span = data[i0:i1+1]
-            filtered = span.replace("'", '"') # Python needs this
-            self.duo_info = json.loads(filtered)
-        except Exception as e:
-            pass
 
 
 class HarvardProxy(object):
@@ -84,6 +63,7 @@ class HarvardProxy(object):
 
     default_inputs = [
         ('authenticationSourceType', 'HarvardKey'),
+        ('source', 'HARVARDKEY'),
     ]
 
     def __init__(self, user_agent, username, password):
@@ -109,9 +89,10 @@ class HarvardProxy(object):
         parser = parse_http_html(resp, HarvardProxyLoginParser())
 
         if parser.formurl is None:
-            die('malformed proxy page response?')
+            posturl = resp.url
+        else:
+            posturl = urljoin(resp.url, parser.formurl)
 
-        posturl = urljoin(resp.url, parser.formurl)
         values = {}
 
         for name, value in parser.inputs:
@@ -135,31 +116,42 @@ class HarvardProxy(object):
         # First we need to POST to a magic URL looking something like
         # http://api-XYZ.duosecurity.com/frame/web/v1/auth, constructed from
         # the info in the Harvard page ...
+        #
+        # (The official interaction does a GET of this URL first but we can
+        # skip it.)
 
         parser = parse_http_html(resp, HarvardTwoFactorParser())
         if parser.duo_info is None:
             die('malformed two-factor authentication page response?')
 
-        tx_signature, app_signature = parser.duo_info['sig_request'].split(':')
+        parent_url = resp.url
+        tx_signature, app_signature = parser.duo_info['data-sig-request'].split(':')
 
         query = urlencode([
-            ('parent', resp.url),
+            ('parent', parent_url),
             ('tx', tx_signature),
+            ('v', '2.6'),
         ])
 
-        url1 = urlunparse(('https', parser.duo_info['host'],
-                           '/frame/web/v1/auth', '', query, ''))
+        url1 = urlunparse(('https', parser.duo_info['data-host'], '/frame/web/v1/auth', '', query, ''))
 
         postdata = urlencode([
-            ('parent', resp.url),
+            ('parent', parent_url),
+            ('referer', parent_url),
+            ('java_version', ''),
+            ('flash_version', ''),
+            ('screen_resolution_width', '1024'),
+            ('screen_resolution_height', '768'),
+            ('color_depth', '24'),
+            ('is_cef_browser', 'false'),
         ])
         req = request.Request(url1, postdata.encode('utf8'))
         resp = self.opener.open(req)
 
         # Now we get redirected to
-        # http://api-XYZ.duosecurity.com/frame/prompt/new. We then need to
-        # issue a POST to the same path. The response is JSON containing
-        # a transaction ID.
+        # http://api-XYZ.duosecurity.com/frame/prompt. We then need to issue a
+        # POST to the same path. The response is JSON containing a transaction
+        # ID.
 
         scheme, loc, path, params, query, frag = urlparse(resp.url)
         try:
@@ -173,7 +165,9 @@ class HarvardProxy(object):
             ('sid', sid),
             ('device', 'phone1'), # XXX: does this vary?
             ('factor', 'Duo Push'),
-            ('out_of_date', 'False'),
+            ('out_of_date', ''),
+            ('days_out_of_date', ''),
+            ('days_to_block', 'None'),
         ])
         req = request.Request(url2, postdata.encode('utf8'))
         resp = self.opener.open(req)

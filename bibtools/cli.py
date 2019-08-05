@@ -288,8 +288,8 @@ class ForgetPDF(multitool.Command):
 
         any = False
 
-        for(sha1, ) in app.db.execute('SELECT sha1 FROM pdfs '
-                                      'WHERE pubid == ?', (pub.id, )):
+        for (sha1, ) in app.db.execute('SELECT sha1 FROM pdfs '
+                                       'WHERE pubid == ?', (pub.id, )):
             print('orphaning', libpath(sha1, 'pdf'))
             any = True
 

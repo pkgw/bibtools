@@ -196,7 +196,7 @@ class BibApp(object):
         return sha1
 
 
-    def export_all(self, stream, width):
+    def export_all(self, stream, width, **kwargs):
         from .textfmt import export_one
         first = True
 
@@ -206,7 +206,7 @@ class BibApp(object):
             else:
                 stream.write('\f\n')
 
-            export_one(self, pub, stream, width)
+            export_one(self, pub, stream, width, **kwargs)
 
 
     def rsync_backup(self):
@@ -224,7 +224,7 @@ class BibApp(object):
             os.unlink(os.path.join(exdir, stem))
 
         with io.open(bibpath('export', 'pubs.txt'), 'wt', encoding='utf-8') as f:
-            self.export_all(f, 78)
+            self.export_all(f, 78, include_backup_data=True)
 
         shutil.copyfile(bibpath('bib.cfg'), os.path.join(exdir, 'bib.cfg'))
 

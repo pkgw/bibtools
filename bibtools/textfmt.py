@@ -1,12 +1,12 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2014 Peter Williams <peter@newton.cx>
+# Copyright 2014-2019 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License, version 3 or higher.
 
 """
 Import/export from our text format.
 """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
+from __future__ import absolute_import, division, print_function
 from six import text_type
 
 import json
@@ -14,10 +14,10 @@ import json
 from .util import *
 from .bibcore import *
 
-__all__ = ('export_one import_one').split()
+__all__ = 'export_one import_one'.split()
 
 
-def export_one(app, pub, stream, width):
+def export_one(app, pub, stream, width, include_backup_data=False):
     write = stream.write
 
     # Title and year
@@ -84,6 +84,25 @@ def export_one(app, pub, stream, width):
             write('\n')
     write('\n')
 
+    # TODO: notes, user-friendly lists
+
+    # Data only used when backing up the database
+    if include_backup_data:
+        from base64 import b64encode
+
+        write('@backup_data\n')
+
+        for (sha1, ) in app.db.execute('SELECT sha1 FROM pdfs WHERE pubid == ?', (pub.id, )):
+            write('pdfsha1 = ')
+            write(sha1)
+            write('\n')
+
+        for (name, idx) in app.db.execute('SELECT name, idx FROM publists WHERE pubid == ?', (pub.id, )):
+            b64name = b64encode(name.encode('utf8')).decode('ascii')
+            write('inlist = b64name:%s index:%d\n' % (b64name, idx))
+
+        write('\n')
+
     # Abstract
     if pub.abstract is None:
         write('--no abstract--\n')
@@ -91,7 +110,6 @@ def export_one(app, pub, stream, width):
         print_linewrapped(pub.abstract, width=width, stream=stream, maxwidth=72)
     write('\n')
 
-    # TODO: notes, lists
 
 
 def _import_get_chunk(stream, gotoend=False):

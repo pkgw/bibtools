@@ -61,7 +61,7 @@ def autolearn_doi (app, doi):
             yearpath = 'publication_date/year'
 
     if infotop is None:
-        die ('don\'t know how to interpret UnixRef XML for %s', doi)
+        die ('don\'t know how to interpret UnixRef XML for %s; you can see it with the "dump-crossref" subcommand', doi)
 
     # OK, now we can fill in the info.
 

@@ -34,9 +34,6 @@ def try_fetch_pdf(proxy, destpath, arxiv=None, bibcode=None, doi=None, max_attem
             return None
 
     if pdfurl is None and bibcode is not None:
-        # This never returns None: ADS will always give a URL, but it may just
-        # be that the URL resolves to a 404 page saying that ADS has no PDF
-        # available. Thus, this technique is always our last resort.
         pdfurl = bibcode_to_maybe_pdf_url(bibcode)
 
     if pdfurl is None and arxiv is not None:
@@ -188,13 +185,8 @@ def doi_to_journal_url(doi):
 
 
 def bibcode_to_maybe_pdf_url(bibcode):
-    """If ADS doesn't have a fulltext link for a given bibcode, it will return a link
-    to articles.ads.harvard.edu that in turn yields an HTML error page.
+    """Use ADS to try to get a PDF fulltext URL for the given bibcode.
 
-    Also, the Location header returned by the ADS server appears to be slightly broken,
-    with the &'s in the URL being HTML entity-encoded to &amp;s."""
-
-    url = ('http://adsabs.harvard.edu/cgi-bin/nph-data_query?link_type=ARTICLE&bibcode='
-           + wu.urlquote(bibcode))
-    pdfurl = wu.get_url_from_redirection(url)
-    return pdfurl.replace('&amp;', '&')
+    """
+    url = 'https://ui.adsabs.harvard.edu/link_gateway/%s/article' % wu.urlquote(bibcode)
+    return wu.get_url_from_redirection(url, notfound_ok=True)

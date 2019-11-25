@@ -77,13 +77,17 @@ class DebugRedirectHandler(request.HTTPRedirectHandler):
         return request.HTTPRedirectHandler.redirect_request(self, req, fp, code, msg, headers, newurl)
 
 
-def get_url_from_redirection(url):
+def get_url_from_redirection(url, notfound_ok=False):
     """Note that we don't go through the proxy class here for convenience, under
     the assumption that all of these redirections involve public information
-    that won't require privileged access."""
+    that won't require privileged access.
 
+    """
     opener = request.build_opener(NonRedirectingProcessor())
     resp = opener.open(url)
+
+    if resp.code == 404 and notfound_ok:
+        return None
 
     if resp.code not in (301, 302, 303, 307) or 'Location' not in resp.headers:
         die('expected a redirection response for URL %s but didn\'t get one', url)

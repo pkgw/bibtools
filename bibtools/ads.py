@@ -50,19 +50,33 @@ def _autolearn_bibcode_tag(info, tag, text):
 
 
 def autolearn_bibcode(app, bibcode):
-    # XXX could/should convert this to an ADS 2.0 record search, something
-    # like http://adslabs.org/adsabs/api/record/{doi}/?dev_key=...
+    """Use the ADS export API to learn metadata given a bibcode.
 
-    url = ('http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?'
-           'data_type=PORTABLE&nocookieset=1&bibcode=' + wu.urlquote(bibcode))
+    We could maybe use a nicer API, but the existing code used the ADS tagged
+    format, so we stuck with it in the transition to the non-classic API.
+
+    """
+    apikey = app.cfg.get_or_die('api-keys', 'ads')
+
+    url = 'https://api.adsabs.harvard.edu/v1/export/ads'
+    opener = wu.build_opener()
+    opener.addheaders = [
+        ('Authorization', 'Bearer:' + apikey),
+        ('Content-Type', 'application/json'),
+    ]
+    post_data = {
+        'bibcode': [bibcode],
+    }
+    raw_content = opener.open(url, data=json.dumps(post_data).encode('utf8'))
+    payload = json.load(raw_content)
 
     info = {'bibcode': bibcode, 'keep': 0} # because we're autolearning
     curtag = curtext = None
 
     print('[Parsing', url, '...]')
 
-    for line in wu.urlopen(url):
-        line = line.decode('iso-8859-1').strip()
+    for line in payload['export'].splitlines():
+        line = line.strip()
 
         if not len(line):
             if curtag is not None:

@@ -15,6 +15,8 @@ from . import webutil as wu
 
 __all__ = 'try_fetch_pdf'.split()
 
+DEBUG_FETCH = (len(os.environ.get('BIBTOOLS_DEBUG_FETCH', '')) > 0)
+
 
 def try_fetch_pdf(proxy, destpath, arxiv=None, bibcode=None, doi=None, max_attempts=5):
     """Given reference information, download a PDF to a specified path. Returns
@@ -71,10 +73,12 @@ def try_fetch_pdf(proxy, destpath, arxiv=None, bibcode=None, doi=None, max_attem
         if resp.getheader('Content-Type', 'undefined').startswith('text/html'):
             # A lot of journals wrap their "PDF" links in an HTML shim. We just
             # recurse our HTML scraping.
+            if DEBUG_FETCH:
+                print('DEBUG: the response appears to be another HTML page')
             pdfurl = proxy.unmangle(scrape_pdf_url(resp))
             resp = None
             if pdfurl is None:
-                warn('couldn\'t find PDF link')
+                warn('couldn\'t find PDF link; debug with BIBTOOLS_DEBUG_FETCH=y')
                 return None
             continue
 
@@ -128,6 +132,7 @@ class PDFUrlScraper(wu.HTMLParser):
         wu.HTMLParser.__init__(self)
         self.cururl = cururl
         self.pdfurl = None
+        self.in_script = False
 
 
     def maybe_set_pdfurl(self, url):
@@ -155,6 +160,8 @@ class PDFUrlScraper(wu.HTMLParser):
                     self.maybe_set_pdfurl(url)
         elif tag == 'a':
             attrs = dict(attrs)
+            if DEBUG_FETCH:
+                print('DEBUG: <a> tag:', attrs)
             if attrs.get('id') == 'download-pdf':
                 self.maybe_set_pdfurl(attrs['href'])
             elif attrs.get('id') == 'pdfLink':
@@ -172,8 +179,51 @@ class PDFUrlScraper(wu.HTMLParser):
                 self.maybe_set_pdfurl(attrs['href'])
         elif tag == 'iframe':
             attrs = dict(attrs)
+            if DEBUG_FETCH:
+                print('DEBUG: <iframe> tag:', attrs)
             if attrs.get('id') == 'pdfDocument':
                 self.maybe_set_pdfurl(attrs['src'])
+        elif tag == 'script':
+            self.in_script = True
+
+
+    def handle_endtag(self, tag):
+        if self.pdfurl is not None:
+            return
+
+        if tag == 'script':
+            self.in_script = False
+
+
+    def handle_data(self, data):
+        """This function is needed for Wiley's Online Library, where the PDF that you
+        see in the browser window turns out to be a big iframe with document
+        source URL that is only set in JavaScript. The magic line in the JS
+        looks like:
+
+        ```
+        var src = "/doi/pdfdirect/10.1029/1999JA005089";
+        ```
+
+        So, here we go.
+
+        """
+        if not self.in_script:
+            return
+
+        for line in data.splitlines():
+            line = line.strip()
+            if not len(line):
+                continue
+
+            if DEBUG_FETCH:
+                print('DEBUG: <script> data:', line)
+
+            if line.startswith('var src = "/doi/pdfdirect/'):
+                # This parsing is lame, but we're so specific that I'm not
+                # worried.
+                self.maybe_set_pdfurl(line.split('"')[1])
+                return
 
 
 def scrape_pdf_url(resp):

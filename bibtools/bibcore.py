@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2014, 2016 Peter Williams <peter@newton.cx>
+# Copyright 2014-2019 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License, version 3 or higher.
 
 """Core bibliographic routines.
@@ -28,78 +28,78 @@ from .util import *
 
 __all__ = ('parse_name encode_name normalize_surname sniff_url '
            'classify_pub_ref doi_to_maybe_bibcode autolearn_pub '
-           'print_generic_listing parse_search').split ()
+           'print_generic_listing parse_search').split()
 
 
-def parse_name (text):
-    parts = text.rsplit (' ', 1)
-    if len (parts) == 1:
-        return '', parts[0].replace ('_', ' ')
-    return parts[0], parts[1].replace ('_', ' ')
+def parse_name(text):
+    parts = text.rsplit(' ', 1)
+    if len(parts) == 1:
+        return '', parts[0].replace('_', ' ')
+    return parts[0], parts[1].replace('_', ' ')
 
 
-def encode_name (given, family):
-    if not len (given):
-        return family.replace (' ', '_')
-    return given + ' ' + family.replace (' ', '_')
+def encode_name(given, family):
+    if not len(given):
+        return family.replace(' ', '_')
+    return given + ' ' + family.replace(' ', '_')
 
 
-def normalize_surname (name):
+def normalize_surname(name):
     from unicodedata import normalize
     # this strips accents:
-    name = normalize ('NFKD', text_type (name)).encode ('ascii', 'ignore').decode('ascii')
+    name = normalize('NFKD', text_type(name)).encode('ascii', 'ignore').decode('ascii')
     # now strip non-letters and condense everything:
-    return re.sub (r'\.\.+', '.', re.sub (r'[^a-z]+', '.', name.lower ()))
+    return re.sub(r'\.\.+', '.', re.sub(r'[^a-z]+', '.', name.lower()))
 
 
-_arxiv_re_1 = re.compile (r'^\d\d[01]\d\.\d+')
-_arxiv_re_2 = re.compile (r'^[a-z-]+/\d+')
-_bibcode_re = re.compile (r'^\d\d\d\d[a-zA-Z0-9&]+')
-_doi_re = re.compile (r'^10\.\d+/.*')
-_fasy_re = re.compile (r'.*\.(\d+|\*)$')
+_arxiv_re_1 = re.compile(r'^\d\d[01]\d\.\d+')
+_arxiv_re_2 = re.compile(r'^[a-z-]+/\d+')
+_bibcode_re = re.compile(r'^\d\d\d\d[a-zA-Z0-9&]+')
+_doi_re = re.compile(r'^10\.\d+/.*')
+_fasy_re = re.compile(r'.*\.(\d+|\*)$')
 
-def classify_pub_ref (text):
+def classify_pub_ref(text):
     """Given some text that we believe identifies a publication, try to
     figure out how it does so."""
 
     if text[0] == '%':
         return 'lastlisting', text[1:]
 
-    if text.startswith ('http'):
-        kind, value = sniff_url (text)
+    if text.startswith('http'):
+        kind, value = sniff_url(text)
         if kind is not None:
             return kind, value
         # TODO: if it's really a URL, try downloading the page and identifying
         # the text from the HTML headers that most journals embed in their
         # abstract pages.
 
-    if text.startswith ('doi:'):
+    if text.startswith('doi:'):
         return 'doi', text[4:]
 
-    if _doi_re.match (text) is not None:
+    if _doi_re.match(text) is not None:
         return 'doi', text
 
-    if _bibcode_re.match (text) is not None:
+    if _bibcode_re.match(text) is not None:
         return 'bibcode', text
 
-    if _arxiv_re_1.match (text) is not None:
+    if _arxiv_re_1.match(text) is not None:
         return 'arxiv', text
 
-    if _arxiv_re_2.match (text) is not None:
+    if _arxiv_re_2.match(text) is not None:
         return 'arxiv', text
 
-    if text.startswith ('arxiv:'):
+    if text.startswith('arxiv:'):
         return 'arxiv', text[6:]
 
-    if _fasy_re.match (text) is not None:
+    if _fasy_re.match(text) is not None:
         # This test should go very low since it's quite open-ended.
-        surname, year = text.rsplit ('.', 1)
-        return 'nfasy', normalize_surname (surname) + '.' + year
+        surname, year = text.rsplit('.', 1)
+        return 'nfasy', normalize_surname(surname) + '.' + year
 
     return 'nickname', text
 
 
-def sniff_url (url):
+def sniff_url(url):
     """Should return classifiers consistent with classify_pub_ref."""
 
     from .webutil import urlunquote
@@ -114,8 +114,8 @@ def sniff_url (url):
             return 'bibcode', urlunquote(url[len(p):])
 
     p = 'http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode='
-    if url.startswith (p):
-        return 'bibcode', urlunquote (url[len (p):])
+    if url.startswith(p):
+        return 'bibcode', urlunquote(url[len(p):])
 
     for p in ('http://labs.adsabs.harvard.edu/ui/abs/',
               'https://labs.adsabs.harvard.edu/ui/abs/'):
@@ -123,92 +123,92 @@ def sniff_url (url):
             return 'bibcode', urlunquote(url[len(p):])
 
     p = 'http://labs.adsabs.harvard.edu/adsabs/abs/'
-    if url.startswith (p):
+    if url.startswith(p):
         if url[-1] == '/':
             url = url[:-1]
-        return 'bibcode', urlunquote (url[len (p):])
+        return 'bibcode', urlunquote(url[len(p):])
 
     for p in ('http://arxiv.org/abs/', 'https://arxiv.org/abs/',
               'http://arxiv.org/pdf/', 'https://arxiv.org/pdf/'):
-        if url.startswith (p):
-            return 'arxiv', urlunquote (url[len (p):])
+        if url.startswith(p):
+            return 'arxiv', urlunquote(url[len(p):])
 
     return None, None
 
 
-def doi_to_maybe_bibcode (app, doi):
+def doi_to_maybe_bibcode(app, doi):
     from .ads import _run_ads_search
 
     terms = ['doi:' + doi]
 
     try:
-        r = _run_ads_search (app, terms, [])
+        r = _run_ads_search(app, terms, [])
     except Exception as e:
-        warn ('could not perform ADS search: %s', e)
+        warn('could not perform ADS search: %s', e)
         return None
 
     if 'response' in r and 'docs' in r['response']:
         docs = r['response']['docs']
     else:
-        warn ('malformed response from ADS for DOI-to-bibcode search (1)')
+        warn('malformed response from ADS for DOI-to-bibcode search (1)')
         return None
 
     nhits = 0
-    bibcodes = set ()
+    bibcodes = set()
 
     for doc in docs:
         if 'bibcode' in doc:
-            bibcodes.add (doc['bibcode'])
+            bibcodes.add(doc['bibcode'])
 
-    if not len (bibcodes):
+    if not len(bibcodes):
         return None
-    elif len (bibcodes) > 1:
-        warn ('multiple bibcodes matched the same DOI: %s', ', '.join (bibcodes))
+    elif len(bibcodes) > 1:
+        warn('multiple bibcodes matched the same DOI: %s', ', '.join(bibcodes))
 
-    return list (bibcodes)[0]
+    return list(bibcodes)[0]
 
 
-def autolearn_pub (app, text):
-    kind, text = classify_pub_ref (text)
+def autolearn_pub(app, text):
+    kind, text = classify_pub_ref(text)
 
     if kind == 'lastlisting':
         # If we got here, it doesn't exist
         from . import PubLocateError
-        raise PubLocateError ('no such publication "%%%s"', text)
+        raise PubLocateError('no such publication "%%%s"', text)
 
     if kind == 'doi':
         # ADS seems to have better data quality.
-        bc = doi_to_maybe_bibcode (app, text)
+        bc = doi_to_maybe_bibcode(app, text)
         if bc is not None:
-            print ('[Associated', text, 'to', bc + ']')
+            print('[Associated', text, 'to', bc + ']')
             kind, text = 'bibcode', bc
 
     if kind == 'doi':
         from .crossref import autolearn_doi
-        return autolearn_doi (app, text)
+        return autolearn_doi(app, text)
 
     if kind == 'bibcode':
         from .ads import autolearn_bibcode
-        return autolearn_bibcode (app, text)
+        return autolearn_bibcode(app, text)
 
     if kind == 'arxiv':
         from .arxiv import autolearn_arxiv
-        return autolearn_arxiv (app, text)
+        return autolearn_arxiv(app, text)
 
-    die ('cannot auto-learn publication "%s"', text)
+    die('cannot auto-learn publication "%s"', text)
 
 
-def print_generic_listing (db, pub_seq, sort='year', stream=None):
+def print_generic_listing(db, pub_seq, sort='year', stream=None):
     info = []
     maxnfaslen = 0
     maxnicklen = 0
 
     if stream is None:
         # We have to do the default this way to pick up the encoder-wrapped
-        # version of sys.stdout set up in App.__init__ ().
+        # version of sys.stdout set up in App.__init__().
         stream = sys.stdout
 
-    red, reset = get_color_codes (stream, 'red', 'reset')
+    red, reset = get_color_codes(stream, 'red', 'reset')
 
     # TODO: number these, and save the results in a table so one can write
     # "bib read %1" to read the top item of the most recent listing.
@@ -217,34 +217,33 @@ def print_generic_listing (db, pub_seq, sort='year', stream=None):
         nfas = pub.nfas or '(no author)'
         year = pub.year or '????'
         title = pub.title or '(no title)'
-        nick = db.choose_pub_nickname (pub.id) or ''
+        nick = db.choose_pub_nickname(pub.id) or ''
 
-        if isinstance (year, int):
+        if isinstance(year, int):
             year = '%04d' % year
 
-        info.append ((nfas, year, title, nick, pub.id))
-        maxnfaslen = max (maxnfaslen, len (nfas))
-        maxnicklen = max (maxnicklen, len (nick))
+        info.append((nfas, year, title, nick, pub.id))
+        maxnfaslen = max(maxnfaslen, len(nfas))
+        maxnicklen = max(maxnicklen, len(nick))
 
-    maxidxlen = len (str (len (info)))
+    maxidxlen = len(str(len(info)))
     ofs = maxidxlen + maxnfaslen + maxnicklen + 12
 
     if sort is None:
         pass
     elif sort == 'year':
-        info.sort (key=lambda t: t[1])
+        info.sort(key=lambda t: t[1])
     else:
-        raise ValueError ('illegal print_generic_listing sort type "%s"' % sort)
+        raise ValueError('illegal print_generic_listing sort type "%s"' % sort)
 
-    db.execute ('DELETE FROM publists WHERE name == ?', ('last_listing', ))
+    db.execute('DELETE FROM publists WHERE name == ?', ('last_listing', ))
 
-    for i, (nfas, year, title, nick, id) in enumerate (info):
-        print ('%s%%%-*d%s  %*s.%s  %*s  ' % (red, maxidxlen, i + 1, reset,
-                                              maxnfaslen, nfas, year,
-                                              maxnicklen, nick), end='', file=stream)
-        print_truncated (title, ofs, stream=stream, color='bold')
-        db.execute ('INSERT INTO publists VALUES (?, ?, ?)', ('last_listing',
-                                                              i, id))
+    for i, (nfas, year, title, nick, id) in enumerate(info):
+        print('%s%%%-*d%s  %*s.%s  %*s  ' % (red, maxidxlen, i + 1, reset,
+                                             maxnfaslen, nfas, year,
+                                             maxnicklen, nick), end='', file=stream)
+        print_truncated(title, ofs, stream=stream, color='bold')
+        db.execute('INSERT INTO publists VALUES (?, ?, ?)', ('last_listing', i, id))
 
 
 # Searching

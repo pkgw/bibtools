@@ -1,72 +1,72 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2014, 2016 Peter Williams <peter@newton.cx>
+# Copyright 2014-2019 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License, version 3 or higher.
 
 """
 Tools relating to working with NASA's ADS.
 """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
+from __future__ import absolute_import, division, print_function
 import json
 
 from .util import *
 from . import webutil as wu
 from .bibcore import *
 
-__all__ = ('autolearn_bibcode search_ads').split ()
+__all__ = 'autolearn_bibcode search_ads'.split()
 
 
-def _translate_ads_name (name):
-    pieces = [x.strip () for x in name.split (',', 1)]
-    surname = pieces[0].replace (' ', '_')
+def _translate_ads_name(name):
+    pieces = [x.strip() for x in name.split(',', 1)]
+    surname = pieces[0].replace(' ', '_')
     # TODO use bibcore
 
-    if len (pieces) > 1:
+    if len(pieces) > 1:
         return pieces[1] + ' ' + surname
     return surname
 
 
-def _autolearn_bibcode_tag (info, tag, text):
+def _autolearn_bibcode_tag(info, tag, text):
     # TODO: editors?
 
     if tag == 'T':
         info['title'] = text
     elif tag == 'D':
-        info['year'] = int (text.split ('/')[-1])
+        info['year'] = int(text.split('/')[-1])
     elif tag == 'B':
         info['abstract'] = text
     elif tag == 'A':
-        info['authors'] = [_translate_ads_name (n) for n in text.split (';')]
+        info['authors'] = [_translate_ads_name(n) for n in text.split(';')]
     elif tag == 'Y':
-        subdata = dict (s.strip ().split (': ', 1)
-                        for s in text.split (';'))
+        subdata = dict(s.strip().split(': ', 1)
+                       for s in text.split(';'))
 
         if 'DOI' in subdata:
             info['doi'] = subdata['DOI']
         if 'eprintid' in subdata:
             value = subdata['eprintid']
-            if value.startswith ('arXiv:'):
+            if value.startswith('arXiv:'):
                 info['arxiv'] = value[6:]
 
 
-def autolearn_bibcode (app, bibcode):
+def autolearn_bibcode(app, bibcode):
     # XXX could/should convert this to an ADS 2.0 record search, something
     # like http://adslabs.org/adsabs/api/record/{doi}/?dev_key=...
 
     url = ('http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?'
-           'data_type=PORTABLE&nocookieset=1&bibcode=' + wu.urlquote (bibcode))
+           'data_type=PORTABLE&nocookieset=1&bibcode=' + wu.urlquote(bibcode))
 
     info = {'bibcode': bibcode, 'keep': 0} # because we're autolearning
     curtag = curtext = None
 
-    print ('[Parsing', url, '...]')
+    print('[Parsing', url, '...]')
 
-    for line in wu.urlopen (url):
-        line = line.decode ('iso-8859-1').strip ()
+    for line in wu.urlopen(url):
+        line = line.decode('iso-8859-1').strip()
 
-        if not len (line):
+        if not len(line):
             if curtag is not None:
-                _autolearn_bibcode_tag (info, curtag, curtext)
+                _autolearn_bibcode_tag(info, curtag, curtext)
                 curtag = curtext = None
             continue
 
@@ -75,44 +75,44 @@ def autolearn_bibcode (app, bibcode):
                 # starting a new tag
                 curtag = line[1]
                 curtext = line[3:]
-            elif line.startswith ('Retrieved '):
-                if not line.endswith ('selected: 1.'):
-                    die ('matched more than one publication')
+            elif line.startswith('Retrieved '):
+                if not line.endswith('selected: 1.'):
+                    die('matched more than one publication')
         else:
             if line[0] == '%':
                 # starting a new tag, while we had one going before.
                 # finish up the previous
-                _autolearn_bibcode_tag (info, curtag, curtext)
+                _autolearn_bibcode_tag(info, curtag, curtext)
                 curtag = line[1]
                 curtext = line[3:]
             else:
                 curtext += ' ' + line
 
     if curtag is not None:
-        _autolearn_bibcode_tag (info, curtag, curtext)
+        _autolearn_bibcode_tag(info, curtag, curtext)
 
     return info
 
 
 # Searching
 
-def _run_ads_search (app, searchterms, filterterms, nrows=50):
+def _run_ads_search(app, searchterms, filterterms, nrows=50):
     # TODO: access to more API args
-    apikey = app.cfg.get_or_die ('api-keys', 'ads')
+    apikey = app.cfg.get_or_die('api-keys', 'ads')
 
-    q = [('q', ' '.join (searchterms))]
+    q = [('q', ' '.join(searchterms))]
 
     for ft in filterterms:
-        q.append (('fq', ft))
+        q.append(('fq', ft))
 
-    q.append (('fl', 'author,bibcode,title')) # fields list
-    q.append (('rows', nrows))
+    q.append(('fl', 'author,bibcode,title')) # fields list
+    q.append(('rows', nrows))
 
-    url = 'http://api.adsabs.harvard.edu/v1/search/query?' + wu.urlencode (q)
+    url = 'http://api.adsabs.harvard.edu/v1/search/query?' + wu.urlencode(q)
 
-    opener = wu.build_opener ()
+    opener = wu.build_opener()
     opener.addheaders = [('Authorization', 'Bearer:' + apikey)]
-    return json.load (opener.open (url))
+    return json.load(opener.open(url))
 
 
 def search_ads(app, terms, raw=False, large=False):

@@ -104,32 +104,40 @@ def sniff_url(url):
 
     from .webutil import urlunquote
 
-    for p in ('http://dx.doi.org/10.', 'https://dx.doi.org/10.',
-              'http://doi.org/10.', 'https://doi.org/10.'):
+    for p in (
+            'http://dx.doi.org/10.',
+            'https://dx.doi.org/10.',
+            'http://doi.org/10.',
+            'https://doi.org/10.'
+    ):
         if url.startswith(p):
             return 'doi', urlunquote(url[len(p) - 3:])
 
-    for p in ('http://adsabs.harvard.edu/abs/', 'https://adsabs.harvard.edu/abs/'):
+    for p in (
+            'http://ui.adsabs.harvard.edu/abs/',
+            'https://ui.adsabs.harvard.edu/abs/',
+    ):
+        if url.startswith(p):
+            # e.g.: https://ui.adsabs.harvard.edu/abs/2006Natur.441...62G/abstract
+            rest = url[len(p):].split('/')[0]
+            return 'bibcode', urlunquote(rest)
+
+    for p in (
+            'http://adsabs.harvard.edu/abs/',
+            'https://adsabs.harvard.edu/abs/',
+            'http://labs.adsabs.harvard.edu/ui/abs/',
+            'https://labs.adsabs.harvard.edu/ui/abs/',
+            'http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode=',
+    ):
         if url.startswith(p):
             return 'bibcode', urlunquote(url[len(p):])
 
-    p = 'http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode='
-    if url.startswith(p):
-        return 'bibcode', urlunquote(url[len(p):])
-
-    for p in ('http://labs.adsabs.harvard.edu/ui/abs/',
-              'https://labs.adsabs.harvard.edu/ui/abs/'):
-        if url.startswith(p):
-            return 'bibcode', urlunquote(url[len(p):])
-
-    p = 'http://labs.adsabs.harvard.edu/adsabs/abs/'
-    if url.startswith(p):
-        if url[-1] == '/':
-            url = url[:-1]
-        return 'bibcode', urlunquote(url[len(p):])
-
-    for p in ('http://arxiv.org/abs/', 'https://arxiv.org/abs/',
-              'http://arxiv.org/pdf/', 'https://arxiv.org/pdf/'):
+    for p in (
+            'http://arxiv.org/abs/',
+            'https://arxiv.org/abs/',
+            'http://arxiv.org/pdf/',
+            'https://arxiv.org/pdf/'
+    ):
         if url.startswith(p):
             return 'arxiv', urlunquote(url[len(p):])
 

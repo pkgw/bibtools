@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2014-2016 Peter Williams <peter@newton.cx>
+# Copyright 2014-2020 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License, version 3 or higher.
 
 """
@@ -21,7 +21,7 @@ from .webutil import *
 __all__ = ('get_proxy').split()
 
 
-class HarvardProxyLoginParser(HTMLParser):
+class GenericFormParser(HTMLParser):
     def __init__(self):
         HTMLParser.__init__(self)
         self.formurl = None
@@ -31,19 +31,25 @@ class HarvardProxyLoginParser(HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag == 'form':
             attrs = dict(attrs)
+
+            # on the EZProxy postback page, there's a secondary form that's
+            # not what we want.
+            if attrs.get('method', 'undef').lower() != 'post':
+                return
+
             self.formurl = attrs.get('action')
-            if attrs.get('method') != 'post':
-                die('unexpected form method')
         elif tag == 'input':
             attrs = dict(attrs)
+            if attrs.get('type', 'other') == 'submit':
+                return
             if 'name' not in attrs:
                 die('missing form input information')
             self.inputs.append((attrs['name'], attrs.get('value', '')))
 
 
-class HarvardTwoFactorParser(HarvardProxyLoginParser):
+class HarvardTwoFactorParser(GenericFormParser):
     def __init__(self):
-        HarvardProxyLoginParser.__init__(self)
+        GenericFormParser.__init__(self)
         self.duo_info = None
 
 
@@ -53,13 +59,15 @@ class HarvardTwoFactorParser(HarvardProxyLoginParser):
             if attrs_dict.get('id') == 'duo_iframe':
                 self.duo_info = attrs_dict
 
-        return HarvardProxyLoginParser.handle_starttag(self, tag, attrs)
+        return GenericFormParser.handle_starttag(self, tag, attrs)
 
 
 class HarvardProxy(object):
     suffix = '.ezp-prod1.hul.harvard.edu'
-    loginurl = 'https://www.pin1.harvard.edu/cas/login'
-    forwardurl = 'http://ezp-prod1.hul.harvard.edu/connect'
+    login_url = 'https://www.pin1.harvard.edu/cas/login'
+    forward_url = 'http://ezp-prod1.hul.harvard.edu/connect'
+    postback1_url = 'https://login.ezp-prod1.hul.harvard.edu/login'
+    postback2_url = 'https://key-idp.iam.harvard.edu/idp/'
 
     default_inputs = [
         ('authenticationSourceType', 'HarvardKey'),
@@ -83,10 +91,10 @@ class HarvardProxy(object):
         self.inputs.append(('password', password))
 
 
-    def login(self, resp):
+    def do_login(self, resp):
         # XXX we should verify the SSL cert of the counterparty, lest we send
         # our password to malicious people.
-        parser = parse_http_html(resp, HarvardProxyLoginParser())
+        parser = parse_http_html(resp, GenericFormParser())
 
         if parser.formurl is None:
             posturl = resp.url
@@ -104,7 +112,7 @@ class HarvardProxy(object):
         req = request.Request(posturl, urlencode(values).encode('utf8'))
         resp = self.opener.open(req)
 
-        if not resp.url.startswith(self.loginurl):
+        if not resp.url.startswith(self.login_url):
             # No two-factor: we should be heading to the target page.
             self.cj.save()
             return resp
@@ -247,6 +255,44 @@ class HarvardProxy(object):
         return self.opener.open(req)
 
 
+    def do_postback(self, resp):
+        """When forwarded here, we're given a special HTML page that triggers a POST
+        request that we need to work through.
+
+        """
+        parser = parse_http_html(resp, GenericFormParser())
+        posturl = urljoin(resp.url, parser.formurl)
+
+        values = {}
+
+        for name, value in parser.inputs:
+            values[name] = value
+
+        req = request.Request(posturl, urlencode(values).encode('utf8'))
+        resp = self.opener.open(req)
+
+        # I'm not sure about all of the possibilities here, but the following
+        # logic is my best guess about the different auth flows here.
+
+        if resp.url.startswith(self.login_url):
+            # We have to do the login, and then continue with the postback process
+            resp = self.do_login(resp)
+
+        if resp.url.startswith(self.postback2_url):
+            parser = parse_http_html(resp, GenericFormParser())
+            posturl = urljoin(resp.url, parser.formurl)
+            values = {}
+
+            for name, value in parser.inputs:
+                values[name] = value
+
+            req = request.Request(posturl, urlencode(values).encode('utf8'))
+            resp = self.opener.open(req)
+
+        self.cj.save()
+        return resp
+
+
     def open(self, url):
         scheme, loc, path, params, query, frag = urlparse(url)
 
@@ -270,10 +316,13 @@ class HarvardProxy(object):
                 return self.opener.open(url)
             raise e
 
-        if resp.url.startswith(self.loginurl):
-            resp = self.login(resp)
+        if resp.url.startswith(self.login_url):
+            resp = self.do_login(resp)
 
-        if resp.url.startswith(self.forwardurl):
+        if resp.url.startswith(self.postback1_url):
+            resp = self.do_postback(resp)
+
+        if resp.url.startswith(self.forward_url):
             # Sometimes we get forwarded to a separate cookie-setting page
             # that requires us to re-request the original URL.
             resp = self.opener.open(proxyurl)

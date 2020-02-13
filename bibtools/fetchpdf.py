@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2014-2019 Peter Williams <peter@newton.cx>
+# Copyright 2014-2020 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License, version 3 or higher.
 
 """
@@ -15,8 +15,18 @@ from . import webutil as wu
 
 __all__ = 'try_fetch_pdf'.split()
 
-DEBUG_FETCH = (len(os.environ.get('BIBTOOLS_DEBUG_FETCH', '')) > 0)
+def _init_debug_fetch():
+    v = os.environ.get('BIBTOOLS_DEBUG_FETCH', '0')
 
+    try:
+        return int(v)
+    except ValueError:
+        import sys
+        print('warning: unrecognized value %r for $BIBTOOLS_DEBUG_FETCH; should be an integer' % v)
+        return 0
+
+DEBUG_FETCH = _init_debug_fetch()
+DEBUG_FETCH_SEQNO = 0
 
 def try_fetch_pdf(proxy, destpath, arxiv=None, bibcode=None, doi=None, max_attempts=5):
     """Given reference information, download a PDF to a specified path. Returns
@@ -78,7 +88,7 @@ def try_fetch_pdf(proxy, destpath, arxiv=None, bibcode=None, doi=None, max_attem
             pdfurl = proxy.unmangle(scrape_pdf_url(resp))
             resp = None
             if pdfurl is None:
-                warn('couldn\'t find PDF link; debug with BIBTOOLS_DEBUG_FETCH=y')
+                warn('couldn\'t find PDF link; debug with BIBTOOLS_DEBUG_FETCH=1 (or =2 for more detail)')
                 return None
             continue
 
@@ -227,7 +237,16 @@ class PDFUrlScraper(wu.HTMLParser):
 
 
 def scrape_pdf_url(resp):
-    return wu.parse_http_html(resp, PDFUrlScraper(resp.url)).pdfurl
+    global DEBUG_FETCH_SEQNO
+
+    if DEBUG_FETCH > 1:
+        dfn = 'fetch%02d.html' % DEBUG_FETCH_SEQNO
+        DEBUG_FETCH_SEQNO += 1
+        print('DEBUG: saving contents to %s' % dfn)
+    else:
+        dfn = None
+
+    return wu.parse_http_html(resp, PDFUrlScraper(resp.url), debug_filename=dfn).pdfurl
 
 
 def doi_to_journal_url(doi):

@@ -96,10 +96,8 @@ def get_url_from_redirection(url, notfound_ok=False):
     return resp.headers['Location']
 
 
-def parse_http_html(resp, parser):
+def parse_http_html(resp, parser, debug_filename=None):
     """`parser` need only have two methods: `feed()` and `close()`."""
-
-    debug = False # XXX hack
 
     if six.PY2:
         charset = resp.headers.getparam('charset')
@@ -111,8 +109,8 @@ def parse_http_html(resp, parser):
 
     dec = codecs.getincrementaldecoder(charset)()
 
-    if debug:
-        f = open('debug.html', 'w')
+    if debug_filename is not None:
+        f = open(debug_filename, 'wb')
 
     while True:
         d = resp.read(4096)
@@ -121,13 +119,13 @@ def parse_http_html(resp, parser):
             parser.feed(text)
             break
 
-        if debug:
+        if debug_filename is not None:
             f.write(d)
 
         text = dec.decode(d)
         parser.feed(text)
 
-    if debug:
+    if debug_filename is not None:
         f.close()
 
     resp.close()

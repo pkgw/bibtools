@@ -42,7 +42,12 @@ program exits with an error if any are encountered.'''
         # Load cited nicknames
         citednicks = set()
 
-        for line in io.open(auxfile, 'rt'):
+        if auxfile == '-':
+            infile = sys.stdin
+        else:
+            infile = io.open(auxfile, 'rt')
+
+        for line in infile:
             if not line.startswith(r'\citation{'):
                 continue
 

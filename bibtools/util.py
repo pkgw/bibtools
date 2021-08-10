@@ -207,7 +207,9 @@ def run_editor(path):
     if editor is None:
         editor = 'vi'
 
-    rv = subprocess.call([editor, path], close_fds=True, shell=False)
+    editor = editor.split()
+
+    rv = subprocess.call(editor + [path], close_fds=True, shell=False)
     if rv:
         die('editor for file "%s" exited with an error', path)
 

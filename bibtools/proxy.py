@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2014-2021 Peter Williams <peter@newton.cx>
+# Copyright 2014-2022 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License, version 3 or higher.
 
 """
@@ -8,17 +8,41 @@ Proxies.
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import json
+import os
+import sys
+
 try:
     from urllib import error, request
 except ImportError:
     import urrlib2 as error
     import urrlib2 as request
 
+try:
+    from urllib.parse import parse_qs
+except ImportError:
+    from urlparse import parse_qs
 
 from .util import *
 from .webutil import *
 
-__all__ = ('get_proxy').split()
+__all__ = ("get_proxy").split()
+
+
+def _init_debug_proxy():
+    v = os.environ.get("BIBTOOLS_DEBUG_PROXY", "0")
+
+    try:
+        return int(v)
+    except ValueError:
+        print(
+            "warning: unrecognized value %r for $BIBTOOLS_DEBUG_PROXY; should be an integer"
+            % v
+        )
+        return 0
+
+
+DEBUG_PROXY = _init_debug_proxy()
 
 
 class GenericFormParser(HTMLParser):
@@ -60,6 +84,13 @@ class HarvardTwoFactorParser(GenericFormParser):
         return GenericFormParser.handle_starttag(self, tag, attrs)
 
 
+class Redir(request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, hdrs, newurl):
+        if "validate.perfdrive.com" in newurl:
+            raise Exception("oh no, bot thingie got us")
+        return super(Redir, self).redirect_request(req, fp, code, msg, hdrs, newurl)
+
+
 class HarvardProxy(object):
     suffix = ".ezp-prod1.hul.harvard.edu"
     login_url = "https://www.pin1.harvard.edu/cas/login"
@@ -77,10 +108,32 @@ class HarvardProxy(object):
 
         # Older articles in Wiley's Online Library hit the default limit of 10
         # redirections.
-        rh = request.HTTPRedirectHandler()
+        rh = Redir()  # request.HTTPRedirectHandler()
         rh.max_redirections = 20
         self.opener = request.build_opener(rh, request.HTTPCookieProcessor(self.cj))
-        self.opener.addheaders = [("User-Agent", user_agent)]
+        self.opener.addheaders = [
+            ("User-Agent", user_agent),
+            (
+                "Accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+            ),
+            # ("Accept-Encoding", "gzip, deflate, br"),
+            ("Accept-Encoding", "deflate, br"),
+            ("Pragma", "no-cache"),
+            ("Cache-Control", "no-cache"),
+            (
+                "sec-ch-ua",
+                '" Not A;Brand";v="99", "Chromium";v="96", "Google Chrome";v="96"',
+            ),
+            ("sec-ch-ua-mobile", "?0"),
+            ("sec-ch-ua-platform", '"Linux"'),
+            ("Upgrade-Insecure-Requests", "1"),
+            ("Sec-Fetch-Site", "none"),
+            ("Sec-Fetch-Mode", "navigate"),
+            ("Sec-Fetch-User", "?0"),
+            ("Sec-Fetch-Dest", "document"),
+            ("Accept-Language", "en-US,en;q=0.9"),
+        ]
         ###self.opener.process_request['http'][0].set_http_debuglevel(1)
         ###self.opener.process_request['https'][0].set_http_debuglevel(1)
 
@@ -89,6 +142,9 @@ class HarvardProxy(object):
         self.inputs.append(("password", password))
 
     def do_login(self, resp):
+        if DEBUG_PROXY:
+            print(f"proxy: starting login flow", file=sys.stderr)
+
         # XXX we should verify the SSL cert of the counterparty, lest we send
         # our password to malicious people.
         parser = parse_http_html(resp, GenericFormParser())
@@ -96,7 +152,10 @@ class HarvardProxy(object):
         if parser.formurl is None:
             posturl = resp.url
         else:
+            _scheme, _loc, _path, params, query, frag = urlparse(resp.url)
             posturl = urljoin(resp.url, parser.formurl)
+            scheme, loc, path, _params, _query, _frag = urlparse(posturl)
+            posturl = urlunparse((scheme, loc, path, params, query, frag))
 
         values = {}
 
@@ -106,46 +165,105 @@ class HarvardProxy(object):
         for name, value in self.inputs:
             values[name] = value
 
+        if DEBUG_PROXY:
+            print(
+                f"proxy: login POST url is `{posturl}`",
+                file=sys.stderr,
+            )
+
         req = request.Request(posturl, urlencode(values).encode("utf8"))
         resp = self.opener.open(req)
 
-        if not resp.url.startswith(self.login_url):
+        if DEBUG_PROXY:
+            # In frameless, resp.url is /frame/frameless/v4/auth
+            # and we've finished the "Inner Harvard login" step
+            print(f"proxy: result is {resp.status}, `{resp.url}`", file=sys.stderr)
+
+        if "duosecurity.com/" in resp.url:
+            if DEBUG_PROXY:
+                print(
+                    "proxy: frameless Duo two-factor seems to be in effect",
+                    file=sys.stderr,
+                )
+            duo_frameless = True
+        elif not resp.url.startswith(self.login_url):
             # No two-factor: we should be heading to the target page.
+            if DEBUG_PROXY:
+                print(f"proxy: no two-factor stage needed, I think", file=sys.stderr)
             self.cj.save()
             return resp
+        else:
+            # XXX this used to be our auth flow but I'm now using the frameless
+            # version, and this is probably broken now.
+            if DEBUG_PROXY:
+                print(
+                    "proxy: Duo iframe two-factor seems to be in effect",
+                    file=sys.stderr,
+                )
+            duo_frameless = False
 
         curloginurl = resp.url
 
-        # If we're here, two-factor auth seems to be in effect. We need to
-        # trigger a Duo request using information slurped from the webpage.
-        # First we need to POST to a magic URL looking something like
-        # http://api-XYZ.duosecurity.com/frame/web/v1/auth, constructed from
-        # the info in the Harvard page ...
-        #
-        # (The official interaction does a GET of this URL first but we can
-        # skip it.)
+        # If we're here, two-factor auth seems to be in effect. The precise course
+        # of action depends on whether we're using the iframe or frameless style.
 
-        parser = parse_http_html(resp, HarvardTwoFactorParser())
-        if parser.duo_info is None:
-            die("malformed two-factor authentication page response?")
+        if duo_frameless:
+            # url1 is where we got redirected to: /frame/frameless/v4/auth. Parse it.
+            url1 = resp.url
+            parser = parse_http_html(resp, GenericFormParser())
+            postitems = {}
 
-        parent_url = resp.url
-        tx_signature, app_signature = parser.duo_info["data-sig-request"].split(":")
+            for name, value in parser.inputs:
+                postitems[name] = value
 
-        query = urlencode(
-            [
-                ("parent", parent_url),
-                ("tx", tx_signature),
-                ("v", "2.6"),
-            ]
-        )
+            postitems["screen_resolution_width"] = 1920
+            postitems["screen_resolution_height"] = 1200
+            postitems["color_depth"] = 24
+            postitems["is_cef_browser"] = "false"
+            postitems["is_ipad_os"] = "false"
+            postitems["is_user_verifying_platform_authenticator_available"] = "false"
+            postitems["react_support"] = "true"
+            xsrf = postitems["_xsrf"]
+            postitems = list(postitems.items())
+        else:
+            # We need to trigger a Duo request using information slurped from
+            # the webpage. First we need to POST to a magic URL looking
+            # something like http://api-XYZ.duosecurity.com/frame/web/v1/auth,
+            # constructed from the info in the Harvard page ...
+            #
+            # (The official interaction does a GET of this URL first but we can
+            # skip it.)
 
-        url1 = urlunparse(
-            ("https", parser.duo_info["data-host"], "/frame/web/v1/auth", "", query, "")
-        )
+            parser = parse_http_html(resp, HarvardTwoFactorParser())
+            if parser.duo_info is None:
+                die("malformed two-factor authentication page response?")
 
-        postdata = urlencode(
-            [
+            parent_url = resp.url
+            if DEBUG_PROXY:
+                print(f"proxy: Duo parent URL is `{parent_url}`", file=sys.stderr)
+
+            tx_signature, app_signature = parser.duo_info["data-sig-request"].split(":")
+
+            query = urlencode(
+                [
+                    ("parent", parent_url),
+                    ("tx", tx_signature),
+                    ("v", "2.6"),
+                ]
+            )
+
+            url1 = urlunparse(
+                (
+                    "https",
+                    parser.duo_info["data-host"],
+                    "/frame/web/v1/auth",
+                    "",
+                    query,
+                    "",
+                )
+            )
+
+            postitems = [
                 ("parent", parent_url),
                 ("referer", parent_url),
                 ("java_version", ""),
@@ -155,49 +273,101 @@ class HarvardProxy(object):
                 ("color_depth", "24"),
                 ("is_cef_browser", "false"),
             ]
-        )
-        req = request.Request(url1, postdata.encode("utf8"))
+
+        # In frameless, we POST back to the URL we just got,
+        # `/frame/frameless/v4/auth`. This is initiating Step 4, "Duo login
+        # screen"
+        postdata = urlencode(postitems)
+        if DEBUG_PROXY:
+            print(f"proxy: step 4 POST URL is `{url1}`", file=sys.stderr)
+
+        req = request.Request(url1, data=postdata.encode("utf8"))
         resp = self.opener.open(req)
 
-        # Now we get redirected to
-        # http://api-XYZ.duosecurity.com/frame/prompt. We then need to issue a
-        # POST to the same path. The response is JSON containing a transaction
-        # ID.
+        if DEBUG_PROXY:
+            print(
+                f"proxy: result is {resp.status}, `{resp.url}`",
+                file=sys.stderr,
+            )
 
-        scheme, loc, path, params, query, frag = urlparse(resp.url)
-        try:
-            from urllib.parse import parse_qs
-        except ImportError:
-            from urlparse import parse_qs
-        sid = parse_qs(query)["sid"][0]
+        if duo_frameless and "key-idp.iam.harvard.edu" in resp.url:
+            self.cj.save()
+            return resp
 
-        url2 = urlunparse((scheme, loc, path, "", "", ""))
-        postdata = urlencode(
-            [
-                ("sid", sid),
-                ("device", "phone1"),  # XXX: does this vary?
-                ("factor", "Duo Push"),
-                ("out_of_date", ""),
-                ("days_out_of_date", ""),
-                ("days_to_block", "None"),
-            ]
-        )
-        req = request.Request(url2, postdata.encode("utf8"))
+        # if "/frame/v4/auth/prompt" not in resp.url:
+        #    die("MESSED UP STEP 4")
+
+        if duo_frameless:
+            scheme, loc, path, params, query, frag = urlparse(url1)
+            data_url = urlunparse(
+                (scheme, loc, "/frame/v4/auth/prompt/data", params, query, frag)
+            )
+
+            if DEBUG_PROXY:
+                print(f"proxy: v4 data URL is `{data_url}`", file=sys.stderr)
+
+            data_req = request.Request(data_url)
+            data_resp = self.opener.open(data_req)
+
+            if DEBUG_PROXY:
+                print(f"proxy: result is {data_resp.status}", file=sys.stderr)
+            data = json.load(data_resp)
+            device_key = data["response"]["phones"][0]["key"]
+            device_name = data["response"]["phones"][0]["index"]
+
+            url1 = urlunparse((scheme, loc, "/frame/v4/prompt", params, query, frag))
+            values = {}
+            values["device"] = device_name
+            values["factor"] = "Duo Push"
+            sid = parse_qs(query)["sid"][0]
+            values["sid"] = sid
+        else:
+            parser = parse_http_html(resp, GenericFormParser())
+            values = {}
+
+            for name, value in parser.inputs:
+                values[name] = value
+
+            values["factor"] = "Duo Push"  # force this method!
+
+        # frameless: This is the post to /frame/v4/prompt This request is Step
+        # 6, and it causes the notification to actually get pushed in the
+        # frameless flow.
+
+        if DEBUG_PROXY:
+            print(
+                f"proxy: prompt POST url is `{url1}`",
+                file=sys.stderr,
+            )
+
+        headers = {
+            "X-Xsrftoken": xsrf,
+        }
+        postdata = urlencode(list(values.items()))
+        req = request.Request(url1, data=postdata.encode("utf8"), headers=headers)
         resp = self.opener.open(req)
 
-        import json
+        if DEBUG_PROXY:
+            print(
+                f"proxy: result is {resp.status}, `{resp.url}`",
+                file=sys.stderr,
+            )
 
         try:
             data = json.load(resp)
             assert data["stat"] == "OK", "unexpected Duo response: " + repr(data)
             txid = data["response"]["txid"]
         except Exception as e:
-            die("failed to parse Duo push response: %s", e)
+            die(f"failed to parse Duo push response: {e} ({e.__class__.__name__})")
 
-        # Now we can issue another POST to /frame/status, which finally
-        # actually pushes the notification.
+        url3 = urlunparse((scheme, loc, "/frame/v4/status", "", "", ""))
 
-        url3 = urlunparse((scheme, loc, "/frame/status", "", "", ""))
+        if DEBUG_PROXY:
+            print(
+                f"proxy: status POST url is `{url3}`",
+                file=sys.stderr,
+            )
+
         postdata = urlencode(
             [
                 ("sid", sid),
@@ -227,15 +397,38 @@ class HarvardProxy(object):
             die("failed to parse Duo push response: %s", e)
 
         if data["response"].get("status_code", "undef") == "allow":
-            cookie = data["response"].get("cookie")
             print("[Success! Continuing ...]")
         else:
             die("Duo two-factor approval never came through?")
 
-        # Duo used to work where we got the cookie above. At the moment (Sep
-        # 2018) it instead gives us yet another URL that we need to POST to.
+        if "cookie" in data["response"]:
+            # Oldest behavior
+            cookie = data["response"].get("cookie")
+        elif data["response"].get("post_auth_action") == "oidc_exit":
+            # Dec 2021: POST to OIDC exit API
+            url4 = urlunparse((scheme, loc, "/frame/v4/oidc/exit", "", "", ""))
 
-        if cookie is None:
+            if DEBUG_PROXY:
+                print(
+                    f"proxy: OIDC exit POST url is `{url4}`",
+                    file=sys.stderr,
+                )
+
+            postdata = urlencode(
+                [
+                    ("dampen_choice", "true"),
+                    ("sid", sid),
+                    ("txid", txid),
+                    ("factor", "Duo Push"),
+                    ("device_key", device_key),
+                    ("_xsrf", xsrf),
+                ]
+            )
+            req = request.Request(url4, postdata.encode("utf8"))
+            self.cj.save()
+            return self.opener.open(req)
+        else:
+            # Sep 2018: another URL to post to
             newbase = data["response"]["result_url"]
             url4 = urlunparse((scheme, loc, newbase, "", "", ""))
             req = request.Request(url4, postdata.encode("utf8"))
@@ -269,8 +462,14 @@ class HarvardProxy(object):
         request that we need to work through.
 
         """
+        if DEBUG_PROXY:
+            print(f"proxy: starting postback flow", file=sys.stderr)
+
         parser = parse_http_html(resp, GenericFormParser())
         posturl = urljoin(resp.url, parser.formurl)
+
+        if DEBUG_PROXY:
+            print(f"proxy: postback URL is `{posturl}`", file=sys.stderr)
 
         values = {}
 
@@ -279,6 +478,9 @@ class HarvardProxy(object):
 
         req = request.Request(posturl, urlencode(values).encode("utf8"))
         resp = self.opener.open(req)
+
+        if DEBUG_PROXY:
+            print(f"proxy: result is {resp.status}, `{resp.url}`", file=sys.stderr)
 
         # I'm not sure about all of the possibilities here, but the following
         # logic is my best guess about the different auth flows here.
@@ -295,7 +497,9 @@ class HarvardProxy(object):
             for name, value in parser.inputs:
                 values[name] = value
 
-            req = request.Request(posturl, urlencode(values).encode("utf8"))
+            req = request.Request(
+                posturl, urlencode(values).encode("utf8"), headers={"Referer": posturl}
+            )
             resp = self.opener.open(req)
 
         self.cj.save()
@@ -314,14 +518,24 @@ class HarvardProxy(object):
 
         proxyurl = urlunparse((scheme, proxydomain, path, params, query, frag))
 
+        if DEBUG_PROXY:
+            print(f"proxy: fetching proxied URL `{proxyurl}`", file=sys.stderr)
+
         try:
             resp = self.opener.open(proxyurl)
         except error.HTTPError as e:
             if e.code == 404:
                 # The proxy doesn't feel like proxying this URL. Try just
                 # accessing it directly.
+                if DEBUG_PROXY:
+                    print(
+                        f"proxy: 404; falling back to original `{url}`", file=sys.stderr
+                    )
                 return self.opener.open(url)
             raise e
+
+        if DEBUG_PROXY:
+            print(f"proxy: result is {resp.status}, `{resp.url}`", file=sys.stderr)
 
         if resp.url.startswith(self.login_url):
             resp = self.do_login(resp)

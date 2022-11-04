@@ -564,7 +564,7 @@ def merge_with_bibtex(app, bibpath, style, citednicks, write=None):
         if first:
             first = False
         else:
-            write("\n")
+            write(b"\n")
 
         bt = style.render_info(info)
         bt["_ident"] = nick.encode("utf8")

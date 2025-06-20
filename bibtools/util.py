@@ -71,9 +71,7 @@ __all__ += (
 
 
 def datastream(name):
-    from pkg_resources import Requirement, resource_stream
-
-    return resource_stream(Requirement.parse("bibtools"), "bibtools/" + name)
+    return open(os.path.join(os.path.dirname(__file__), name), "rb")
 
 
 def _make_user_data_pather():

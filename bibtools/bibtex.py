@@ -9,15 +9,10 @@ TODO: styles defined in a support file or something.
 
 """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import json
-from six import text_type
-
-from .util import *
-from . import webutil as wu
 from .bibcore import *
 from .unicode_to_latex import unicode_to_latex
+from .util import *
+from . import webutil as wu
 
 __all__ = str(
     """
@@ -84,7 +79,7 @@ def _fix_bibtex(text):
     if text is None:
         return None
 
-    text = text_type(text)
+    text = str(text)
 
     for i in range(0, len(_bibtex_replacements), 2):
         text = text.replace(_bibtex_replacements[i], _bibtex_replacements[i + 1])

@@ -6,15 +6,12 @@
 Import/export from our text format.
 """
 
-from __future__ import absolute_import, division, print_function
-from six import text_type
-
 import json
 
 from .util import *
 from .bibcore import *
 
-__all__ = 'export_one import_one'.split()
+__all__ = "export_one import_one".split()
 
 
 def export_one(app, pub, stream, width, include_backup_data=False):
@@ -22,67 +19,69 @@ def export_one(app, pub, stream, width, include_backup_data=False):
 
     # Title and year
     if pub.title is None:
-        write('--no title--\n')
+        write("--no title--\n")
     else:
         print_linewrapped(pub.title, width=width, stream=stream)
     if pub.year is None:
-        write('--no year--\n')
+        write("--no year--\n")
     else:
-        write(text_type(pub.year))
-        write('\n')
-    write('\n')
+        write(str(pub.year))
+        write("\n")
+    write("\n")
 
     # Unique identifiers
-    write('arxiv = ')
-    write(pub.arxiv or '')
-    write('\n')
-    write('bibcode = ')
-    write(pub.bibcode or '')
-    write('\n')
-    write('doi = ')
-    write(pub.doi or '')
-    write('\n')
-    for (nick, ) in app.db.execute('SELECT nickname FROM nicknames WHERE pubid == ? '
-                                   'ORDER BY nickname asc', (pub.id, )):
-        write('nick = ')
+    write("arxiv = ")
+    write(pub.arxiv or "")
+    write("\n")
+    write("bibcode = ")
+    write(pub.bibcode or "")
+    write("\n")
+    write("doi = ")
+    write(pub.doi or "")
+    write("\n")
+    for (nick,) in app.db.execute(
+        "SELECT nickname FROM nicknames WHERE pubid == ? " "ORDER BY nickname asc",
+        (pub.id,),
+    ):
+        write("nick = ")
         write(nick)
-        write('\n')
-    write('\n')
+        write("\n")
+    write("\n")
 
     # Authors
     anyauth = False
-    for given, family in app.db.get_pub_authors(pub.id, 'author'):
+    for given, family in app.db.get_pub_authors(pub.id, "author"):
         write(encode_name(given, family))
-        write('\n')
+        write("\n")
         anyauth = True
     if not anyauth:
-        write('--no authors--\n')
+        write("--no authors--\n")
     firsteditor = True
-    for given, family in app.db.get_pub_authors(pub.id, 'editor'):
+    for given, family in app.db.get_pub_authors(pub.id, "editor"):
         if firsteditor:
-            write('--editors--\n')
+            write("--editors--\n")
             firsteditor = False
         write(encode_name(given, family))
-        write('\n')
-    write('\n')
+        write("\n")
+    write("\n")
 
     # Reference info
     if pub.refdata is None:
-        write('--no reference data--\n')
+        write("--no reference data--\n")
     else:
         rd = json.loads(pub.refdata)
 
-        btype = rd.pop('_type')
-        write('@')
+        btype = rd.pop("_type")
+        write("@")
         write(btype)
-        write('\n')
+        write("\n")
 
         for k in sorted(rd.keys()):
             write(k)
-            write(' = ')
+            write(" = ")
             write(rd[k])
-            write('\n')
-    write('\n')
+            write("\n")
+    write("\n")
 
     # TODO: notes, user-friendly lists
 
@@ -90,26 +89,29 @@ def export_one(app, pub, stream, width, include_backup_data=False):
     if include_backup_data:
         from base64 import b64encode
 
-        write('@backup_data\n')
+        write("@backup_data\n")
 
-        for (sha1, ) in app.db.execute('SELECT sha1 FROM pdfs WHERE pubid == ?', (pub.id, )):
-            write('pdfsha1 = ')
+        for (sha1,) in app.db.execute(
+            "SELECT sha1 FROM pdfs WHERE pubid == ?", (pub.id,)
+        ):
+            write("pdfsha1 = ")
             write(sha1)
-            write('\n')
+            write("\n")
 
-        for (name, idx) in app.db.execute('SELECT name, idx FROM publists WHERE pubid == ?', (pub.id, )):
-            b64name = b64encode(name.encode('utf8')).decode('ascii')
-            write('inlist = b64name:%s index:%d\n' % (b64name, idx))
+        for name, idx in app.db.execute(
+            "SELECT name, idx FROM publists WHERE pubid == ?", (pub.id,)
+        ):
+            b64name = b64encode(name.encode("utf8")).decode("ascii")
+            write("inlist = b64name:%s index:%d\n" % (b64name, idx))
 
-        write('\n')
+        write("\n")
 
     # Abstract
     if pub.abstract is None:
-        write('--no abstract--\n')
+        write("--no abstract--\n")
     else:
         print_linewrapped(pub.abstract, width=width, stream=stream, maxwidth=72)
-    write('\n')
-
+    write("\n")
 
 
 def _import_get_chunk(stream, gotoend=False):
@@ -136,90 +138,92 @@ def import_one(stream):
     c = _import_get_chunk(stream)
 
     if len(c) < 2:
-        die('title/year chunk must contain at least two lines')
+        die("title/year chunk must contain at least two lines")
 
-    info['title'] = squish_spaces(' '.join(c[:-1]))
-    if info['title'].startswith('--'):
-        del info['title']
+    info["title"] = squish_spaces(" ".join(c[:-1]))
+    if info["title"].startswith("--"):
+        del info["title"]
 
-    if not c[-1].startswith('--'):
+    if not c[-1].startswith("--"):
         try:
-            info['year'] = int(c[-1])
+            info["year"] = int(c[-1])
         except Exception as e:
-            die('publication year must be an integer or "--no year--"; '
-                'got "%s"', c[-1])
+            die(
+                'publication year must be an integer or "--no year--"; ' 'got "%s"',
+                c[-1],
+            )
 
     # identifiers
     c = _import_get_chunk(stream)
-    info['nicknames'] = []
+    info["nicknames"] = []
 
     for line in c:
-        if '=' not in line:
+        if "=" not in line:
             die('identifier lines must contain "=" signs; got "%s"', line)
-        k, v = line.split('=', 1)
+        k, v = line.split("=", 1)
         k = k.strip()
         v = v.strip()
 
         if not v:
             continue
 
-        if k == 'arxiv':
-            info['arxiv'] = v
-        elif k == 'bibcode':
-            info['bibcode'] = v
-        elif k == 'doi':
-            info['doi'] = v
-        elif k == 'nick':
-            info['nicknames'].append(v)
+        if k == "arxiv":
+            info["arxiv"] = v
+        elif k == "bibcode":
+            info["bibcode"] = v
+        elif k == "doi":
+            info["doi"] = v
+        elif k == "nick":
+            info["nicknames"].append(v)
         else:
             die('unexpected identifier kind "%s"', k)
 
     # authors
     c = _import_get_chunk(stream)
-    namelist = info['authors'] = []
+    namelist = info["authors"] = []
 
     for line in c:
         # This "--" flag must be exact for --editors-- to work
-        if line == '--no authors--':
+        if line == "--no authors--":
             pass
-        elif line == '--editors--':
-            namelist = info['editors'] = []
+        elif line == "--editors--":
+            namelist = info["editors"] = []
         else:
             namelist.append(line)
 
     # reference data
     c = _import_get_chunk(stream)
 
-    if not c[0].startswith('--'):
-        rd = info['refdata'] = {}
+    if not c[0].startswith("--"):
+        rd = info["refdata"] = {}
 
-        if c[0][0] != '@':
+        if c[0][0] != "@":
             die('reference data chunk must begin with an "@"; got "%s"', c[0])
-        rd['_type'] = c[0][1:]
+        rd["_type"] = c[0][1:]
 
         for line in c[1:]:
-            if '=' not in line:
+            if "=" not in line:
                 die('ref data lines must contain "=" signs; got "%s"', line)
-            k, v = line.split('=', 1)
+            k, v = line.split("=", 1)
             k = k.strip()
             v = v.strip()
             rd[k] = v
 
     # abstract
     c = _import_get_chunk(stream, gotoend=True)
-    abs = ''
-    spacer = ''
+    abs = ""
+    spacer = ""
 
     for line in c:
         if not len(line):
-            spacer = '\n'
-        elif line == '--no abstract--':
-            pass # exact match here too; legitimate lines could start with '--'
+            spacer = "\n"
+        elif line == "--no abstract--":
+            pass  # exact match here too; legitimate lines could start with '--'
         else:
             abs += spacer + line
-            spacer = ' '
+            spacer = " "
 
     if len(abs):
-        info['abstract'] = abs
+        info["abstract"] = abs
 
     return info

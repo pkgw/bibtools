@@ -8,8 +8,8 @@ Things having to do with arxiv.org.
 
 import xml.etree.ElementTree as ET
 
-from . import webutil as wu
 from .bibcore import doi_to_maybe_bibcode
+from . import webutil as wu
 
 __all__ = ("autolearn_arxiv").split()
 

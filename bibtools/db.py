@@ -6,9 +6,10 @@
 The main database.
 """
 
-import collections, json, sqlite3, sys
+import collections
+import json
+import sqlite3
 
-from . import PubLocateError, MultiplePubsError
 from .util import *
 from .bibcore import *
 

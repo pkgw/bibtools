@@ -8,9 +8,9 @@ Tools relating to working with NASA's ADS.
 
 import json
 
+from .bibcore import *
 from .util import *
 from . import webutil as wu
-from .bibcore import *
 
 __all__ = "autolearn_bibcode search_ads".split()
 

@@ -7,6 +7,7 @@ Various utilities for HTTP-related activities.
 """
 
 import codecs
+
 import six
 
 try:

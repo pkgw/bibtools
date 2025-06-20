@@ -9,13 +9,12 @@ TODO: styles defined in a support file or something.
 
 """
 
-import json
 from six import text_type
 
-from .util import *
-from . import webutil as wu
 from .bibcore import *
 from .unicode_to_latex import unicode_to_latex
+from .util import *
+from . import webutil as wu
 
 __all__ = str(
     """

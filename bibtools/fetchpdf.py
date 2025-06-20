@@ -6,8 +6,10 @@
 Downloading PDFs automagically.
 """
 
-import io, os, re
 from hashlib import sha1
+import io
+import os
+import re
 
 from .util import *
 from . import webutil as wu

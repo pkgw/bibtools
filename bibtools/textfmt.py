@@ -6,9 +6,9 @@
 Import/export from our text format.
 """
 
-from six import text_type
-
 import json
+
+from six import text_type
 
 from .util import *
 from .bibcore import *

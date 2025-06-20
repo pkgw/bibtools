@@ -6,9 +6,13 @@
 Various utilities, mostly generic.
 """
 
-from six import text_type
+import errno
+import io
+import os.path
+import re
+import sys
 
-import errno, io, os.path, re, sys
+from six import text_type
 
 
 # Generic things

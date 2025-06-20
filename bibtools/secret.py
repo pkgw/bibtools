@@ -24,7 +24,11 @@ things like keeping the decrypted secret in memory for too long, etc.
 
 """
 
-import io, os, random, string, subprocess
+import io
+import os
+import random
+import string
+import subprocess
 
 from .util import bibpath, set_terminal_echo
 

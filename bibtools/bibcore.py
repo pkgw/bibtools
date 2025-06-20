@@ -20,8 +20,10 @@ replace nonletters with periods, so it's a gmail-ish form.
 
 """
 
+import re
+import sys
+
 from six import text_type
-import re, sys
 
 from .util import *
 

@@ -6,13 +6,17 @@
 The command-line interface.
 """
 
-import codecs, io, json, os.path, sys
+import codecs
+import io
+import json
+import sys
+
 import six
 from pwkit.cli import multitool, pop_option
 
-from . import BibError, webutil as wu
-from .util import *
 from .bibcore import print_generic_listing, parse_search
+from .util import *
+from . import webutil as wu
 
 __all__ = ["driver"]
 

@@ -6,7 +6,6 @@
 Import/export from our text format.
 """
 
-from __future__ import absolute_import, division, print_function
 from six import text_type
 
 import json

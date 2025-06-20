@@ -6,7 +6,6 @@
 Tools relating to working with NASA's ADS.
 """
 
-from __future__ import absolute_import, division, print_function
 import json
 
 from .util import *

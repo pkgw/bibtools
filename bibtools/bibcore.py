@@ -20,7 +20,6 @@ replace nonletters with periods, so it's a gmail-ish form.
 
 """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
 from six import text_type
 import re, sys
 

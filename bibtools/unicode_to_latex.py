@@ -23,7 +23,6 @@ unicode_to_latex_string returns a Unicode string rather than bytes. That is,
 # converted via this XSL script: https://gist.github.com/798546 . Based on my
 # experience so far, the source table is far from perfect.
 
-from __future__ import absolute_import, division, print_function, unicode_literals
 from six import text_type
 
 unicode_to_latex_table_base = {

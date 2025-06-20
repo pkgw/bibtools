@@ -6,7 +6,6 @@
 Global structure for the bibliography tool.
 """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
 from six import python_2_unicode_compatible, text_type
 
 __all__ = ("BibApp BibError PubLocateError MultiplePubsError").split()

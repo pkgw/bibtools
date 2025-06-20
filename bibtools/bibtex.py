@@ -9,8 +9,6 @@ TODO: styles defined in a support file or something.
 
 """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import json
 from six import text_type
 

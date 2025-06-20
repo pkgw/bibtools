@@ -6,7 +6,6 @@
 Things related to the CrossRef/DOI/OpenURL system.
 """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
 import xml.etree.ElementTree as ET
 
 from .util import die

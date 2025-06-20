@@ -24,8 +24,6 @@ things like keeping the decrypted secret in memory for too long, etc.
 
 """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import io, os, random, string, subprocess
 
 from .util import bibpath, set_terminal_echo

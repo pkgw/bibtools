@@ -6,8 +6,6 @@
 The command-line interface.
 """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import codecs, io, json, os.path, sys
 import six
 from pwkit.cli import multitool, pop_option

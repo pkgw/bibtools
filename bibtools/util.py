@@ -14,20 +14,20 @@ import errno, io, os.path, re, sys
 
 # Generic things
 
-__all__ = ('die warn reraise_context squish_spaces mkdir_p').split()
+__all__ = ("die warn reraise_context squish_spaces mkdir_p").split()
 
 
 def die(fmt, *args):
     if not len(args):
-        raise SystemExit('error: ' + text_type(fmt))
-    raise SystemExit('error: ' + fmt % args)
+        raise SystemExit("error: " + text_type(fmt))
+    raise SystemExit("error: " + fmt % args)
 
 
 def warn(fmt, *args):
     if not len(args):
-        print('warning:', fmt, file=sys.stderr)
+        print("warning:", fmt, file=sys.stderr)
     else:
-        print('warning:', fmt % args, file=sys.stderr)
+        print("warning:", fmt % args, file=sys.stderr)
 
 
 def reraise_context(fmt, *args):
@@ -38,17 +38,18 @@ def reraise_context(fmt, *args):
 
     ex = sys.exc_info()[1]
     if len(ex.args):
-        cstr = '%s: %s' % (cstr, ex.args[0])
-    ex.args = (cstr, ) + ex.args[1:]
+        cstr = "%s: %s" % (cstr, ex.args[0])
+    ex.args = (cstr,) + ex.args[1:]
     raise
 
 
-_whitespace_re = re.compile(r'\s+')
+_whitespace_re = re.compile(r"\s+")
+
 
 def squish_spaces(text):
     if text is None:
         return None
-    return _whitespace_re.sub(' ', text).strip()
+    return _whitespace_re.sub(" ", text).strip()
 
 
 def mkdir_p(path):
@@ -64,19 +65,20 @@ def mkdir_p(path):
 
 # More app-specific
 
-__all__ += ('datastream bibpath libpath ensure_libpath_exists make_temp_nicename').split()
+__all__ += (
+    "datastream bibpath libpath ensure_libpath_exists make_temp_nicename"
+).split()
+
 
 def datastream(name):
-    from pkg_resources import Requirement, resource_stream
-    return resource_stream(Requirement.parse('bibtools'), 'bibtools/' + name)
+    return open(os.path.join(os.path.dirname(__file__), name), "rb")
 
 
 def _make_user_data_pather():
-    datadir = os.environ.get('XDG_DATA_HOME',
-                             os.path.expanduser('~/.local/share'))
+    datadir = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
 
     def pathfunc(*args):
-        return os.path.join(datadir, 'bib', *args)
+        return os.path.join(datadir, "bib", *args)
 
     return pathfunc
 
@@ -85,23 +87,23 @@ bibpath = _make_user_data_pather()
 
 
 def libpath(sha1, ext):
-    return bibpath('lib', sha1[:2], sha1[2:] + '.' + ext)
+    return bibpath("lib", sha1[:2], sha1[2:] + "." + ext)
 
 
 def ensure_libpath_exists(sha1):
-    mkdir_p(bibpath('lib', sha1[:2]))
+    mkdir_p(bibpath("lib", sha1[:2]))
 
 
 class TemporaryNiceFilenameManager(object):
-    def __init__(self, db, pub, sha1, max_title_len=60, ext='pdf'):
+    def __init__(self, db, pub, sha1, max_title_len=60, ext="pdf"):
         self.pub = pub
         self.sha1 = sha1
 
         self.src = libpath(self.sha1, ext)
 
-        fas = db.get_pub_fas(pub.id) or 'No-Author'
-        year = pub.year or 'NoYr'
-        title = pub.title or 'Untitled'
+        fas = db.get_pub_fas(pub.id) or "No-Author"
+        year = pub.year or "NoYr"
+        title = pub.title or "Untitled"
 
         if len(title) > max_title_len:
             words = title.split()
@@ -114,34 +116,35 @@ class TemporaryNiceFilenameManager(object):
 
             if i == 0:
                 # Seriously? First word of the title is too long
-                title = title[:max_title_len - 4].strip() + ' ...'
+                title = title[: max_title_len - 4].strip() + " ..."
             else:
-                title = ' '.join(words[:i]) + ' ...'
+                title = " ".join(words[:i]) + " ..."
 
-        self.nicename = '%s %s - %s.%s' % (fas, year, title, ext)
-
+        self.nicename = "%s %s - %s.%s" % (fas, year, title, ext)
 
     def __enter__(self):
         from tempfile import TemporaryDirectory
 
-        self.tempdir_obj = TemporaryDirectory(dir=bibpath(), prefix='nicefn')
+        self.tempdir_obj = TemporaryDirectory(dir=bibpath(), prefix="nicefn")
         tempdir_path = self.tempdir_obj.__enter__()
         dest = os.path.join(tempdir_path, self.nicename)
         os.link(self.src, dest)
         return dest
 
-
     def __exit__(self, etype, evalue, etb):
         return self.tempdir_obj.__exit__(etype, evalue, etb)
 
 
-def make_temp_nicename(db, pub, sha1, max_title_len=60, ext='pdf'):
-    return TemporaryNiceFilenameManager(db, pub, sha1, max_title_len=max_title_len, ext=ext)
+def make_temp_nicename(db, pub, sha1, max_title_len=60, ext="pdf"):
+    return TemporaryNiceFilenameManager(
+        db, pub, sha1, max_title_len=max_title_len, ext=ext
+    )
 
 
 # Running programs
 
-__all__ += ('launch_background_silent open_url run_editor').split()
+__all__ += ("launch_background_silent open_url run_editor").split()
+
 
 def launch_background_silent(cmd, argv):
     """Launch a process in the background, with its input and output redirected to
@@ -160,26 +163,26 @@ def launch_background_silent(cmd, argv):
     try:
         pid = os.fork()
     except OSError as e:
-        die('cannot fork() first time (to launch %s): %s', cmd, e)
+        die("cannot fork() first time (to launch %s): %s", cmd, e)
 
     if pid != 0:
-        return # parent is done
+        return  # parent is done
 
     # We're the first forked child.
-    os.setsid() # become new session leader, apparently a good thing to do.
+    os.setsid()  # become new session leader, apparently a good thing to do.
 
     try:
         pid2 = os.fork()
     except OSError as e:
-        die('cannot fork() second time (to launch %s): %s', cmd, e)
+        die("cannot fork() second time (to launch %s): %s", cmd, e)
 
     if pid2 != 0:
-        os._exit(0) # this child is done
+        os._exit(0)  # this child is done
 
     # The second forked child actually exec()s the program.
-    nullin = io.open(os.devnull, 'rb')
+    nullin = io.open(os.devnull, "rb")
     os.dup2(nullin.fileno(), 0)
-    nullout = io.open(os.devnull, 'wb')
+    nullout = io.open(os.devnull, "wb")
     os.dup2(nullout.fileno(), 1)
     os.dup2(nullout.fileno(), 2)
     os.closerange(3, resource.getrlimit(resource.RLIMIT_NOFILE)[0])
@@ -193,7 +196,7 @@ def open_url(app, url):
     prints out a few warnings when you launch it and I really want
     to make those disappear."""
 
-    opener = app.cfg.get_or_die('apps', 'url-opener')
+    opener = app.cfg.get_or_die("apps", "url-opener")
     launch_background_silent(opener, [opener, url])
 
 
@@ -201,11 +204,11 @@ def run_editor(path):
     """Open up a text editor with the specified path and wait for it to exit."""
     import subprocess
 
-    editor = os.environ.get('VISUAL')
+    editor = os.environ.get("VISUAL")
     if editor is None:
-        editor = os.environ.get('EDITOR')
+        editor = os.environ.get("EDITOR")
     if editor is None:
-        editor = 'vi'
+        editor = "vi"
 
     editor = editor.split()
 
@@ -216,29 +219,32 @@ def run_editor(path):
 
 # Terminal tomfoolery
 
-__all__ += ('get_color_codes set_terminal_echo get_term_width print_linewrapped '
-            'print_truncated').split()
+__all__ += (
+    "get_color_codes set_terminal_echo get_term_width print_linewrapped "
+    "print_truncated"
+).split()
 
 _colors = {
-    'none': '',
-    'reset': '\033[m',
-    'bold': '\033[1m',
-    'red': '\033[31m',
-    'green': '\033[32m',
-    'yellow': '\033[33m',
-    'blue': '\033[34m',
-    'magenta': '\033[35m',
-    'cyan': '\033[36m',
-    'bold-red': '\033[1;31m',
-    'bold-green': '\033[1;32m',
-    'bold-yellow': '\033[1;33m',
-    'bold-blue': '\033[1;34m',
-    'bold-magenta': '\033[1;35m',
-    'bold-cyan': '\033[1;36m',
+    "none": "",
+    "reset": "\033[m",
+    "bold": "\033[1m",
+    "red": "\033[31m",
+    "green": "\033[32m",
+    "yellow": "\033[33m",
+    "blue": "\033[34m",
+    "magenta": "\033[35m",
+    "cyan": "\033[36m",
+    "bold-red": "\033[1;31m",
+    "bold-green": "\033[1;32m",
+    "bold-yellow": "\033[1;33m",
+    "bold-blue": "\033[1;34m",
+    "bold-magenta": "\033[1;35m",
+    "bold-cyan": "\033[1;36m",
     # Could add background colors, etc, but these should hold us for now.
 }
 
 _emit_color_codes = None
+
 
 def get_color_codes(stream, *colornames):
     # Right now, if this function is called for various streams, only the one
@@ -251,7 +257,7 @@ def get_color_codes(stream, *colornames):
             stream = sys.stdout
 
         s = stream
-        if hasattr(s, 'stream'):
+        if hasattr(s, "stream"):
             # Transparently handle codec wrappers. Not sure of the best way to
             # generically check for them, but this'll do for now.
             s = s.stream
@@ -260,13 +266,13 @@ def get_color_codes(stream, *colornames):
         _emit_color_codes = s.isatty()
 
     if not _emit_color_codes:
-        return [''] * len(colornames)
+        return [""] * len(colornames)
 
     codes = []
 
     for cn in colornames:
         if cn is None:
-            codes.append('')
+            codes.append("")
         else:
             cc = _colors.get(cn)
             if cc is None:
@@ -279,7 +285,7 @@ def get_color_codes(stream, *colornames):
 def set_terminal_echo(tstream, enabled):
     import termios
 
-    if hasattr(tstream, 'stream'):
+    if hasattr(tstream, "stream"):
         # Transparently handle a codec wrapper. Not sure of the best way to
         # generically check for wrapper streams, but this'll do for now.
         return set_terminal_echo(tstream.stream, enabled)
@@ -292,8 +298,7 @@ def set_terminal_echo(tstream, enabled):
     else:
         lfl &= ~termios.ECHO
 
-    termios.tcsetattr(fd, termios.TCSANOW,
-                      [ifl, ofl, cfl, lfl, isp, osp, cc])
+    termios.tcsetattr(fd, termios.TCSANOW, [ifl, ofl, cfl, lfl, isp, osp, cc])
 
 
 def get_term_width(tstream):
@@ -306,7 +311,7 @@ def get_term_width(tstream):
     from fcntl import ioctl
     from struct import unpack
 
-    if hasattr(tstream, 'stream'):
+    if hasattr(tstream, "stream"):
         # Transparently handle a codec wrapper. Not sure of the best way to
         # generically check for wrapper streams, but this'll do for now.
         return get_term_width(tstream.stream)
@@ -315,12 +320,14 @@ def get_term_width(tstream):
 
     if tstream.isatty():
         try:
-            return unpack(b'hh', ioctl(tstream.fileno(), termios.TIOCGWINSZ, b'....'))[1]
+            return unpack(b"hh", ioctl(tstream.fileno(), termios.TIOCGWINSZ, b"...."))[
+                1
+            ]
         except:
             pass
 
     try:
-        return int(os.environ['COLUMNS'])
+        return int(os.environ["COLUMNS"])
     except:
         pass
 
@@ -330,7 +337,7 @@ def get_term_width(tstream):
     return -1
 
 
-def print_linewrapped(text, maxwidth=None, width=None, stream=None, rest_prefix=''):
+def print_linewrapped(text, maxwidth=None, width=None, stream=None, rest_prefix=""):
     """We assume that spaces within `text` are fungible.
 
     We're not aware of terminal escape sequences (e.g., things to set colors),
@@ -355,22 +362,22 @@ def print_linewrapped(text, maxwidth=None, width=None, stream=None, rest_prefix=
     if w < 0:
         ofs = 1
 
-        for match in re.finditer(r'\S+', text):
+        for match in re.finditer(r"\S+", text):
             if first:
                 first = False
             else:
-                write(' ')
+                write(" ")
             write(match.group(0))
     else:
         ofs = 0
 
-        for match in re.finditer(r'\S+', text):
+        for match in re.finditer(r"\S+", text):
             word = match.group(0)
             n = len(word)
 
             if ofs + 1 + n > w:
                 if ofs > 0:
-                    write('\n')
+                    write("\n")
                     write(rest_prefix)
                 write(word)
                 ofs = n + len(rest_prefix)
@@ -379,12 +386,12 @@ def print_linewrapped(text, maxwidth=None, width=None, stream=None, rest_prefix=
                 write(word)
                 ofs = n
             else:
-                write(' ')
+                write(" ")
                 write(word)
                 ofs = ofs + 1 + n
 
     if ofs > 0:
-        write('\n')
+        write("\n")
 
 
 def print_truncated(text, curofs, stream=None, color=None):
@@ -400,22 +407,22 @@ def print_truncated(text, curofs, stream=None, color=None):
     w = get_term_width(stream)
     write = stream.write
 
-    cc, reset = get_color_codes(stream, color, 'reset')
+    cc, reset = get_color_codes(stream, color, "reset")
     write(cc)
 
     if w < 0 or curofs + len(text) < w:
         write(text)
         write(reset)
-        write('\n')
+        write("\n")
         return
 
     # Note that if we have sufficiently little room, we'll just print the
     # ellipsis and no actual words.
 
-    w -= 4 # account for " ..."
+    w -= 4  # account for " ..."
     first = True
 
-    for match in re.finditer(r'\S+', text):
+    for match in re.finditer(r"\S+", text):
         word = match.group(0)
         n = len(word)
 
@@ -431,12 +438,12 @@ def print_truncated(text, curofs, stream=None, color=None):
             if curofs + n + 1 > w:
                 break
 
-            write(' ')
+            write(" ")
             write(word)
             curofs += n + 1
 
     if not first:
-        write(' ')
-    write('...')
+        write(" ")
+    write("...")
     write(reset)
-    write('\n')
+    write("\n")

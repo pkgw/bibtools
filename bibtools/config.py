@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright 2014 Peter Williams <peter@newton.cx>
 # Licensed under the GNU General Public License, version 3 or higher.
 
@@ -9,11 +8,7 @@ Configuration subsystem
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import codecs
-try:
-    # module renamed to this in Python 3.
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
+import configparser
 
 from .util import bibpath, datastream, die
 
@@ -26,9 +21,8 @@ Error = configparser.Error
 
 class BibConfig (RCP):
     def __init__ (self):
-        # stupid old-style classes can't use super()
-        RCP.__init__ (self)
-        self.readfp (codecs.getreader('utf-8')(datastream('defaults.cfg')))
+        super(BibConfig, self).__init__()
+        self.read_file (codecs.getreader('utf-8')(datastream('defaults.cfg')))
         self.read (bibpath ('bib.cfg'))
 
 

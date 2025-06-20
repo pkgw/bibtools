@@ -8,8 +8,6 @@ Various utilities for HTTP-related activities.
 
 import codecs
 
-import six
-
 try:
     from http import cookiejar
 except ImportError:
@@ -104,11 +102,7 @@ def get_url_from_redirection(url, notfound_ok=False):
 def parse_http_html(resp, parser, debug_filename=None):
     """`parser` need only have two methods: `feed()` and `close()`."""
 
-    if six.PY2:
-        charset = resp.headers.getparam("charset")
-    else:
-        charset = resp.headers.get_content_charset("ISO-8859-1")
-
+    charset = resp.headers.get_content_charset("ISO-8859-1")
     if charset is None:
         charset = "ISO-8859-1"
 

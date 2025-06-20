@@ -23,12 +23,10 @@ requirements:
     - pwkit
     - python
     - setuptools
-    - six
 
   run:
     - pwkit
     - python
-    - six
 
 about:
   home: https://github.com/pkgw/bibtools/

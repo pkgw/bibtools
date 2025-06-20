@@ -23,8 +23,6 @@ replace nonletters with periods, so it's a gmail-ish form.
 import re
 import sys
 
-from six import text_type
-
 from .util import *
 
 __all__ = (
@@ -51,7 +49,7 @@ def normalize_surname(name):
     from unicodedata import normalize
 
     # this strips accents:
-    name = normalize("NFKD", text_type(name)).encode("ascii", "ignore").decode("ascii")
+    name = normalize("NFKD", str(name)).encode("ascii", "ignore").decode("ascii")
     # now strip non-letters and condense everything:
     return re.sub(r"\.\.+", ".", re.sub(r"[^a-z]+", ".", name.lower()))
 

@@ -23,8 +23,6 @@ unicode_to_latex_string returns a Unicode string rather than bytes. That is,
 # converted via this XSL script: https://gist.github.com/798546 . Based on my
 # experience so far, the source table is far from perfect.
 
-from six import text_type
-
 unicode_to_latex_table_base = {
     "\u0023": r"\#",
     "\u0024": r"\textdollar{}",
@@ -2391,7 +2389,7 @@ unicode_to_latex_table_base = {
 #    u"\u2AFD\u20E5": r"{\rlap{\textbackslash}{{/}\!\!{/}}}",
 
 unicode_to_latex_table = dict(
-    (ord(k), text_type(v)) for k, v in unicode_to_latex_table_base.items()
+    (ord(k), str(v)) for k, v in unicode_to_latex_table_base.items()
 )
 unicode_to_latex_string = lambda u: u.translate(unicode_to_latex_table)
 unicode_to_latex = lambda u: u.translate(unicode_to_latex_table).encode("ascii")

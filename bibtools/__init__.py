@@ -6,18 +6,15 @@
 Global structure for the bibliography tool.
 """
 
-from six import python_2_unicode_compatible, text_type
-
 __all__ = ("BibApp BibError PubLocateError MultiplePubsError").split()
 
 
-@python_2_unicode_compatible
 class BibError(Exception):
     def __init__(self, fmt, *args):
         if not len(args):
-            self.bibmsg = text_type(fmt)
+            self.bibmsg = str(fmt)
         else:
-            self.bibmsg = text_type(fmt) % args
+            self.bibmsg = str(fmt) % args
 
     def __str__(self):
         return self.bibmsg

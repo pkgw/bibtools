@@ -11,7 +11,6 @@ import io
 import json
 import sys
 
-import six
 from pwkit.cli import multitool, pop_option
 
 from .bibcore import print_generic_listing, parse_search
@@ -563,7 +562,7 @@ class Igrep(multitool.Command):
             die('style "%s" does not provide an ISSN/journal-name map', stylename)
 
         # t = (issn, jname):
-        matches = (t for t in six.viewitems(inm) if comp.search(t[1]) is not None)
+        matches = (t for t in inm.items() if comp.search(t[1]) is not None)
 
         for issn, jname in sorted(matches, key=lambda t: t[0]):
             print("%s %s" % (issn, jname.decode("utf8")))

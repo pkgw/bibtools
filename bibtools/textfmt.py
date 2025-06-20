@@ -8,8 +8,6 @@ Import/export from our text format.
 
 import json
 
-from six import text_type
-
 from .util import *
 from .bibcore import *
 
@@ -27,7 +25,7 @@ def export_one(app, pub, stream, width, include_backup_data=False):
     if pub.year is None:
         write("--no year--\n")
     else:
-        write(text_type(pub.year))
+        write(str(pub.year))
         write("\n")
     write("\n")
 

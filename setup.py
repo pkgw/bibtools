@@ -19,7 +19,6 @@ setup(
     packages=["bibtools", "bibtools.hacked_bibtexparser"],
     install_requires=[
         "pwkit >= 0.8.0",
-        "six >= 1.10",
     ],
     package_data={
         "bibtools": ["*.sql", "apj-issnmap.txt", "defaults.cfg"],

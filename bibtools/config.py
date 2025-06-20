@@ -12,22 +12,21 @@ import configparser
 
 from .util import bibpath, datastream, die
 
-__all__ = ['BibConfig Error']
+__all__ = ["BibConfig Error"]
 
 
 RCP = configparser.RawConfigParser
 Error = configparser.Error
 
 
-class BibConfig (RCP):
-    def __init__ (self):
+class BibConfig(RCP):
+    def __init__(self):
         super(BibConfig, self).__init__()
-        self.read_file (codecs.getreader('utf-8')(datastream('defaults.cfg')))
-        self.read (bibpath ('bib.cfg'))
+        self.read_file(codecs.getreader("utf-8")(datastream("defaults.cfg")))
+        self.read(bibpath("bib.cfg"))
 
-
-    def get_or_die (self, section, option):
+    def get_or_die(self, section, option):
         try:
-            return self.get (section, option)
+            return self.get(section, option)
         except Error:
-            die ('cannot find required configuration key %s/%s', section, option)
+            die("cannot find required configuration key %s/%s", section, option)

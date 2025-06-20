@@ -7,36 +7,30 @@
 
 from setuptools import setup
 
-setup (
-    name = 'bibtools',
-    version = '0.3.0.99',
-
+setup(
+    name="bibtools",
+    version="0.3.0.99",
     # This package actually *is* zip-safe, but I've run into issues with
     # installing it as a Zip: in particular, the install sometimes fails with
     # "bad local file header", and backtraces don't include source lines.
     # These are annoying enough and I don't really care so we just install it
     # as flat files.
-    zip_safe = False,
-
-    packages = ['bibtools', 'bibtools.hacked_bibtexparser'],
-
-    install_requires = [
-        'pwkit >= 0.8.0',
-        'six >= 1.10',
+    zip_safe=False,
+    packages=["bibtools", "bibtools.hacked_bibtexparser"],
+    install_requires=[
+        "pwkit >= 0.8.0",
+        "six >= 1.10",
     ],
-
-    package_data = {
-        'bibtools': ['*.sql', 'apj-issnmap.txt', 'defaults.cfg'],
+    package_data={
+        "bibtools": ["*.sql", "apj-issnmap.txt", "defaults.cfg"],
     },
-
-    entry_points = {
-        'console_scripts': ['bib = bibtools.cli:commandline'],
+    entry_points={
+        "console_scripts": ["bib = bibtools.cli:commandline"],
     },
-
-    author = 'Peter Williams',
-    author_email = 'peter@newton.cx',
-    description = 'Command-line bibliography manager',
-    license = 'GPLv3',
-    keywords = 'bibliography',
-    url = 'https://github.com/pkgw/bibtools/',
+    author="Peter Williams",
+    author_email="peter@newton.cx",
+    description="Command-line bibliography manager",
+    license="GPLv3",
+    keywords="bibliography",
+    url="https://github.com/pkgw/bibtools/",
 )

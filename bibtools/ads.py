@@ -59,7 +59,7 @@ def autolearn_bibcode(app, bibcode):
     url = "https://api.adsabs.harvard.edu/v1/export/ads"
     opener = wu.build_opener()
     opener.addheaders = [
-        ("Authorization", "Bearer:" + apikey),
+        ("Authorization", "Bearer " + apikey),
         ("Content-Type", "application/json"),
     ]
     post_data = {

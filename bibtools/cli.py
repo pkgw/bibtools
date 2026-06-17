@@ -9,6 +9,7 @@ The command-line interface.
 import codecs
 import io
 import json
+import os
 import sys
 
 from pwkit.cli import multitool, pop_option

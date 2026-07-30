@@ -124,7 +124,7 @@ def _run_ads_search(app, searchterms, filterterms, nrows=50):
     url = "http://api.adsabs.harvard.edu/v1/search/query?" + wu.urlencode(q)
 
     opener = wu.build_opener()
-    opener.addheaders = [("Authorization", "Bearer:" + apikey)]
+    opener.addheaders = [("Authorization", "Bearer " + apikey)]
     return json.load(opener.open(url))
 
 
